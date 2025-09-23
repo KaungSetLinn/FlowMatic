@@ -1,7 +1,7 @@
 # セットアップ手順
 
 ## 1. リポジトリをクローン
-git clone https://github.com/KaungSetLinn/ProjectManagementGroupware.git
+git clone https://github.com/KaungSetLinn/FlowMatic.git
 
 # プロジェクト構造
 
