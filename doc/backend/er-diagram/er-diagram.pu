@@ -38,7 +38,7 @@ package project_tables {
     }
     enum  task_priority_enum {
         low
-        middle
+        medium
         high
     }
     entity task_assigned_users <<master>>{
