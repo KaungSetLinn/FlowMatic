@@ -1,0 +1,73 @@
+@startuml er-diagram
+
+left to right direction
+
+title er-diagram
+
+package user_tables {
+    entity users <<master>>{
+        user_id : uuid <PK>
+    }
+}
+
+package project_tables {
+    entity projects <<master>>{
+        project_id : uuid <PK>
+    }
+    entity project_assigned_users <<master>>{
+        user_id : uuid <PK, FK>
+        project_id : uuid <PK, FK>
+    }
+    entity tasks <<master>>{
+        task_id : uuid <PK>
+        project_id : uuid <FK>
+        ---
+        name : text
+        description : text
+        deadline : timestamp
+        status :  task_status_enum
+        priority :  task_priority_enum
+    }
+    enum  task_status_enum {
+        to_do
+        pending
+        ready
+        in_progress
+        in_review
+        testing
+    }
+    enum  task_priority_enum {
+        low
+        middle
+        high
+    }
+    entity task_assigned_users <<master>>{
+        user_id : uuid <PK, FK>
+        task_id : uuid <PK, FK>
+    }
+    entity task_relations <<master>>{
+        parent_task_id : uuid <PK, FK>
+        child_task_id  : uuid <PK, FK>
+        relation_type : task_relation_type_enum
+    }
+    enum task_relation_type_enum {
+        start_to_start
+        start_to_finish
+        finish_to_start
+        finish_to_finish
+    }
+
+    projects ||--o{ project_assigned_users
+    project_assigned_users ||--o{ task_assigned_users
+    projects ||--o{ tasks
+    tasks ||--o{ task_relations
+    tasks ||--o{ task_relations
+    task_relations .. task_relation_type_enum
+    tasks ..  task_priority_enum
+    tasks ..  task_status_enum
+    tasks ||--o{ task_assigned_users
+}
+
+users ||--o{ project_assigned_users
+
+@enduml
