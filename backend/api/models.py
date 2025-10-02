@@ -1,3 +1,8 @@
+
+import uuid
+from django.db import models
+from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
@@ -18,18 +23,6 @@ class User(AbstractUser):
 
     USERNAME_FIELD = "email"   # login with email
     REQUIRED_FIELDS = ["username"]  # keep username for display, but not unique
-
-
-
-
-"""
-　上のコードが元あったやつ
-下が追加したやつ(書いたやつをAIが修正したバージョン)
-"""
-import uuid
-from django.db import models
-from django.conf import settings
-from django.utils.translation import gettext_lazy as _
 
 
 class Project(models.Model):
