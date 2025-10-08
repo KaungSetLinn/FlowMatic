@@ -2,9 +2,8 @@
 import uuid
 from django.db import models
 from django.conf import settings
-from django.utils.translation import gettext_lazy as _
-from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q, CheckConstraint
 
 # Create your models here.
 class User(AbstractUser):
@@ -13,6 +12,7 @@ class User(AbstractUser):
 
     # enforce unique email instead
     email = models.EmailField(unique=True)
+    
 
     # optional profile picture
     profile_picture = models.ImageField(
@@ -48,18 +48,18 @@ class ProjectAssignedUser(models.Model):
 
 
 class TaskStatus(models.TextChoices):
-    TO_DO = "to_do", _("To Do")
-    PENDING = "pending", _("Pending")
-    READY = "ready", _("Ready")
-    IN_PROGRESS = "in_progress", _("In Progress")
-    IN_REVIEW = "in_review", _("In Review")
-    TESTING = "testing", _("Testing")
+    TO_DO = "to_do", "To Do"
+    PENDING = "pending", "Pending"
+    READY = "ready", "Ready"
+    IN_PROGRESS = "in_progress", "In Progress"
+    IN_REVIEW = "in_review", "In Review"
+    TESTING = "testing", "Testing"
 
 
 class TaskPriority(models.TextChoices):
-    LOW = "low", _("Low")
-    MEDIUM = "medium", _("Medium")
-    HIGH = "high", _("High")
+    LOW = "low", "Low"
+    MEDIUM = "medium", "Medium"
+    HIGH = "high", "High"
 
 
 class Task(models.Model):
@@ -89,6 +89,17 @@ class Task(models.Model):
 
     def __str__(self):
         return self.name
+    class Meta:
+        constraints = [
+            CheckConstraint(
+                check=Q(status__in=[choice.value for choice in TaskStatus]),
+                name='valid_task_status'
+            ),
+            CheckConstraint(
+                check=Q(priority__in=[choice.value for choice in TaskPriority]),
+                name='valid_task_priority'
+            ),
+        ]
 
 
 class TaskAssignedUser(models.Model):
@@ -100,10 +111,10 @@ class TaskAssignedUser(models.Model):
 
 
 class TaskRelationType(models.TextChoices):
-    START_TO_START = "start_to_start", _("Start to Start")
-    START_TO_FINISH = "start_to_finish", _("Start to Finish")
-    FINISH_TO_START = "finish_to_start", _("Finish to Start")
-    FINISH_TO_FINISH = "finish_to_finish", _("Finish to Finish")
+    START_TO_START = "start_to_start", "Start to Start"
+    START_TO_FINISH = "start_to_finish", "Start to Finish"
+    FINISH_TO_START = "finish_to_start", "Finish to Start"
+    FINISH_TO_FINISH = "finish_to_finish", "Finish to Finish"
 
 
 class TaskRelation(models.Model):
@@ -116,3 +127,9 @@ class TaskRelation(models.Model):
 
     class Meta:
         unique_together = ('parent_task', 'child_task')
+        constraints = [
+            CheckConstraint(
+                check=Q(relation_type__in=[choice.value for choice in TaskRelationType]),
+                name='valid_relation_type'
+            ),
+        ]
