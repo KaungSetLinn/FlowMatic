@@ -246,12 +246,16 @@ const MemberInvitationModal = () => {
                         key={user.id}
                         className="flex items-center bg-blue-100 text-blue-800 rounded-full px-3 py-1"
                       >
-                        <img
-                          src={user.profile_picture}
-                          alt={user.username}
-                          className="w-10 h-10 rounded-full object-cover mr-3"
-                        />
-                        <span className="text-md mr-1">{user.username}</span>
+                        {user.profile_picture ? (
+                            <img
+                            src={user.profile_picture}
+                            alt={user.username}
+                            className="w-6 h-6 rounded-full object-cover mr-3"
+                          />
+                          ) : (
+                            <i className="fa-solid fa-user text-gray-400 text-xl ml-2.5 mr-4"></i>
+                          )}
+                        <span className="text-md mr-1 font-bold">{user.username}</span>
                         <button
                           type="button"
                           onClick={() => removeUser(user.id)}
