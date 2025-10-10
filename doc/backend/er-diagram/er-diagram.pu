@@ -56,6 +56,22 @@ package project_tables {
         finish_to_start
         finish_to_finish
     }
+    entity events <<master>>{
+        event_id : uuid <PK>
+        project_id : uuid <FK>
+        ---
+        title : text
+        is_all_day : boolean
+        start_date : timestamp
+        end_date : timestamp
+        color : event_color_enum
+    }
+    enum event_color_enum {
+        red
+        blue
+        green
+        orange
+    }
 
     projects ||--o{ project_assigned_users
     project_assigned_users ||--o{ task_assigned_users
@@ -66,6 +82,8 @@ package project_tables {
     tasks ..  task_priority_enum
     tasks ..  task_status_enum
     tasks ||--o{ task_assigned_users
+    projects ||--o{ events
+    events .. event_color_enum
 }
 
 users ||--o{ project_assigned_users
