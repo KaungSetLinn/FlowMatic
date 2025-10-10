@@ -4,7 +4,7 @@
 
 ## Request
 
-### Query Parameters
+### Path Parameters
 
 | Name | Type | Description |
 | - | - | - |
