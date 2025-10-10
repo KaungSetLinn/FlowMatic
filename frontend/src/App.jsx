@@ -1,11 +1,15 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import ProtectedRoutes from './components/ProtectedRoutes';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import NewTaskForm from './pages/NewTaskForm';
-import MemberInvitationModal from './pages/MemberInvitationModal';
-import AccountSettings from './pages/AccountSettings';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import ProtectedRoutes from "./components/ProtectedRoutes";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import NewTaskForm from "./pages/NewTaskForm";
+import MemberInvitationModal from "./pages/MemberInvitationModal";
+import AccountSettings from "./pages/AccountSettings";
+import Project from "./pages/Project";
+import Layout from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
+import Task from "./pages/Task";
 
 function App() {
   return (
@@ -17,10 +21,14 @@ function App() {
 
         {/* Protected routes */}
         <Route element={<ProtectedRoutes />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/task" element={<NewTaskForm />} />
-          <Route path="/invite" element={<MemberInvitationModal />} />
-          <Route path="/account" element={<AccountSettings />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/project" element={<Project />} />
+            <Route path="/task" element={<Task />} />
+            <Route path="/task/new" element={<NewTaskForm />} />
+            <Route path="/invite" element={<MemberInvitationModal />} />
+            <Route path="/account" element={<AccountSettings />} />
+          </Route>
         </Route>
 
         {/* Catch-all route */}
