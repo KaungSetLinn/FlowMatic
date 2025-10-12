@@ -1,11 +1,14 @@
-import { Outlet } from "react-router-dom";
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../AuthContext";
+import { CURRENT_USER } from "../constants";
 
 function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { setIsAuthorized } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const { user, setIsAuthorized } = useAuth();
+  const [username, setUsername] = useState('');
 
   const handleLogout = () => {
     localStorage.clear();
@@ -13,81 +16,113 @@ function Layout() {
     window.location.href = "/login";
   };
 
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    const userString = localStorage.getItem(CURRENT_USER);
+
+    if (userString) {
+      const user = JSON.parse(userString);
+
+      setUsername(user.username);
+    }
+
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const menuItems = [
-    {
-      to: "/",
-      icon: "fas fa-tachometer-alt",
-      label: "ダッシュボード",
-    },
-    {
-      to: "/project",
-      icon: "fas fa-project-diagram",
-      label: "プロジェクト",
-    },
+    { to: "/", icon: "fas fa-tachometer-alt", label: "ダッシュボード" },
+    { to: "/project", icon: "fas fa-project-diagram", label: "プロジェクト" },
     { to: "/task", icon: "fas fa-tasks", label: "タスク" },
+    { to: "/files", icon: "fas fa-file", label: "共有ファイル" },
     { to: "/chat", icon: "fas fa-comments", label: "チャット" },
-    {
-      to: "/calendar",
-      icon: "fas fa-calendar-alt",
-      label: "カレンダー",
-    },
+    { to: "/calendar", icon: "fas fa-calendar-alt", label: "カレンダー" },
+    { to: "/account", icon: "fas fa-gear", label: "アカウント設定" },
   ];
 
   return (
-    <div className="flex bg-gray-100 min-h-screen font-sans">
+    <div className="flex min-h-screen bg-gray-100 text-gray-900">
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        ></div>
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-blue-800 text-white flex flex-col transition-transform duration-300 z-40 ${
-          sidebarOpen ? "" : "-translate-x-full md:translate-x-0"
+        className={`fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-blue-800 to-blue-900 text-white flex flex-col shadow-xl z-40 transform transition-transform duration-300 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        <div className="p-4 text-4xl font-bold border-b border-blue-700">
+        <div className="p-5 hidden md:block text-3xl font-extrabold tracking-wide border-b border-blue-700">
           FlowMatic
         </div>
 
-        <ul className="flex-1 p-4 space-y-3">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
           {menuItems.map((item) => (
-            <li key={item.to}>
-              <NavLink
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 p-2 rounded-lg font-bold hover:cursor-pointer
-                text-xl hover:bg-blue-700  ${
-                    isActive ? "bg-blue-500" : ""
-                  }`
-                }
-              >
-                <i className={item.icon}></i>
-                {item.label}
-              </NavLink>
-            </li>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-6 p-3 rounded-lg text-xl font-bold transition-all duration-200 hover:bg-blue-700 hover:translate-x-1 ${
+                  isActive ? "bg-blue-600 shadow-inner" : "text-blue-100"
+                }`
+              }
+            >
+              <i className={`${item.icon} text-xl`}></i>
+              <span>{item.label}</span>
+            </NavLink>
           ))}
-        </ul>
+        </nav>
 
         <button
           onClick={handleLogout}
-          className="m-4 p-2 bg-red-600 hover:bg-red-700 hover:cursor-pointer
-          text-lg font-bold rounded-lg text-white"
+          className="m-4 mt-auto p-3 bg-red-600 hover:bg-red-700 text-white text-lg hover:cursor-pointer
+          font-semibold rounded-lg shadow-md transition-all duration-200"
         >
+          <i class="fa-solid fa-right-from-bracket mr-2"></i>
           ログアウト
         </button>
       </aside>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col md:ml-64">
-        {/* Header */}
-        {/* <header className="bg-white shadow p-4 flex items-center justify-between">
-          <button
-            className="md:hidden p-2 rounded bg-gray-200"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            ☰
-          </button>
-          <h1 className="text-xl font-bold">タスク管理システム</h1>
-        </header> */}
+      <div className="flex-1 flex flex-col md:ml-64 transition-all duration-300">
+        {/* Mobile Header (Blue Bar) */}
+        <header className="bg-blue-800 text-white flex items-center justify-between p-4 shadow-md md:hidden sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              className="p-2 rounded hover:bg-blue-700 hover:cursor-pointer"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <i className="fas fa-bars text-2xl"></i>
+            </button>
+            <h1 className="text-2xl font-bold tracking-wide">FlowMatic</h1>
+          </div>
+          <div>
+            <i class="fa-solid fa-bell text-3xl"></i>
+          </div>
+        </header>
+
+        {/* Desktop Header */}
+        <header className="bg-white shadow-sm hidden md:flex items-center justify-end p-6 sticky top-0 z-20">
+          <div className="text-gray-600">
+            <i class="fa-solid fa-bell text-3xl"></i>
+          </div>
+        </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 bg-gray-50">
           <Outlet />
         </main>
       </div>

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react';
 import api from '../api';
-import { ACCESS_TOKEN, REFRESH_TOKEN } from '../constants';
+import { ACCESS_TOKEN, CURRENT_USER, REFRESH_TOKEN } from '../constants';
 import { useAuth } from '../AuthContext';
 
 function Login() {
@@ -34,6 +34,7 @@ function Login() {
 
             localStorage.setItem(ACCESS_TOKEN, res.data.access);
             localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+            localStorage.setItem(CURRENT_USER, JSON.stringify(res.data.user))
 
             setIsAuthorized(true);
             setUser(res.data.user);

@@ -10,6 +10,9 @@ import Project from "./pages/Project";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Task from "./pages/Task";
+import Calendar from "./pages/Calendar";
+import Chat from "./pages/Chat";
+import Files from "./pages/Files";
 
 function App() {
   return (
@@ -28,6 +31,9 @@ function App() {
             <Route path="/task/new" element={<NewTaskForm />} />
             <Route path="/invite" element={<MemberInvitationModal />} />
             <Route path="/account" element={<AccountSettings />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/files" element={<Files />} />
           </Route>
         </Route>
 
