@@ -8,7 +8,15 @@ function Layout() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { user, setIsAuthorized } = useAuth();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState("");
+
+  const [currentProject, setCurrentProject] = useState({});
+
+  const projects = [
+    {id: 1, name: "Project1"}, 
+    {id: 2, name: "Project2"}, 
+    {id: 3, name: "Project3"}, 
+  ]
 
   const handleLogout = () => {
     localStorage.clear();
@@ -22,7 +30,6 @@ function Layout() {
 
     if (userString) {
       const user = JSON.parse(userString);
-
       setUsername(user.username);
     }
 
@@ -91,7 +98,7 @@ function Layout() {
           className="m-4 mt-auto p-3 bg-red-600 hover:bg-red-700 text-white text-lg hover:cursor-pointer
           font-semibold rounded-lg shadow-md transition-all duration-200"
         >
-          <i class="fa-solid fa-right-from-bracket mr-2"></i>
+          <i className="fa-solid fa-right-from-bracket mr-2"></i>
           ログアウト
         </button>
       </aside>
@@ -99,7 +106,7 @@ function Layout() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col md:ml-64 transition-all duration-300">
         {/* Mobile Header (Blue Bar) */}
-        <header className="bg-blue-800 text-white flex items-center justify-between p-4 shadow-md md:hidden sticky top-0 z-30">
+        <header className="bg-blue-800 text-white flex items-center justify-between p-4 shadow-md md:hidden sticky top-0 z-40">
           <div className="flex items-center gap-3">
             <button
               className="p-2 rounded hover:bg-blue-700 hover:cursor-pointer"
@@ -110,15 +117,21 @@ function Layout() {
             <h1 className="text-2xl font-bold tracking-wide">FlowMatic</h1>
           </div>
           <div>
-            <i class="fa-solid fa-bell text-3xl"></i>
+            <i className="fa-solid fa-bell text-3xl mr-2"></i>
           </div>
         </header>
 
-        {/* Desktop Header */}
-        <header className="bg-white shadow-sm hidden md:flex items-center justify-end p-6 sticky top-0 z-20">
-          <div className="text-gray-600">
-            <i class="fa-solid fa-bell text-3xl"></i>
-          </div>
+        {/* Header visible on both desktop and mobile */}
+        <header className="bg-white shadow-sm flex items-center p-4 sticky top-14 md:top-0 z-30">
+          {/* On mobile, this sits below blue bar (top-14), on desktop it's top-0 */}
+          <span className="text-lg font-bold">現在のプロジェクト：</span>
+          <select className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white">
+            {projects.map(project => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
         </header>
 
         {/* Page Content */}

@@ -2,29 +2,33 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function NewTaskForm() {
-  const [taskName, setTaskName] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [newTaskName, setNewTaskName] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [priority, setPriority] = useState("low");
+  const [priority, setPriority] = useState("medium");
   const [status, setStatus] = useState("to_do");
   const [assignees, setAssignees] = useState([]);
   const [dependencies, setDependencies] = useState([]);
   const [message, setMessage] = useState({ text: "", type: "" });
 
   const inputRef = useRef(null);
-
   const navigate = useNavigate();
+
+  // Sample project / assignee / task data (replace with API calls later)
+  const allProjects = [
+    { id: "proj_1", name: "食品ロス削減プラットフォーム" },
+    { id: "proj_2", name: "社内タスク管理システム" },
+    { id: "proj_3", name: "Eコマースダッシュボード" },
+  ];
 
   const allAssignees = [
     { id: "john_doe", label: "ジョン・ドウ" },
     { id: "jane_smith", label: "ジェーン・スミス" },
     { id: "peter_jones", label: "ピーター・ジョーンズ" },
     { id: "alice_brown", label: "アリス・ブラウン" },
-    { id: "bob_wilson", label: "ボブ・ウィルソン" },
-    { id: "charlie_davis", label: "チャーリー・デイビス" },
   ];
 
-  // サンプルのタスクデータ（実際のアプリではAPIから取得する想定）
   const sampleTasks = [
     { id: "task_1", name: "要件定義" },
     { id: "task_2", name: "設計" },
@@ -41,9 +45,7 @@ export default function NewTaskForm() {
   ];
 
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    inputRef.current?.focus();
   }, []);
 
   const handleAssigneeChange = (id) => {
@@ -61,30 +63,25 @@ export default function NewTaskForm() {
   };
 
   const handleDependencyChange = (index, field, value) => {
-    const updatedDependencies = [...dependencies];
-    updatedDependencies[index][field] = value;
-    setDependencies(updatedDependencies);
+    const updated = [...dependencies];
+    updated[index][field] = value;
+    setDependencies(updated);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validation
-    if (!taskName.trim()) {
-      showMessage("タスク名を入力してください。", "error");
-      return;
-    }
-    if (!dueDate) {
-      showMessage("期限日を選択してください。", "error");
-      return;
-    }
-    if (assignees.length === 0) {
-      showMessage("担当者を1人以上選択してください。", "error");
-      return;
-    }
+    if (!projectId)
+      return showMessage("プロジェクトを選択してください。", "error");
+    if (!newTaskName.trim())
+      return showMessage("タスク名を入力してください。", "error");
+    if (!dueDate) return showMessage("期限日を選択してください。", "error");
+    if (assignees.length === 0)
+      return showMessage("担当者を1人以上選択してください。", "error");
 
     const task = {
-      taskName,
+      projectId,
+      newTaskName,
       description,
       dueDate,
       priority,
@@ -93,12 +90,11 @@ export default function NewTaskForm() {
       dependencies,
     };
 
-    console.log("新しいタスクデータ:", task);
+    console.log("✅ 新しいタスクデータ:", task);
+    showMessage(`タスク「${newTaskName}」が正常に作成されました！`, "success");
 
-    showMessage(`タスク「${taskName}」が正常に作成されました！`, "success");
-
-    // Reset form
-    setTaskName("");
+    setProjectId("");
+    setNewTaskName("");
     setDescription("");
     setDueDate("");
     setPriority("medium");
@@ -109,29 +105,49 @@ export default function NewTaskForm() {
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
-    setTimeout(() => {
-      setMessage({ text: "", type: "" });
-    }, 5000);
+    setTimeout(() => setMessage({ text: "", type: "" }), 4000);
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8 bg-gray-100 relative">
-      {/* 👇 Back Button (outside card, top-left) */}
-      <div className="absolute top-6 left-6">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8 relative">
+      {/* Back Button */}
+      <div className="w-full max-w-2xl mb-6">
         <button
           type="button"
-          onClick={() => navigate(-1)} // go back one page
-          className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg text-xl transition duration-200 shadow"
+          onClick={() => navigate(-1)}
+          className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 hover:cursor-pointer
+                    rounded-lg text-xl transition duration-200 shadow w-auto"
         >
           ← 戻る
         </button>
       </div>
-      <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg w-full max-w-md md:max-w-lg lg:max-w-xl">
+
+      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
           新しいタスクの作成
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Project Selection */}
+          <div>
+            <label className="block text-gray-700 text-lg font-semibold mb-2">
+              プロジェクト
+            </label>
+            <select
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white"
+              required
+            >
+              <option value="">プロジェクトを選択</option>
+              {allProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Task Name */}
           <div>
             <label className="block text-gray-700 text-lg font-semibold mb-2">
@@ -139,13 +155,11 @@ export default function NewTaskForm() {
             </label>
             <input
               type="text"
-              value={taskName}
-              onChange={(e) => setTaskName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg
-                            transition duration-200"
-              placeholder="タスク名を入力してください"
-              required
+              value={newTaskName}
+              onChange={(e) => setNewTaskName(e.target.value)}
               ref={inputRef}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg"
+              placeholder="タスク名を入力してください"
             />
           </div>
 
@@ -157,14 +171,13 @@ export default function NewTaskForm() {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows="4"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg
-                            transition duration-200 resize-y"
+              rows="3"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg resize-y"
               placeholder="タスクの詳細を入力してください"
-            ></textarea>
+            />
           </div>
 
-          {/* Due Date and Assignees */}
+          {/* Due Date + Assignees */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-gray-700 text-lg font-semibold mb-2">
@@ -174,60 +187,52 @@ export default function NewTaskForm() {
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg
-                                transition duration-200"
-                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg"
               />
             </div>
+
             <div>
               <label className="block text-gray-700 text-lg font-semibold mb-2">
                 担当者
               </label>
-              <div className="checkbox-container max-h-[110px] overflow-y-auto border border-gray-300 rounded-lg p-2">
+              <div className="max-h-[110px] overflow-y-auto border border-gray-300 rounded-lg p-2">
                 {allAssignees.map((a) => (
-                  <div
+                  <label
                     key={a.id}
-                    className="checkbox-item flex items-center py-1"
+                    htmlFor={`assignee_${a.id}`}
+                    className="flex items-center py-1 text-lg text-gray-700"
                   >
                     <input
+                      id={`assignee_${a.id}`}
                       type="checkbox"
                       checked={assignees.includes(a.id)}
                       onChange={() => handleAssigneeChange(a.id)}
-                      className="rounded text-blue-600"
-                      id={`assignee_${a.id}`}
+                      className="mr-2"
                     />
-                    <label
-                      htmlFor={`assignee_${a.id}`}
-                      className="ml-2 text-lg text-gray-700"
-                    >
-                      {a.label}
-                    </label>
-                  </div>
+                    {a.label}
+                  </label>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Priority and Status */}
+          {/* Priority + Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label
-                htmlFor="priority"
-                className="block text-gray-700 text-lg font-semibold mb-2"
-              >
+              <label className="block text-gray-700 text-lg font-semibold mb-2">
                 優先度
               </label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 
-                                rounded-lg text-lg transition duration-200 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white"
               >
                 <option value="low">低</option>
                 <option value="medium">中</option>
                 <option value="high">高</option>
               </select>
             </div>
+
             <div>
               <label className="block text-gray-700 text-lg font-semibold mb-2">
                 ステータス
@@ -235,12 +240,10 @@ export default function NewTaskForm() {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 
-                                rounded-lg text-lg transition duration-200 bg-white pr-8"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white"
               >
                 <option value="to_do">未着手</option>
                 <option value="pending">保留</option>
-                <option value="ready">準備中</option>
                 <option value="in_progress">進行中</option>
                 <option value="in_review">レビュー待ち</option>
                 <option value="testing">テスト中</option>
@@ -252,118 +255,134 @@ export default function NewTaskForm() {
           <div className="border-t border-gray-200 pt-5">
             <div className="flex justify-between items-center mb-4">
               <label className="block text-gray-700 text-lg font-semibold">
-                依存関係
+                タスク間の関係
               </label>
               <button
                 type="button"
                 onClick={handleAddDependency}
-                className="bg-blue-600 text-gray-100 hover:bg-blue-700 
-                                font-semibold py-2 px-3 rounded-lg text-sm cursor-pointer"
+                className="bg-blue-600 text-white hover:bg-blue-700 hover:cursor-pointer
+                font-semibold py-2 px-3 rounded-lg text-lg"
               >
-                依存関係を追加
-                <i className="fa-solid fa-circle-plus ml-2"></i>
+                追加 <i className="fa-solid fa-plus ml-1"></i>
               </button>
             </div>
 
             {dependencies.length === 0 ? (
-              <p className="text-gray-500 text-md italic mb-4">
-                このタスクが依存する他のタスクを追加します（任意）
+              <p className="text-gray-500 text-lg italic mb-4">
+                このタスクと関係のある他のタスクを追加できます（任意）
               </p>
             ) : (
-              dependencies.map((dep, index) => (
-                <div
-                  key={index}
-                  className="mb-4 p-3 border border-gray-200 rounded-lg bg-gray-50"
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-semibold text-gray-700">
-                      依存関係 {index + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveDependency(index)}
-                      className="focus:outline-none text-white bg-red-700 hover:bg-red-800 
-                                            font-bold rounded-lg cursor-pointer
-                                            text-sm px-3 py-1.5 dark:bg-red-600 dark:hover:bg-red-7000"
-                    >
-                      削除
-                      <i className="fa-solid fa-trash ml-2"></i>
-                    </button>
-                  </div>
+              dependencies.map((dep, i) => {
+                const relatedTask = sampleTasks.find(
+                  (t) => t.id === dep.taskId
+                );
+                return (
+                  <div
+                    key={i}
+                    className="p-4 mb-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm"
+                  >
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-blue-700 font-bold text-lg">
+                        関係 {i + 1}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDependency(i)}
+                        className="text-red-500 font-semibold text-lg hover:cursor-pointer hover:text-red-600"
+                      >
+                        削除
+                      </button>
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-gray-700 text-sm font-semibold mb-2">
-                        タスク
-                      </label>
-                      <select
-                        value={dep.taskId}
-                        onChange={(e) =>
-                          handleDependencyChange(
-                            index,
-                            "taskId",
-                            e.target.value
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        required
-                      >
-                        <option value="">タスクを選択</option>
-                        {sampleTasks.map((task) => (
-                          <option key={task.id} value={task.id}>
-                            {task.name}
-                          </option>
-                        ))}
-                      </select>
+                    {/* Select Existing Task & Relation Type */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-gray-700 text-lg font-semibold mb-1">
+                          関連する既存タスク
+                        </label>
+                        <select
+                          value={dep.taskId}
+                          onChange={(e) =>
+                            handleDependencyChange(i, "taskId", e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-lg bg-white"
+                        >
+                          <option value="">タスクを選択</option>
+                          {sampleTasks.map((task) => (
+                            <option key={task.id} value={task.id}>
+                              {task.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-700 text-lg font-semibold mb-1">
+                          関係の種類
+                        </label>
+                        <select
+                          value={dep.type}
+                          onChange={(e) =>
+                            handleDependencyChange(i, "type", e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-lg bg-white"
+                        >
+                          {dependencyTypes.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-gray-700 text-sm font-semibold mb-2">
-                        関係タイプ
-                      </label>
-                      <select
-                        value={dep.type}
-                        onChange={(e) =>
-                          handleDependencyChange(index, "type", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      >
-                        {dependencyTypes.map((type) => (
-                          <option key={type.id} value={type.id}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
+
+                    {/* Relation Preview */}
+                    <div className="mt-3 text-lg text-gray-700 flex items-center justify-center gap-2">
+                      <span>
+                        <span className="font-semibold text-green-700">
+                          {relatedTask ? relatedTask.name : "未選択"}
+                        </span>
+                        {dep.type === "fts" && " が完了後に "}
+                        {dep.type === "ftf" && " が完了後に "}
+                        {dep.type === "sts" && " が開始後に "}
+                        {dep.type === "stf" && " が開始後に "}
+                        <span className="font-semibold text-blue-700">
+                          {newTaskName || "新しいタスク"}
+                        </span>
+                        {dep.type === "fts" && " を開始"}
+                        {dep.type === "ftf" && " を完了"}
+                        {dep.type === "sts" && " を開始"}
+                        {dep.type === "stf" && " を完了"}
+                      </span>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
-          {/* Create Task Button */}
+          {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-blue-600 font-extrabold text-lg text-white py-3 rounded-lg 
-                        hover:bg-blue-700 focus:outline-none focus:ring-2 
-                        focus:ring-blue-500 focus:ring-opacity-50 cursor-pointer
-                        transition duration-300 ease-in-out transform hover:scale-105"
+            className="w-full bg-blue-600 text-white font-extrabold text-lg py-3 rounded-lg 
+            hover:cursor-pointer hover:bg-blue-700 transition duration-300 transform hover:scale-105"
           >
             タスクを作成
           </button>
         </form>
 
-        {/* Message Box */}
-        {message.text &&
-          // <div
-          //     className={`mt-6 p-4 rounded-lg text-lg text-center ${
-          //         message.type === "success"
-          //             ? "bg-green-100 text-green-700"
-          //             : "bg-red-100 text-red-700"
-          //     }`}
-          // >
-          //     {message.text}
-          // </div>
-          alert(message.text)}
+        {/* Message */}
+        {message.text && (
+          <div
+            className={`mt-6 p-4 rounded-lg text-lg text-center ${
+              message.type === "success"
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
       </div>
     </div>
   );
