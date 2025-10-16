@@ -49,7 +49,7 @@ const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
 
   const handleDelete = () => {
     if (!window.confirm("本当に削除しますか？")) return;
-    saveEvents(events.filter((e) => e.id !== modal.event.id), "イベントが削除されました ❌");
+    saveEvents(events.filter((e) => e.id !== modal.event.id), "イベントが削除されました ");
     closeModal();
   };
 
