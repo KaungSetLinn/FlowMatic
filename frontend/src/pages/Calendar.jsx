@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect} from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -10,9 +10,6 @@ const Calendar = () => {
 
 const STORAGE_KEY = "calendar_events";
 const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
-
-
-const CalendarComponent = () => {
   const calendarRef = useRef(null);
   const [events, setEvents] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY)) || []);
   const [modal, setModal] = useState({ open: false, event: null, isNew: false });
@@ -195,8 +192,5 @@ const CalendarComponent = () => {
     </div>
   );
 };
-
-
-}
 
 export default Calendar;
