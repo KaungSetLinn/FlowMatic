@@ -129,7 +129,7 @@ const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
         }}
         eventClick={(info) => openModal(events.find((e) => e.id === info.event.id))}
         height="100%"
-        dayCellContent={renderDayNumber}
+        dayCellContent={ renderDayNumber }
         dayCellClassNames={(arg) => [getDayClass(arg.date.getDay())]}
         dayHeaderContent={(arg) => <span style={{ color: getDayColor(arg.date.getDay()) }}>{arg.text}</span>}
         datesSet={(info) => setCurrentDate(info.startStr)}
