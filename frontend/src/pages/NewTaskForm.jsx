@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useProject } from "../context/ProjectContext";
 
 export default function NewTaskForm() {
+  const { currentProject } = useProject();
+
   const [projectId, setProjectId] = useState("");
   const [newTaskName, setNewTaskName] = useState("");
   const [description, setDescription] = useState("");
@@ -14,13 +17,6 @@ export default function NewTaskForm() {
 
   const inputRef = useRef(null);
   const navigate = useNavigate();
-
-  // Sample project / assignee / task data (replace with API calls later)
-  const allProjects = [
-    { id: "proj_1", name: "食品ロス削減プラットフォーム" },
-    { id: "proj_2", name: "社内タスク管理システム" },
-    { id: "proj_3", name: "Eコマースダッシュボード" },
-  ];
 
   const allAssignees = [
     { id: "john_doe", label: "ジョン・ドウ" },
@@ -47,6 +43,11 @@ export default function NewTaskForm() {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    // console.log(currentProject.id);
+    setProjectId(currentProject.id);
+  }, [currentProject]);
 
   const handleAssigneeChange = (id) => {
     setAssignees((prev) =>
@@ -93,7 +94,6 @@ export default function NewTaskForm() {
     console.log("✅ 新しいタスクデータ:", task);
     showMessage(`タスク「${newTaskName}」が正常に作成されました！`, "success");
 
-    setProjectId("");
     setNewTaskName("");
     setDescription("");
     setDueDate("");
@@ -128,26 +128,6 @@ export default function NewTaskForm() {
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Project Selection */}
-          <div>
-            <label className="block text-gray-700 text-lg font-semibold mb-2">
-              プロジェクト
-            </label>
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white"
-              required
-            >
-              <option value="">プロジェクトを選択</option>
-              {allProjects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Task Name */}
           <div>
             <label className="block text-gray-700 text-lg font-semibold mb-2">
@@ -338,22 +318,24 @@ export default function NewTaskForm() {
 
                     {/* Relation Preview */}
                     <div className="mt-3 text-lg text-gray-700 flex items-center justify-center gap-2">
-                      <span>
-                        <span className="font-semibold text-green-700">
-                          {relatedTask ? relatedTask.name : "未選択"}
+                      {relatedTask && newTaskName && (
+                        <span>
+                          <span className="font-semibold text-green-700">
+                            {relatedTask.name}
+                          </span>
+                          {dep.type === "fts" && " が完了後に "}
+                          {dep.type === "ftf" && " が完了後に "}
+                          {dep.type === "sts" && " が開始後に "}
+                          {dep.type === "stf" && " が開始後に "}
+                          <span className="font-semibold text-blue-700">
+                            {newTaskName}
+                          </span>
+                          {dep.type === "fts" && " を開始"}
+                          {dep.type === "ftf" && " を完了"}
+                          {dep.type === "sts" && " を開始"}
+                          {dep.type === "stf" && " を完了"}
                         </span>
-                        {dep.type === "fts" && " が完了後に "}
-                        {dep.type === "ftf" && " が完了後に "}
-                        {dep.type === "sts" && " が開始後に "}
-                        {dep.type === "stf" && " が開始後に "}
-                        <span className="font-semibold text-blue-700">
-                          {newTaskName || "新しいタスク"}
-                        </span>
-                        {dep.type === "fts" && " を開始"}
-                        {dep.type === "ftf" && " を完了"}
-                        {dep.type === "sts" && " を開始"}
-                        {dep.type === "stf" && " を完了"}
-                      </span>
+                      )}
                     </div>
                   </div>
                 );
