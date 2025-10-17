@@ -298,7 +298,7 @@ export default function NewTaskForm() {
 
                       <div>
                         <label className="block text-gray-700 text-lg font-semibold mb-1">
-                          関係の種類
+                          関係タイプ
                         </label>
                         <select
                           value={dep.type}
