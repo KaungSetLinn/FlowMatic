@@ -13,6 +13,16 @@ package user_tables {
 package project_tables {
     entity projects <<master>>{
         project_id : uuid <PK>
+        title : text
+        description : text
+        progress : integer
+        status : project_status_enum
+        deadline : timestamp
+    }
+    enum project_status_enum {
+        planning
+        in_progress
+        completed
     }
     entity project_assigned_users <<master>>{
         user_id : uuid <PK, FK>
@@ -82,6 +92,7 @@ package project_tables {
     tasks ..  task_priority_enum
     tasks ..  task_status_enum
     tasks ||--o{ task_assigned_users
+    projects .. project_status_enum
     projects ||--o{ events
     events .. event_color_enum
 }
