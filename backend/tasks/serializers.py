@@ -1,34 +1,43 @@
 from rest_framework import serializers
-from ..api.models import Task, User, TaskRelation, TaskRelationType
+from .models import Task, TaskRelation, Project
+from django.contrib.auth.models import User
 
-class ParentTaskRelationSerializer(serializers.Serializer): 
+class TaskRelationInputSerializer(serializers.Serializer):
     task_id = serializers.UUIDField()
-    relation_type = serializers.ChoiceField(choices=['FtS', 'FtF', 'StS', 'StF'])
+    relation_type = serializers.ChoiceField(choices=[('FtS', 'FtS'), ('FtF', 'FtF'), ('StS', 'StS'), ('StF', 'StF')])
 
-class TaskCreateSerializer(serializers.Serializer):
-    name = serializers.CharField()
-    description = serializers.CharField(allow_blank=True, required=False)
-    deadline = serializers.DateTimeField()
-    priority = serializers.ChoiceField(choices=['low', 'medium', 'high'])
-    status = serializers.ChoiceField(choices=['todo', 'in_progress', 'done'])
+class TaskCreateSerializer(serializers.ModelSerializer):
     assigned_user_ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        allow_empty=True,
-        required=False
+        child=serializers.UUIDField(), write_only=True
     )
-    parent_tasks = ParentTaskRelationSerializer(many=True, required=False)
+    parent_tasks = TaskRelationInputSerializer(many=True, write_only=True)
 
-    def validate_assigned_user_ids(self, value):
-        
-        users = User.objects.filter(pk__in=value)
-        if len(users) != len(value):
-            raise serializers.ValidationError("Some assigned_user_ids do not exist.")
-        return value
+    class Meta:
+        model = Task
+        fields = ['id', 'name', 'description', 'deadline', 'priority', 'status',
+                'assigned_user_ids', 'parent_tasks']
 
-    def validate_parent_tasks(self, value):
+    def create(self, validated_data):
+        assigned_user_ids = validated_data.pop('assigned_user_ids', [])
+        parent_tasks = validated_data.pop('parent_tasks', [])
+        project = self.context['project']
+
+        task = Task.objects.create(project=project, **validated_data)
+
+    
+        users = User.objects.filter(id__in=assigned_user_ids)
+        task.assigned_users.set(users)
+
+        for relation in parent_tasks:
+            try:
+                parent_task = Task.objects.get(task_id=relation['task_id'])
+            except Task.DoesNotExist:
+                raise serializers.ValidationError(f"Parent task {relation['task_id']} does not exist.")
+            TaskRelation.objects.create(
+                parent=parent_task,
+                child=task,
+                relation_type=relation['relation_type']
+        )
         
-        valid_relation_types = ['FtS', 'FtF', 'StS', 'StF']
-        for rel in value:
-            if rel['relation_type'] not in valid_relation_types:
-                raise serializers.ValidationError(f"Invalid relation_type: {rel['relation_type']}")
-        return value
+
+        return task
