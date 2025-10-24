@@ -6,7 +6,10 @@ title er-diagram
 
 package user_tables {
     entity users <<master>>{
-        user_id : uuid <PK>
+    user_id : uuid <PK>
+    username : text
+    email : text <UQ>
+    profile_picture : text
     }
 }
 
