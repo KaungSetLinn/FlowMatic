@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
-import { useAuth } from "../AuthContext";
 import { NavLink, useNavigate } from "react-router-dom";
 import NewTaskForm from "./NewTaskForm";
+import { useAuth } from "../context/AuthContext";
 
 function Home() {
   const { setIsAuthorized, user } = useAuth();

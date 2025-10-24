@@ -1,7 +1,8 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "../AuthContext";
 import { CURRENT_USER } from "../constants";
+import { useAuth } from "../context/AuthContext";
+import { useProject } from "../context/ProjectContext";
 
 function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -10,13 +11,9 @@ function Layout() {
   const { user, setIsAuthorized } = useAuth();
   const [username, setUsername] = useState("");
 
-  const [currentProject, setCurrentProject] = useState({});
+  const { projects, currentProject, handleProjectChange, loading } = useProject();
 
-  const projects = [
-    {id: 1, name: "Project1"}, 
-    {id: 2, name: "Project2"}, 
-    {id: 3, name: "Project3"}, 
-  ]
+  if (loading) return <div className="p-6 text-gray-600">Loading projects...</div>;
 
   const handleLogout = () => {
     localStorage.clear();
@@ -79,7 +76,7 @@ function Layout() {
             <NavLink
               key={item.to}
               to={item.to}
-              end
+              end={item.to === "/"} // ✅ only exact match for Dashboard
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-6 p-3 rounded-lg text-xl font-bold transition-all duration-200 hover:bg-blue-700 hover:translate-x-1 ${
@@ -125,8 +122,12 @@ function Layout() {
         <header className="bg-white shadow-sm flex items-center p-4 sticky top-14 md:top-0 z-30">
           {/* On mobile, this sits below blue bar (top-14), on desktop it's top-0 */}
           <span className="text-lg font-bold">現在のプロジェクト：</span>
-          <select className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white">
-            {projects.map(project => (
+          <select
+            value={currentProject?.id || ""}
+            onChange={(e) => handleProjectChange(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white hover:cursor-pointer"
+          >
+            {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
               </option>
