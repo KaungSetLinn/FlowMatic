@@ -72,7 +72,17 @@ const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
 
 
   return (
-    <div style={{ width: "100vw", height: "100vh", padding: "0 15px", boxSizing: "border-box", backgroundColor: "#f9f9f9", position: "relative" }}>
+    <div style={{ 
+     width: "100vw",
+     height: "100vh",
+     margin: 0,
+     padding: 0,
+     boxSizing: "border-box", 
+     backgroundColor: "#f9f9f9", 
+     position: "fixed",
+     top: 0,
+     left: 0, 
+     overflow: "hidden"}}>
       <style>{`
         .fc-toolbar { margin-bottom: 8px !important; }
         .fc { padding-top: 2px !important; }
@@ -83,7 +93,7 @@ const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
         .fc-day-week .fc-daygrid-day-number { color: black !important; }
         .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-frame { background-color: #ffffff !important; border: 2px solid #2563eb !important; border-radius: 12px !important; box-sizing: border-box; }
         .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { color: #000000 !important; font-weight: bold; }
-        .notification-container { position: fixed; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 2000; }
+        .notification-container { position: fixed; top: 18px; right: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 2000; }
         .notification { background-color: #2563eb; color: #fff; padding: 10px 16px; border-radius: 6px; min-width: 200px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transform: translateX(120%); animation: slideIn 0.5s forwards, fadeOut 0.5s forwards 2.5s; }
         @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -93,9 +103,6 @@ const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
       {/* 月選択バー */}
       <div style={{ position: "absolute", top: "18px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "12px", zIndex: 1000, alignItems: "center" }}>
         <button onClick={goPrev} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #ccc", cursor: "pointer" }}>＜</button>
-        <span style={{ fontWeight: "bold", fontSize: "18px" }}>
-          {new Intl.DateTimeFormat(locale === jaLocale ? "ja-JP" : "en-US", { year: "numeric", month: "long" }).format(new Date(currentDate))}
-        </span>
         <button onClick={goNext} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #ccc", cursor: "pointer" }}>＞</button>
         <button onClick={goToday} style={{ padding: "6px 14px", borderRadius: "6px", border: "1px solid #2563eb", backgroundColor: "#2563eb", color: "#fff", cursor: "pointer", fontWeight: "bold", height: "32px" }}>today</button>
       </div>
@@ -129,10 +136,14 @@ const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
         }}
         eventClick={(info) => openModal(events.find((e) => e.id === info.event.id))}
         height="100%"
+        contentheight="auto"
+        aspectRatio={1.2}
+        expandRows={true}
         dayCellContent={ renderDayNumber }
         dayCellClassNames={(arg) => [getDayClass(arg.date.getDay())]}
         dayHeaderContent={(arg) => <span style={{ color: getDayColor(arg.date.getDay()) }}>{arg.text}</span>}
         datesSet={(info) => setCurrentDate(info.startStr)}
+        style={{ width: "100%", height: "calc(100vh - 10px)" }}
       />
 
 
