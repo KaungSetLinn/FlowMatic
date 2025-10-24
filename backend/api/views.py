@@ -34,5 +34,10 @@ class EmailLoginView(generics.GenericAPIView):
         }, status=status.HTTP_200_OK)
     
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]  # Only authenticated users can access
+
+    def get_queryset(self):
+        current_user = self.request.user
+        
+        return User.objects.exclude(id = current_user.id)
