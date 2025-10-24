@@ -20,6 +20,7 @@ package project_tables {
         description : text
         progress : integer
         status : project_status_enum
+        start_date : timestamp
         deadline : timestamp
     }
     enum project_status_enum {
