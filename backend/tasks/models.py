@@ -79,8 +79,20 @@ class TaskRelationType(models.TextChoices):
 
 
 class TaskRelation(models.Model):
-    parent_task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='children')
-    child_task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='parents')
+    parent_task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='children',
+        null=True,
+        blank=True
+    )
+    child_task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='parents',
+        null=True,
+        blank=True
+    )
     relation_type = models.CharField(
         max_length=20,
         choices=TaskRelationType.choices
@@ -101,9 +113,8 @@ class TaskAssignedUser(models.Model):
 
     class Meta:
         unique_together = ('user', 'task')
-    class ProjectAssignedUser(models.Model):
-        user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-        project = models.ForeignKey(Project, on_delete=models.CASCADE)
-
+class ProjectAssignedUser(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     class Meta:
         unique_together = ('user', 'project')
