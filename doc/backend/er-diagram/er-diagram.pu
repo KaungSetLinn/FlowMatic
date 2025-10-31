@@ -70,6 +70,13 @@ package project_tables {
         finish_to_start
         finish_to_finish
     }
+    entity comments <<master>>{
+        comment_id : uuid <PK>
+        task_id : uuid <FK>
+        user_id : uuid <FK>
+        ---
+        content : text
+    }
     entity events <<master>>{
         event_id : uuid <PK>
         project_id : uuid <FK>
