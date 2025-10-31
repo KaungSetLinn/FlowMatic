@@ -3,7 +3,6 @@ import ProtectedRoutes from "./components/ProtectedRoutes";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import NewTaskForm from "./pages/NewTaskForm";
 import MemberInvitationModal from "./pages/MemberInvitationModal";
 import AccountSettings from "./pages/AccountSettings";
 import Project from "./pages/Project";
@@ -14,6 +13,8 @@ import Calendar from "./pages/Calendar";
 import Chat from "./pages/Chat";
 import Files from "./pages/Files";
 import { ProjectProvider } from "./context/ProjectContext";
+import NewTaskForm from "./components/NewTaskForm";
+import NewProjectForm from "./components/NewProjectForm";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/project" element={<Project />} />
+              <Route path="/project/new" element={<NewProjectForm />} />
               <Route path="/task" element={<Task />} />
               <Route path="/task/new" element={<NewTaskForm />} />
               <Route path="/invite" element={<MemberInvitationModal />} />

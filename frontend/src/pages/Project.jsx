@@ -1,4 +1,17 @@
 import { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCheckCircle,
+  faCirclePlus,
+  faCommentDots,
+  faExclamationCircle,
+  faListUl,
+  faPen,
+  faPlayCircle,
+  faPlusCircle,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
+import { Link } from "react-router-dom";
 
 const Project = () => {
   const [projects, setProjects] = useState([
@@ -49,13 +62,17 @@ const Project = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 w-full md:max-w-6xl mx-auto p-2 md:p-4">
       {/* Page Title */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-extrabold text-gray-800">プロジェクト一覧</h1>
-        <button className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition">
-          <i className="fa-solid fa-plus mr-2"></i>新規プロジェクト
+        
+        <Link to="/project/new">
+        <button className="px-4 py-3 bg-blue-600 text-white font-bold text-xl rounded-lg shadow hover:cursor-pointer hover:bg-blue-700 transition">
+          <FontAwesomeIcon icon={faCirclePlus} className="mr-3" />
+          新規プロジェクト
         </button>
+        </Link>
       </div>
 
       {/* Project Summary */}

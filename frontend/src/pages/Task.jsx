@@ -153,7 +153,7 @@ const Task = () => {
         <h1 className="text-3xl font-bold tracking-wide">タスク管理</h1>
         <Link to="/task/new">
           <button
-            className="flex items-center bg-white text-blue-700 font-semibold text-lg px-4 py-3 hover:cursor-pointer
+            className="flex items-center bg-white text-blue-700 font-semibold text-xl px-4 py-3 hover:cursor-pointer
           gap-3 rounded-xl shadow hover:bg-blue-50 transition-all"
           >
             <FontAwesomeIcon icon={faPlusCircle} />
