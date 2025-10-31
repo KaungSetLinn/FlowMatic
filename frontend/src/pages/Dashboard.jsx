@@ -21,7 +21,7 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-2 md:p-4">
       {/* Page Title */}
       <h1 className="text-3xl font-extrabold tracking-tight text-gray-800">
         ダッシュボード

@@ -109,9 +109,9 @@ export default function NewTaskForm() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8 relative">
+    <div className="flex flex-col items-center max-w-full md:max-w-5xl mx-auto justify-center min-h-screen md:p-6 relative">
       {/* Back Button */}
-      <div className="w-full max-w-2xl mb-6">
+      <div className="w-full mb-6">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -122,8 +122,8 @@ export default function NewTaskForm() {
         </button>
       </div>
 
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+      <div className="bg-white p-8 rounded-xl shadow-lg w-full">
+        <h1 className="text-4xl font-bold text-gray-800 mb-6 text-center">
           新しいタスクの作成
         </h1>
 
