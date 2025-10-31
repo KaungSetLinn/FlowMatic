@@ -56,3 +56,48 @@
 | - | - | - |
 | task_id | uuid | 作成されたtaskのID |
 | | | 以下、Request bodyと同じ |
+
+# POST projects/{project_id}/tasks/{task_id}/comments
+
+新しいコメントをtaskに追加する
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| project_id | uuid | コメントを追加するtaskの所属するprojectのID |
+| task_id | uuid | コメントを追加するtaskのID |
+
+### Request Body
+
+```json
+{
+    "user_id": "uuid",
+    "content": "string"
+}
+```
+
+| Name | Type | Description |
+| - | - | - |
+| user_id | uuid | コメントを追加するユーザーのID |
+| content | string | コメントの内容 |
+
+## Response
+
+### 201 Created
+
+```json
+{
+    "task_id": "uuid",
+    "comment_id": "newly_created_comment_id",
+    // 以下、Request bodyと同じ
+}
+```
+
+| Name | Type | Description |
+| - | - | - |
+| task_id | uuid | コメントが追加されたtaskのID |
+| comment_id | uuid | 作成されたコメントのID |
+| | | 以下、Request bodyと同じ |
