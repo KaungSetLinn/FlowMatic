@@ -5,10 +5,12 @@ import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 import jaLocale from "@fullcalendar/core/locales/ja";
 
+
 const Calendar = () => {
   const STORAGE_KEY = "calendar_events";
   const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
   const calendarRef = useRef(null);
+
 
   const [events, setEvents] = useState(
     () => JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
@@ -17,6 +19,7 @@ const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(() => new Date().toISOString());
   const [notifications, setNotifications] = useState([]);
   const [locale, setLocale] = useState(jaLocale);
+
 
   // ✅ 通知表示
   const addNotification = (text) => {
@@ -28,6 +31,7 @@ const Calendar = () => {
     );
   };
 
+
   // ✅ イベント保存
   const saveEvents = (newEvents, actionText) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newEvents));
@@ -35,10 +39,12 @@ const Calendar = () => {
     addNotification(actionText);
   };
 
+
   // ✅ モーダル制御
   const openModal = (event = null, isNew = false) =>
     setModal({ open: true, event, isNew });
   const closeModal = () => setModal({ open: false, event: null, isNew: false });
+
 
   // ✅ イベント保存処理
   const handleSave = (evt) => {
@@ -54,6 +60,7 @@ const Calendar = () => {
     closeModal();
   };
 
+
   // ✅ 削除
   const handleDelete = () => {
     if (!window.confirm("本当に削除しますか？")) return;
@@ -64,12 +71,14 @@ const Calendar = () => {
     closeModal();
   };
 
+
   // ✅ 曜日スタイル
   const renderDayNumber = (arg) => arg.date.getDate().toString();
   const getDayClass = (day) =>
     day === 0 ? "fc-day-sun" : day === 6 ? "fc-day-sat" : "fc-day-week";
   const getDayColor = (day) =>
     day === 0 ? "red" : day === 6 ? "blue" : "black";
+
 
   // ✅ 日付フォーマット
   const formatDateJP = (date) => {
@@ -80,6 +89,7 @@ const Calendar = () => {
     return `${yyyy}-${mm}-${dd}`;
   };
 
+
   // ✅ ナビゲーション
   const goPrev = () => {
     const calendarApi = calendarRef.current.getApi();
@@ -87,17 +97,20 @@ const Calendar = () => {
     setCurrentDate(calendarApi.getDate().toISOString());
   };
 
+
   const goNext = () => {
     const calendarApi = calendarRef.current.getApi();
     calendarApi.next();
     setCurrentDate(calendarApi.getDate().toISOString());
   };
 
+
   const goToday = () => {
     const calendarApi = calendarRef.current.getApi();
     calendarApi.today();
     setCurrentDate(calendarApi.getDate().toISOString());
   };
+
 
   return (
     <div
@@ -157,6 +170,7 @@ const Calendar = () => {
         }
       `}</style>
 
+
       {/* 月選択バー */}
       <div
         style={{
@@ -215,6 +229,7 @@ const Calendar = () => {
         </button>
       </div>
 
+
       {/* 言語切替 */}
       <div
         style={{
@@ -254,6 +269,7 @@ const Calendar = () => {
           English
         </button>
       </div>
+
 
       {/* FullCalendar */}
       <FullCalendar
@@ -316,6 +332,7 @@ const Calendar = () => {
         datesSet={(info) => setCurrentDate(info.view.currentStart.toISOString())}
       />
 
+
       {/* 通知 */}
       <div className="notification-container">
         {notifications.map((n) => (
@@ -324,6 +341,7 @@ const Calendar = () => {
           </div>
         ))}
       </div>
+
 
       {/* モーダル */}
       {modal.open && (
@@ -378,6 +396,7 @@ const Calendar = () => {
               }}
             />
 
+
             <div style={{ width: "80%", margin: "0 auto 10px" }}>
               <label
                 style={{
@@ -401,6 +420,7 @@ const Calendar = () => {
                 終日
               </label>
             </div>
+
 
             {/* 開始日時 */}
             <div style={{ width: "80%", margin: "0 auto 10px" }}>
@@ -453,6 +473,7 @@ const Calendar = () => {
               )}
             </div>
 
+
             {/* 終了日時 */}
             <div style={{ width: "80%", margin: "0 auto 10px" }}>
               <label>終了日</label>
@@ -504,6 +525,7 @@ const Calendar = () => {
               )}
             </div>
 
+
             {/* 色選択 */}
             <div
               style={{
@@ -534,6 +556,7 @@ const Calendar = () => {
                 />
               ))}
             </div>
+
 
             {/* ボタン群 */}
             <div
@@ -590,4 +613,7 @@ const Calendar = () => {
   );
 };
 
+
 export default Calendar;
+
+
