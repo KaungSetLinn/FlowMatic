@@ -102,8 +102,10 @@ const Calendar = () => {
   return (
     <div
       style={{
-        width: "100vw",
-        height: "100vh",
+        width: "90%",
+        maxWidth: "950px",
+        height: "80vh",
+        margin:"40px auto",
         padding: "0 15px",
         boxSizing: "border-box",
         backgroundColor: "#f9f9f9",
