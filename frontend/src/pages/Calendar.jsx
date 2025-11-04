@@ -102,10 +102,8 @@ const Calendar = () => {
   return (
     <div
       style={{
-        width: "90%",
-        maxWidth: "950px",
-        height: "80vh",
-        margin:"40px auto",
+        width: "100vw",
+        height: "100vh",
         padding: "0 15px",
         boxSizing: "border-box",
         backgroundColor: "#f9f9f9",
@@ -167,7 +165,7 @@ const Calendar = () => {
           left: "50%",
           transform: "translateX(-50%)",
           display: "flex",
-          gap: "14px",
+          gap: "12px",
           zIndex: 1000,
           alignItems: "center",
         }}
@@ -175,8 +173,7 @@ const Calendar = () => {
         <button
           onClick={goPrev}
           style={{
-            padding: "9px 12px",
-            fontsize: "18px",
+            padding: "6px 12px",
             borderRadius: "6px",
             border: "1px solid #ccc",
             cursor: "pointer",
@@ -193,7 +190,7 @@ const Calendar = () => {
         <button
           onClick={goNext}
           style={{
-            padding: "9px 12px",
+            padding: "6px 12px",
             borderRadius: "6px",
             border: "1px solid #ccc",
             cursor: "pointer",
@@ -204,11 +201,7 @@ const Calendar = () => {
         <button
           onClick={goToday}
           style={{
-            display:"flex",
-            alignItems:"center",
-            justifyContent: "center",
-            padding: "8px 16px",
-            fontsize:"18px",
+            padding: "6px 14px",
             borderRadius: "6px",
             border: "1px solid #2563eb",
             backgroundColor: "#2563eb",
