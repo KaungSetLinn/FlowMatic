@@ -14,7 +14,7 @@ const Calendar = () => {
     () => JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
   );
   const [modal, setModal] = useState({ open: false, event: null, isNew: false });
-  const [currentDate, setCurrentDate] = useState("2025-10-01");
+  const [currentDate, setCurrentDate] = useState(() => new Date().toISOString());
   const [notifications, setNotifications] = useState([]);
   const [locale, setLocale] = useState(jaLocale);
 
@@ -313,7 +313,7 @@ const Calendar = () => {
             {arg.text}
           </span>
         )}
-        datesSet={(info) => setCurrentDate(info.startStr)}
+        datesSet={(info) => setCurrentDate(info.view.currentStart.toISOString())}
       />
 
       {/* 通知 */}
