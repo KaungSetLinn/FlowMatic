@@ -167,7 +167,7 @@ const Calendar = () => {
           left: "50%",
           transform: "translateX(-50%)",
           display: "flex",
-          gap: "12px",
+          gap: "14px",
           zIndex: 1000,
           alignItems: "center",
         }}
@@ -175,7 +175,8 @@ const Calendar = () => {
         <button
           onClick={goPrev}
           style={{
-            padding: "6px 12px",
+            padding: "9px 12px",
+            fontsize: "18px",
             borderRadius: "6px",
             border: "1px solid #ccc",
             cursor: "pointer",
@@ -192,7 +193,7 @@ const Calendar = () => {
         <button
           onClick={goNext}
           style={{
-            padding: "6px 12px",
+            padding: "9px 12px",
             borderRadius: "6px",
             border: "1px solid #ccc",
             cursor: "pointer",
@@ -203,7 +204,11 @@ const Calendar = () => {
         <button
           onClick={goToday}
           style={{
-            padding: "6px 14px",
+            display:"flex",
+            alignItems:"center",
+            justifyContent: "center",
+            padding: "8px 16px",
+            fontsize:"18px",
             borderRadius: "6px",
             border: "1px solid #2563eb",
             backgroundColor: "#2563eb",
