@@ -20,6 +20,10 @@ const Calendar = () => {
   const [notifications, setNotifications] = useState([]);
   const [locale, setLocale] = useState(jaLocale);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
 
   // ✅ 通知表示
   const addNotification = (text) => {
@@ -615,5 +619,6 @@ const Calendar = () => {
 
 
 export default Calendar;
+
 
 
