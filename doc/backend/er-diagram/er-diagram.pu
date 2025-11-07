@@ -70,6 +70,13 @@ package project_tables {
         finish_to_start
         finish_to_finish
     }
+    entity comments <<master>>{
+        comment_id : uuid <PK>
+        task_id : uuid <FK>
+        user_id : uuid <FK>
+        ---
+        content : text
+    }
     entity events <<master>>{
         event_id : uuid <PK>
         project_id : uuid <FK>
@@ -96,6 +103,8 @@ package project_tables {
     tasks ..  task_priority_enum
     tasks ..  task_status_enum
     tasks ||--o{ task_assigned_users
+tasks ||--o{ comments
+    comments ||--o{ task_assigned_users
     projects .. project_status_enum
     projects ||--o{ events
     events .. event_color_enum
