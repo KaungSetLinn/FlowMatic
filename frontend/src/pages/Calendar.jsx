@@ -20,10 +20,6 @@ const Calendar = () => {
   const [notifications, setNotifications] = useState([]);
   const [locale, setLocale] = useState(jaLocale);
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
-
 
   // ✅ 通知表示
   const addNotification = (text) => {
@@ -144,6 +140,9 @@ const Calendar = () => {
         .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
           color: #000000 !important;
           font-weight: bold;
+        }
+        .fc-daygrid-day-number {
+          font-weight: bold !important;
         }
         .notification-container {
           position: fixed;
@@ -619,6 +618,5 @@ const Calendar = () => {
 
 
 export default Calendar;
-
 
 
