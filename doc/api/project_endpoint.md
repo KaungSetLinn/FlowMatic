@@ -10,11 +10,11 @@
 {
     "title": "string",
     "description": "string",
+    "start_date": "2024-01-01T00:00:00Z",
+    "end_date": "2024-01-01T23:59:59Z",
     "progress": 0,
-
-        "status": "planning | in_progress | completed",
-    "members": ["uuid"],
-    "deadline": "2024-01-01T23:59:59Z"
+    "status": "planning | in_progress | completed",
+    "members": ["uuid"]
 }
 ```
 
@@ -22,10 +22,11 @@
 | - | - | - |
 | title | string | projectのタイトル |
 | description | string | projectの説明 |
+| start_date | string | 開始日時（ISO 8601） |
+| end_date | string | 終了日時（ISO 8601） |
 | progress | integer | 進捗（0〜100） |
 | status | string | ステータス（計画中, 進行中, 完了） |
 | members | array[uuid] | プロジェクトに紐づくメンバーのID一覧 |
-| deadline | string | 締切日時（ISO 8601） |
 
 ## Response
 
