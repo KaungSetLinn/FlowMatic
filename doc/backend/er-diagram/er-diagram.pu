@@ -77,6 +77,13 @@ package project_tables {
         ---
         content : text
     }
+    entity comments <<master>>{
+        comment_id : uuid <PK>
+        task_id : uuid <FK>
+        user_id : uuid <FK>
+        ---
+        content : text
+    }
     entity events <<master>>{
         event_id : uuid <PK>
         project_id : uuid <FK>
