@@ -71,7 +71,7 @@
 | chatrooms | array of objects | チャットルームの一覧 |
 | chatrooms.* | object | 以下、POST /projects/{project_id}/chatrooms の201レスポンスと同じ |
 
-# POST /chatrooms/{chatroom_id}/messages
+# POST /projects/{project_id}/chatrooms/{chatroom_id}/messages
 
 チャットルームにメッセージを投稿する
 
@@ -119,7 +119,7 @@
 | content | string | メッセージ内容 |
 | timestamp | string | 投稿日時（ISO 8601） |
 
-# GET /chatrooms/{chatroom_id}/messages?p={page}&per_page={per_page}
+# GET /projects/{project_id}/chatrooms/{chatroom_id}/messages?p={page}&per_page={per_page}
 
 チャットルームのメッセージ一覧を取得する
 
@@ -146,7 +146,7 @@
 {
     "messages": [
         {
-            // 以下、POST /chatrooms/{chatroom_id}/messages の201レスポンスと同じ
+            // 以下、POST /projects/{project_id}/chatrooms/{chatroom_id}/messages の201レスポンスと同じ
         }
     ],
     "page": 0,
@@ -157,9 +157,9 @@
 | Name | Type | Description |
 | - | - | - |
 | messages | array of objects | メッセージの一覧 |
-| messages.* | object | 以下、POST /chatrooms/{chatroom_id}/messages の201レスポンスと同じ |
+| messages.* | object | 以下、POST /projects/{project_id}/chatrooms/{chatroom_id}/messages の201レスポンスと同じ |
 
-# DELETE /chatrooms/{chatroom_id}
+# DELETE /projects/{project_id}/chatrooms/{chatroom_id}
 
 指定したチャットルームを削除する
 
