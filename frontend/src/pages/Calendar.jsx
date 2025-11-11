@@ -6,10 +6,14 @@ import listPlugin from "@fullcalendar/list";
 import jaLocale from "@fullcalendar/core/locales/ja";
 
 
+
+
 const Calendar = () => {
   const STORAGE_KEY = "calendar_events";
   const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
   const calendarRef = useRef(null);
+
+
 
 
   const [events, setEvents] = useState(
@@ -19,6 +23,13 @@ const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(() => new Date().toISOString());
   const [notifications, setNotifications] = useState([]);
   const [locale, setLocale] = useState(jaLocale);
+
+
+  useEffect(() => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+　}, []);
+
+
 
 
   // ✅ 通知表示
@@ -32,6 +43,8 @@ const Calendar = () => {
   };
 
 
+
+
   // ✅ イベント保存
   const saveEvents = (newEvents, actionText) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newEvents));
@@ -40,10 +53,14 @@ const Calendar = () => {
   };
 
 
+
+
   // ✅ モーダル制御
   const openModal = (event = null, isNew = false) =>
     setModal({ open: true, event, isNew });
   const closeModal = () => setModal({ open: false, event: null, isNew: false });
+
+
 
 
   // ✅ イベント保存処理
@@ -61,6 +78,8 @@ const Calendar = () => {
   };
 
 
+
+
   // ✅ 削除
   const handleDelete = () => {
     if (!window.confirm("本当に削除しますか？")) return;
@@ -72,12 +91,16 @@ const Calendar = () => {
   };
 
 
+
+
   // ✅ 曜日スタイル
   const renderDayNumber = (arg) => arg.date.getDate().toString();
   const getDayClass = (day) =>
     day === 0 ? "fc-day-sun" : day === 6 ? "fc-day-sat" : "fc-day-week";
   const getDayColor = (day) =>
     day === 0 ? "red" : day === 6 ? "blue" : "black";
+
+
 
 
   // ✅ 日付フォーマット
@@ -90,12 +113,16 @@ const Calendar = () => {
   };
 
 
+
+
   // ✅ ナビゲーション
   const goPrev = () => {
     const calendarApi = calendarRef.current.getApi();
     calendarApi.prev();
     setCurrentDate(calendarApi.getDate().toISOString());
   };
+
+
 
 
   const goNext = () => {
@@ -105,11 +132,16 @@ const Calendar = () => {
   };
 
 
+
+
   const goToday = () => {
     const calendarApi = calendarRef.current.getApi();
     calendarApi.today();
     setCurrentDate(calendarApi.getDate().toISOString());
   };
+
+
+  const [todayEventsOpen, setTodayEventsOpen] = useState(false);
 
 
   return (
@@ -124,7 +156,7 @@ const Calendar = () => {
       }}
     >
       <style>{`
-        .fc-toolbar { margin-bottom: 8px !important; }
+        .fc-toolbar { margin-bottom: 30px !important; }
         .fc { padding-top: 2px !important; }
         .fc-button { display: none !important; }
         .fc-toolbar-title { font-size: 35px !important; font-weight: bold; }
@@ -141,9 +173,11 @@ const Calendar = () => {
           color: #000000 !important;
           font-weight: bold;
         }
-        .fc-daygrid-day-number {
+       .fc-daygrid-day-number {
           font-weight: bold !important;
         }
+
+
         .notification-container {
           position: fixed;
           top: 10px;
@@ -174,6 +208,8 @@ const Calendar = () => {
       `}</style>
 
 
+
+
       {/* 月選択バー */}
       <div
         style={{
@@ -190,15 +226,15 @@ const Calendar = () => {
         <button
           onClick={goPrev}
           style={{
-            padding: "6px 12px",
-            borderRadius: "6px",
+            padding: "10px 14px",
+            borderRadius: "10px",
             border: "1px solid #ccc",
             cursor: "pointer",
           }}
         >
           ＜
         </button>
-        <span style={{ fontWeight: "bold", fontSize: "18px" }}>
+        <span style={{ fontWeight: "bold", fontSize: "25px" }}>
           {new Intl.DateTimeFormat(
             locale === jaLocale ? "ja-JP" : "en-US",
             { year: "numeric", month: "long" }
@@ -207,8 +243,8 @@ const Calendar = () => {
         <button
           onClick={goNext}
           style={{
-            padding: "6px 12px",
-            borderRadius: "6px",
+            padding: "10px 14px",
+            borderRadius: "10px",
             border: "1px solid #ccc",
             cursor: "pointer",
           }}
@@ -218,19 +254,37 @@ const Calendar = () => {
         <button
           onClick={goToday}
           style={{
-            padding: "6px 14px",
-            borderRadius: "6px",
+            padding: "10px 24px",
+            borderRadius: "22px",
             border: "1px solid #2563eb",
             backgroundColor: "#2563eb",
             color: "#fff",
             cursor: "pointer",
             fontWeight: "bold",
-            height: "32px",
+            fontsize:"16px",
+            height: "42px",
           }}
         >
           today
         </button>
+        <button
+          onClick={() => setTodayEventsOpen(true)}
+          style={{
+          marginLeft: "10px",
+          padding: "8px 20px",
+          borderRadius: "20px",
+          backgroundColor: "#16a34a",
+          border: "none",
+          color: "white",
+          fontWeight: "bold",
+          cursor: "pointer",
+          }}
+        >
+          今日の予定
+        </button>
       </div>
+
+
 
 
       {/* 言語切替 */}
@@ -272,6 +326,8 @@ const Calendar = () => {
           English
         </button>
       </div>
+
+
 
 
       {/* FullCalendar */}
@@ -333,7 +389,122 @@ const Calendar = () => {
           </span>
         )}
         datesSet={(info) => setCurrentDate(info.view.currentStart.toISOString())}
+
+
+        style={{ marginTop: "100px" }}
       />
+
+      {/* 今日の予定モーダル（フェードイン付き） */}
+{todayEventsOpen && (
+  <>
+    <style>
+      {`
+        @keyframes fadeInModal {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}
+    </style>
+
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0,0,0,0.4)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 9999,
+        animation: "fadeInModal 0.3s ease",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "white",
+          borderRadius: "12px",
+          padding: "25px",
+          width: "90%",
+          maxWidth: "480px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+          animation: "fadeInModal 0.25s ease",
+        }}
+      >
+        <h2 style={{ textAlign: "center", marginBottom: "15px" }}>今日の予定</h2>
+
+        {events.filter((e) => {
+          const today = new Date();
+          const eventDate = new Date(e.start);
+          return (
+            eventDate.getFullYear() === today.getFullYear() &&
+            eventDate.getMonth() === today.getMonth() &&
+            eventDate.getDate() === today.getDate()
+          );
+        }).length === 0 ? (
+          <p style={{ textAlign: "center", color: "#555" }}>
+            本日の予定はありません。
+          </p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {events
+              .filter((e) => {
+                const today = new Date();
+                const eventDate = new Date(e.start);
+                return (
+                  eventDate.getFullYear() === today.getFullYear() &&
+                  eventDate.getMonth() === today.getMonth() &&
+                  eventDate.getDate() === today.getDate()
+                );
+              })
+              .map((e, idx) => (
+                <li
+                  key={idx}
+                  style={{
+                    backgroundColor: e.color || "#3b82f6",
+                    color: "white",
+                    padding: "10px",
+                    borderRadius: "8px",
+                    marginBottom: "8px",
+                    opacity: 0.95,
+                  }}
+                >
+                  <strong>{e.title || "（タイトルなし）"}</strong>
+                  <br />
+                  {e.allDay
+                    ? "終日"
+                    : `${e.start.split("T")[1]?.slice(0, 5)} ～ ${e.end
+                        .split("T")[1]
+                        ?.slice(0, 5)}`}
+                </li>
+              ))}
+          </ul>
+        )}
+
+        <div style={{ textAlign: "center", marginTop: "20px" }}>
+          <button
+            onClick={() => setTodayEventsOpen(false)}
+            style={{
+              padding: "8px 20px",
+              borderRadius: "8px",
+              border: "none",
+              backgroundColor: "#e5e7eb",
+              cursor: "pointer",
+              transition: "background-color 0.2s",
+            }}
+            onMouseEnter={(e) => (e.target.style.backgroundColor = "#d1d5db")}
+            onMouseLeave={(e) => (e.target.style.backgroundColor = "#e5e7eb")}
+          >
+            閉じる
+          </button>
+        </div>
+      </div>
+    </div>
+  </>
+)}
+
+
 
 
       {/* 通知 */}
@@ -344,6 +515,8 @@ const Calendar = () => {
           </div>
         ))}
       </div>
+
+
 
 
       {/* モーダル */}
@@ -400,6 +573,8 @@ const Calendar = () => {
             />
 
 
+
+
             <div style={{ width: "80%", margin: "0 auto 10px" }}>
               <label
                 style={{
@@ -423,6 +598,8 @@ const Calendar = () => {
                 終日
               </label>
             </div>
+
+
 
 
             {/* 開始日時 */}
@@ -477,6 +654,8 @@ const Calendar = () => {
             </div>
 
 
+
+
             {/* 終了日時 */}
             <div style={{ width: "80%", margin: "0 auto 10px" }}>
               <label>終了日</label>
@@ -529,6 +708,8 @@ const Calendar = () => {
             </div>
 
 
+
+
             {/* 色選択 */}
             <div
               style={{
@@ -559,6 +740,8 @@ const Calendar = () => {
                 />
               ))}
             </div>
+
+
 
 
             {/* ボタン群 */}
@@ -617,6 +800,13 @@ const Calendar = () => {
 };
 
 
+
+
 export default Calendar;
+
+
+
+
+
 
 
