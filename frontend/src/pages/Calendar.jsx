@@ -6,8 +6,6 @@ import listPlugin from "@fullcalendar/list";
 import jaLocale from "@fullcalendar/core/locales/ja";
 
 
-
-
 const Calendar = () => {
   const STORAGE_KEY = "calendar_events";
   const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
@@ -176,8 +174,6 @@ const Calendar = () => {
        .fc-daygrid-day-number {
           font-weight: bold !important;
         }
-
-
         .notification-container {
           position: fixed;
           top: 10px;
@@ -205,6 +201,7 @@ const Calendar = () => {
           from { opacity: 1; }
           to { opacity: 0; }
         }
+        
       `}</style>
 
 
@@ -236,8 +233,8 @@ const Calendar = () => {
         </button>
         <span style={{ fontWeight: "bold", fontSize: "25px" }}>
           {new Intl.DateTimeFormat(
-            locale === jaLocale ? "ja-JP" : "en-US",
-            { year: "numeric", month: "long" }
+          locale === jaLocale ? "ja-JP" : "en-US",
+          { year: "numeric", month: "long" }
           ).format(new Date(currentDate))}
         </span>
         <button
@@ -254,6 +251,9 @@ const Calendar = () => {
         <button
           onClick={goToday}
           style={{
+            display:"flex",
+            alignItems:"center",
+            justifyContent:"center",
             padding: "10px 24px",
             borderRadius: "22px",
             border: "1px solid #2563eb",
@@ -261,7 +261,7 @@ const Calendar = () => {
             color: "#fff",
             cursor: "pointer",
             fontWeight: "bold",
-            fontsize:"16px",
+            fontSize:"20px",
             height: "42px",
           }}
         >
@@ -289,15 +289,15 @@ const Calendar = () => {
 
       {/* 言語切替 */}
       <div
-        style={{
-          position: "fixed",
-          top: "10px",
-          right: "10px",
-          display: "flex",
-          gap: "6px",
-          zIndex: 2001,
-        }}
-      >
+         style={{
+         position: "fixed",
+         top: "10px",
+         right: "10px",
+         display: "flex",
+         gap: "8px",
+         zIndex: 2000,
+         }}
+        >
         <button
           onClick={() => setLocale(jaLocale)}
           style={{
@@ -326,21 +326,16 @@ const Calendar = () => {
           English
         </button>
       </div>
-
-
-
-
-      {/* FullCalendar */}
+      
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, interactionPlugin, listPlugin]}
         locale={locale}
-        headerToolbar={{ left: "title", center: "", right: "" }}
-        initialDate={currentDate}
         navLinks
         editable
         selectable
         allDaySlot={false}
+        initialView="dayGridMonth"
         events={events.map((e) => ({
           ...e,
           backgroundColor: e.color,
@@ -390,21 +385,19 @@ const Calendar = () => {
         )}
         datesSet={(info) => setCurrentDate(info.view.currentStart.toISOString())}
 
-
-        style={{ marginTop: "100px" }}
       />
 
-      {/* 今日の予定モーダル（フェードイン付き） */}
-{todayEventsOpen && (
-  <>
-    <style>
-      {`
-        @keyframes fadeInModal {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `}
-    </style>
+        {/* 今日の予定モーダル（フェードイン付き） */}
+        {todayEventsOpen && (
+        <>
+        <style>
+          {`
+            @keyframes fadeInModal {
+             from { opacity: 0; transform: scale(0.95); }
+             to { opacity: 1; transform: scale(1); }
+             }
+         `}
+        </style>
 
     <div
       style={{
