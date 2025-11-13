@@ -30,7 +30,7 @@ const Calendar = () => {
 
 
 
-  // ✅ 通知表示
+  // 通知表示
   const addNotification = (text) => {
     const id = Date.now();
     setNotifications((prev) => [...prev, { id, text }]);
@@ -43,7 +43,7 @@ const Calendar = () => {
 
 
 
-  // ✅ イベント保存
+  // イベント保存
   const saveEvents = (newEvents, actionText) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newEvents));
     setEvents(newEvents);
@@ -53,7 +53,7 @@ const Calendar = () => {
 
 
 
-  // ✅ モーダル制御
+  // モーダル制御
   const openModal = (event = null, isNew = false) =>
     setModal({ open: true, event, isNew });
   const closeModal = () => setModal({ open: false, event: null, isNew: false });
@@ -61,7 +61,7 @@ const Calendar = () => {
 
 
 
-  // ✅ イベント保存処理
+  // イベント保存処理
   const handleSave = (evt) => {
     if (!evt.title || !evt.title.trim()) return alert("タイトルを入力してください");
     const newEvent = { ...evt };
@@ -78,7 +78,7 @@ const Calendar = () => {
 
 
 
-  // ✅ 削除
+  //  削除
   const handleDelete = () => {
     if (!window.confirm("本当に削除しますか？")) return;
     saveEvents(
@@ -91,7 +91,7 @@ const Calendar = () => {
 
 
 
-  // ✅ 曜日スタイル
+  //  曜日スタイル
   const renderDayNumber = (arg) => arg.date.getDate().toString();
   const getDayClass = (day) =>
     day === 0 ? "fc-day-sun" : day === 6 ? "fc-day-sat" : "fc-day-week";
@@ -101,7 +101,7 @@ const Calendar = () => {
 
 
 
-  // ✅ 日付フォーマット
+  // 日付フォーマット
   const formatDateJP = (date) => {
     const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     const yyyy = d.getFullYear();
@@ -113,7 +113,7 @@ const Calendar = () => {
 
 
 
-  // ✅ ナビゲーション
+  //ナビゲーション
   const goPrev = () => {
     const calendarApi = calendarRef.current.getApi();
     calendarApi.prev();
@@ -387,7 +387,7 @@ const Calendar = () => {
 
       />
 
-        {/* 今日の予定モーダル（フェードイン付き） */}
+        {/* 今日の予定モーダル */}
         {todayEventsOpen && (
         <>
         <style>
