@@ -77,6 +77,13 @@ package project_tables {
         ---
         content : text
     }
+    entity comments <<master>>{
+        comment_id : uuid <PK>
+        task_id : uuid <FK>
+        user_id : uuid <FK>
+        ---
+        content : text
+    }
     entity events <<master>>{
         event_id : uuid <PK>
         project_id : uuid <FK>
@@ -93,6 +100,22 @@ package project_tables {
         green
         orange
     }
+    entity chatrooms <<master>>{
+        chatroom_id : uuid <PK>
+        project_id : uuid <FK>
+    }
+    entity chatroom_users <<master>>{
+        chatroom_id : uuid <PK, FK>
+        user_id : uuid <PK, FK>
+    }
+    entity messages <<master>>{
+        message_id : uuid <PK>
+        chatroom_id : uuid <FK>
+        user_id : uuid <FK>
+        ---
+        content : text
+        timestamp : timestamp
+    }
 
     projects ||--o{ project_assigned_users
     project_assigned_users ||--o{ task_assigned_users
@@ -103,11 +126,16 @@ package project_tables {
     tasks ..  task_priority_enum
     tasks ..  task_status_enum
     tasks ||--o{ task_assigned_users
-tasks ||--o{ comments
+    tasks ||--o{ comments
     comments ||--o{ task_assigned_users
     projects .. project_status_enum
     projects ||--o{ events
     events .. event_color_enum
+    projects ||--o{ chatroom
+    chatrooms ||--o{ chatroom_users
+    chatroom_users ||--o{ project_assigned_users
+    chatrooms ||--o{ messages
+    messages ||--o{ chatroom_users
 }
 
 users ||--o{ project_assigned_users
