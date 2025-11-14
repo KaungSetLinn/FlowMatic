@@ -106,7 +106,7 @@ const AccountSettings = () => {
     };
 
     return (
-        <div className="ml-64 flex-1 p-8 bg-gray-100">
+        <div className="flex-1 p-8">
             {notification.show && (
                 <div className={`fixed top-4 right-4 px-4 py-3 rounded-md shadow-md text-white font-medium transform transition-all duration-300 z-50 ${
                 notification.type === 'success' ? 'bg-green-600' : 
