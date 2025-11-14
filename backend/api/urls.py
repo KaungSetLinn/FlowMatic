@@ -7,6 +7,7 @@ urlpatterns = [
     # App-level routes
     path("", include("tasks.urls")),
     path("", include("chat.urls")),
+    path("", include("event.urls")),
 
     path("user/register/", CreateUserView.as_view(), name="register"),
     path("users/", UserListView.as_view(), name="user-list"),
