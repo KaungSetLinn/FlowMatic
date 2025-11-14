@@ -13,7 +13,7 @@ class EventSerializer(serializers.ModelSerializer):
         終了日時が開始日時より後であることを検証
         """
         if data.get('end_date') and data.get('start_date'):
-            if data['end_date'] < data['start_date']:
+            if data['end_date'] <= data['start_date']:
                 raise serializers.ValidationError(
                     "end_date must be greater than or equal to start_date"
                 )
