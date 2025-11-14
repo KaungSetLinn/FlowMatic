@@ -131,7 +131,7 @@ package project_tables {
     projects .. project_status_enum
     projects ||--o{ events
     events .. event_color_enum
-    projects ||--o{ chatroom
+    projects ||--o{ chatrooms
     chatrooms ||--o{ chatroom_users
     chatroom_users ||--o{ project_assigned_users
     chatrooms ||--o{ messages
