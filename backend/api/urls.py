@@ -6,6 +6,8 @@ urlpatterns = [
 
     # App-level routes
     path("", include("tasks.urls")),
+    path("", include("projects.urls")),
+    
     path("", include("chat.urls")),
     path("", include("event.urls")),
 
