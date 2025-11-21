@@ -1,7 +1,8 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "../AuthContext";
 import { CURRENT_USER } from "../constants";
+import { useAuth } from "../context/AuthContext";
+import { useProject } from "../context/ProjectContext";
 
 function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -10,13 +11,9 @@ function Layout() {
   const { user, setIsAuthorized } = useAuth();
   const [username, setUsername] = useState("");
 
-  const [currentProject, setCurrentProject] = useState({});
+  const { projects, currentProject, handleProjectChange, loading } = useProject();
 
-  const projects = [
-    {id: 1, name: "Project1"}, 
-    {id: 2, name: "Project2"}, 
-    {id: 3, name: "Project3"}, 
-  ]
+  if (loading) return <div className="p-6 text-gray-600">Loading projects...</div>;
 
   const handleLogout = () => {
     localStorage.clear();
@@ -66,24 +63,24 @@ function Layout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-blue-800 to-blue-900 text-white flex flex-col shadow-xl z-40 transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 h-full w-64 bg-gradient-to-r from-blue-600 via-blue-800 to-blue-900 text-white flex flex-col shadow-xl z-40 transform transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        <div className="p-5 hidden md:block text-3xl font-extrabold tracking-wide border-b border-blue-700">
+        <div className="p-5 hidden md:block text-3xl font-extrabold tracking-wide border-b border-blue-400">
           FlowMatic
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-4 md:space-y-3">
           {menuItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              end
+              end={item.to === "/"} // ✅ only exact match for Dashboard
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-6 p-3 rounded-lg text-xl font-bold transition-all duration-200 hover:bg-blue-700 hover:translate-x-1 ${
-                  isActive ? "bg-blue-600 shadow-inner" : "text-blue-100"
+                `flex items-center gap-6 p-3 rounded-lg text-xl font-bold transition-all duration-200 hover:bg-blue-500/50 hover:translate-x-1 ${
+                  isActive ? "bg-blue-400/60 shadow-inner" : "text-blue-100"
                 }`
               }
             >
@@ -106,10 +103,10 @@ function Layout() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col md:ml-64 transition-all duration-300">
         {/* Mobile Header (Blue Bar) */}
-        <header className="bg-blue-800 text-white flex items-center justify-between p-4 shadow-md md:hidden sticky top-0 z-40">
+        <header className="bg-gradient-to-r from-blue-600 via-blue-800 to-blue-900 text-white flex items-center justify-between p-4 shadow-md md:hidden sticky top-0 z-40">
           <div className="flex items-center gap-3">
             <button
-              className="p-2 rounded hover:bg-blue-700 hover:cursor-pointer"
+              className="p-2 rounded hover:bg-blue-500/50 hover:cursor-pointer"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               <i className="fas fa-bars text-2xl"></i>
@@ -125,8 +122,12 @@ function Layout() {
         <header className="bg-white shadow-sm flex items-center p-4 sticky top-14 md:top-0 z-30">
           {/* On mobile, this sits below blue bar (top-14), on desktop it's top-0 */}
           <span className="text-lg font-bold">現在のプロジェクト：</span>
-          <select className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white">
-            {projects.map(project => (
+          <select
+            value={currentProject?.id || ""}
+            onChange={(e) => handleProjectChange(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white hover:cursor-pointer"
+          >
+            {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
               </option>

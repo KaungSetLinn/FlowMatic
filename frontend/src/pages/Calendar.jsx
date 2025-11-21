@@ -1,36 +1,22 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 import jaLocale from "@fullcalendar/core/locales/ja";
 
-
 const Calendar = () => {
   const STORAGE_KEY = "calendar_events";
   const COLOR_OPTIONS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"];
   const calendarRef = useRef(null);
-
-
-
-
   const [events, setEvents] = useState(
     () => JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
   );
   const [modal, setModal] = useState({ open: false, event: null, isNew: false });
-  const [currentDate, setCurrentDate] = useState(() => new Date().toISOString());
+  const [currentDate, setCurrentDate] = useState("2025-10-01");
   const [notifications, setNotifications] = useState([]);
   const [locale, setLocale] = useState(jaLocale);
 
-
-  useEffect(() => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-　}, []);
-
-
-
-
-  // 通知表示
   const addNotification = (text) => {
     const id = Date.now();
     setNotifications((prev) => [...prev, { id, text }]);
@@ -40,30 +26,18 @@ const Calendar = () => {
     );
   };
 
-
-
-
-  // イベント保存
   const saveEvents = (newEvents, actionText) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newEvents));
     setEvents(newEvents);
     addNotification(actionText);
   };
 
-
-
-
-  // モーダル制御
   const openModal = (event = null, isNew = false) =>
     setModal({ open: true, event, isNew });
   const closeModal = () => setModal({ open: false, event: null, isNew: false });
 
-
-
-
-  // イベント保存処理
   const handleSave = (evt) => {
-    if (!evt.title || !evt.title.trim()) return alert("タイトルを入力してください");
+    if (!evt.title?.trim()) return alert("タイトルを入力してください");
     const newEvent = { ...evt };
     const updatedEvents = modal.isNew
       ? [...events, newEvent]
@@ -75,33 +49,15 @@ const Calendar = () => {
     closeModal();
   };
 
-
-
-
-  //  削除
   const handleDelete = () => {
     if (!window.confirm("本当に削除しますか？")) return;
     saveEvents(
       events.filter((e) => e.id !== modal.event.id),
-      "イベントが削除されました"
+      "イベントが削除されました 🗑️"
     );
     closeModal();
   };
 
-
-
-
-  //  曜日スタイル
-  const renderDayNumber = (arg) => arg.date.getDate().toString();
-  const getDayClass = (day) =>
-    day === 0 ? "fc-day-sun" : day === 6 ? "fc-day-sat" : "fc-day-week";
-  const getDayColor = (day) =>
-    day === 0 ? "red" : day === 6 ? "blue" : "black";
-
-
-
-
-  // 日付フォーマット
   const formatDateJP = (date) => {
     const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     const yyyy = d.getFullYear();
@@ -110,445 +66,142 @@ const Calendar = () => {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-
-
-
-  //ナビゲーション
   const goPrev = () => {
     const calendarApi = calendarRef.current.getApi();
     calendarApi.prev();
     setCurrentDate(calendarApi.getDate().toISOString());
   };
-
-
-
-
   const goNext = () => {
     const calendarApi = calendarRef.current.getApi();
     calendarApi.next();
     setCurrentDate(calendarApi.getDate().toISOString());
   };
-
-
-
-
   const goToday = () => {
     const calendarApi = calendarRef.current.getApi();
     calendarApi.today();
     setCurrentDate(calendarApi.getDate().toISOString());
   };
 
-
-  const [todayEventsOpen, setTodayEventsOpen] = useState(false);
-
-
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        padding: "0 15px",
-        boxSizing: "border-box",
-        backgroundColor: "#f9f9f9",
-        position: "relative",
-      }}
-    >
-      <style>{`
-        .fc-toolbar { margin-bottom: 30px !important; }
-        .fc { padding-top: 2px !important; }
-        .fc-button { display: none !important; }
-        .fc-toolbar-title { font-size: 35px !important; font-weight: bold; }
-        .fc-day-sun .fc-daygrid-day-number { color: red !important; }
-        .fc-day-sat .fc-daygrid-day-number { color: blue !important; }
-        .fc-day-week .fc-daygrid-day-number { color: black !important; }
-        .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-frame {
-          background-color: #ffffff !important;
-          border: 2px solid #2563eb !important;
-          border-radius: 12px !important;
-          box-sizing: border-box;
-        }
-        .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-          color: #000000 !important;
-          font-weight: bold;
-        }
-       .fc-daygrid-day-number {
-          font-weight: bold !important;
-        }
-        .notification-container {
-          position: fixed;
-          top: 10px;
-          right: 10px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          z-index: 2000;
-        }
-        .notification {
-          background-color: #2563eb;
-          color: #fff;
-          padding: 10px 16px;
-          border-radius: 6px;
-          min-width: 200px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          transform: translateX(120%);
-          animation: slideIn 0.5s forwards, fadeOut 0.5s forwards 2.5s;
-        }
-        @keyframes slideIn {
-          from { transform: translateX(120%); }
-          to { transform: translateX(0); }
-        }
-        @keyframes fadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; }
-        }
-        
-      `}</style>
-
-
-
-
-      {/* 月選択バー */}
-      <div
-        style={{
-          position: "absolute",
-          top: "18px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          gap: "12px",
-          zIndex: 1000,
-          alignItems: "center",
-        }}
-      >
+    <div className="max-w-6xl mx-auto min-h-screen bg-gray-50 py-8 relative">
+      {/* Toolbar */}
+      <div className="flex justify-center items-center gap-4 mb-6">
         <button
           onClick={goPrev}
-          style={{
-            padding: "10px 14px",
-            borderRadius: "10px",
-            border: "1px solid #ccc",
-            cursor: "pointer",
-          }}
+          className="px-4 py-2 bg-white rounded-md border border-gray-300 shadow-sm hover:bg-gray-100"
         >
           ＜
         </button>
-        <span style={{ fontWeight: "bold", fontSize: "25px" }}>
-          {new Intl.DateTimeFormat(
-          locale === jaLocale ? "ja-JP" : "en-US",
-          { year: "numeric", month: "long" }
-          ).format(new Date(currentDate))}
-        </span>
         <button
           onClick={goNext}
-          style={{
-            padding: "10px 14px",
-            borderRadius: "10px",
-            border: "1px solid #ccc",
-            cursor: "pointer",
-          }}
+          className="px-4 py-2 bg-white rounded-md border border-gray-300 shadow-sm hover:bg-gray-100"
         >
           ＞
         </button>
         <button
           onClick={goToday}
-          style={{
-            display:"flex",
-            alignItems:"center",
-            justifyContent:"center",
-            padding: "10px 24px",
-            borderRadius: "22px",
-            border: "1px solid #2563eb",
-            backgroundColor: "#2563eb",
-            color: "#fff",
-            cursor: "pointer",
-            fontWeight: "bold",
-            fontSize:"20px",
-            height: "42px",
-          }}
+          className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-md shadow hover:bg-blue-700"
         >
-          today
+          今日
         </button>
-        <button
-          onClick={() => setTodayEventsOpen(true)}
-          style={{
-          marginLeft: "10px",
-          padding: "8px 20px",
-          borderRadius: "20px",
-          backgroundColor: "#16a34a",
-          border: "none",
-          color: "white",
-          fontWeight: "bold",
-          cursor: "pointer",
-          }}
-        >
-          今日の予定
-        </button>
-      </div>
 
-
-
-
-      {/* 言語切替 */}
-      <div
-         style={{
-         position: "fixed",
-         top: "10px",
-         right: "10px",
-         display: "flex",
-         gap: "8px",
-         zIndex: 2000,
-         }}
-        >
-        <button
-          onClick={() => setLocale(jaLocale)}
-          style={{
-            padding: "4px 8px",
-            borderRadius: "4px",
-            border:
-              locale === jaLocale ? "2px solid #2563eb" : "1px solid #ccc",
-            backgroundColor: locale === jaLocale ? "#2563eb" : "#fff",
-            color: locale === jaLocale ? "#fff" : "#000",
-            cursor: "pointer",
-          }}
-        >
-          日本語
-        </button>
-        <button
-          onClick={() => setLocale("en")}
-          style={{
-            padding: "4px 8px",
-            borderRadius: "4px",
-            border: locale === "en" ? "2px solid #2563eb" : "1px solid #ccc",
-            backgroundColor: locale === "en" ? "#2563eb" : "#fff",
-            color: locale === "en" ? "#fff" : "#000",
-            cursor: "pointer",
-          }}
-        >
-          English
-        </button>
-      </div>
-      
-      <FullCalendar
-        ref={calendarRef}
-        plugins={[dayGridPlugin, interactionPlugin, listPlugin]}
-        locale={locale}
-        navLinks
-        editable
-        selectable
-        allDaySlot={false}
-        initialView="dayGridMonth"
-        events={events.map((e) => ({
-          ...e,
-          backgroundColor: e.color,
-          borderColor: e.color,
-          textColor: "#fff",
-          displayEventTime: !e.allDay,
-        }))}
-        eventContent={(arg) => (
-          <div style={{ whiteSpace: "normal" }}>
-            {!arg.event.allDay && (
-              <span style={{ marginRight: "4px", fontWeight: "bold" }}>
-                {arg.timeText}
-              </span>
-            )}
-            <span>{arg.event.title}</span>
-          </div>
-        )}
-        select={(info) => {
-          const allDay = info.allDay;
-          const startStr = formatDateJP(info.start) + (allDay ? "T00:00" : "T09:00");
-          const modalEndStr = allDay
-            ? formatDateJP(new Date(info.end.getTime() - 24 * 60 * 60 * 1000)) + "T00:00"
-            : formatDateJP(info.end) + "T10:00";
-          openModal(
-            {
-              id: String(Date.now()),
-              title: "",
-              start: startStr,
-              end: modalEndStr,
-              color: "#3b82f6",
-              allDay,
-              realEnd: allDay ? info.end.toISOString() : modalEndStr,
-            },
-            true
-          );
-        }}
-        eventClick={(info) =>
-          openModal(events.find((e) => e.id === info.event.id))
-        }
-        height="100%"
-        dayCellContent={renderDayNumber}
-        dayCellClassNames={(arg) => [getDayClass(arg.date.getDay())]}
-        dayHeaderContent={(arg) => (
-          <span style={{ color: getDayColor(arg.date.getDay()) }}>
-            {arg.text}
-          </span>
-        )}
-        datesSet={(info) => setCurrentDate(info.view.currentStart.toISOString())}
-
-      />
-
-        {/* 今日の予定モーダル */}
-        {todayEventsOpen && (
-        <>
-        <style>
-          {`
-            @keyframes fadeInModal {
-             from { opacity: 0; transform: scale(0.95); }
-             to { opacity: 1; transform: scale(1); }
-             }
-         `}
-        </style>
-
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        backgroundColor: "rgba(0,0,0,0.4)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 9999,
-        animation: "fadeInModal 0.3s ease",
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: "white",
-          borderRadius: "12px",
-          padding: "25px",
-          width: "90%",
-          maxWidth: "480px",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-          animation: "fadeInModal 0.25s ease",
-        }}
-      >
-        <h2 style={{ textAlign: "center", marginBottom: "15px" }}>今日の予定</h2>
-
-        {events.filter((e) => {
-          const today = new Date();
-          const eventDate = new Date(e.start);
-          return (
-            eventDate.getFullYear() === today.getFullYear() &&
-            eventDate.getMonth() === today.getMonth() &&
-            eventDate.getDate() === today.getDate()
-          );
-        }).length === 0 ? (
-          <p style={{ textAlign: "center", color: "#555" }}>
-            本日の予定はありません。
-          </p>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {events
-              .filter((e) => {
-                const today = new Date();
-                const eventDate = new Date(e.start);
-                return (
-                  eventDate.getFullYear() === today.getFullYear() &&
-                  eventDate.getMonth() === today.getMonth() &&
-                  eventDate.getDate() === today.getDate()
-                );
-              })
-              .map((e, idx) => (
-                <li
-                  key={idx}
-                  style={{
-                    backgroundColor: e.color || "#3b82f6",
-                    color: "white",
-                    padding: "10px",
-                    borderRadius: "8px",
-                    marginBottom: "8px",
-                    opacity: 0.95,
-                  }}
-                >
-                  <strong>{e.title || "（タイトルなし）"}</strong>
-                  <br />
-                  {e.allDay
-                    ? "終日"
-                    : `${e.start.split("T")[1]?.slice(0, 5)} ～ ${e.end
-                        .split("T")[1]
-                        ?.slice(0, 5)}`}
-                </li>
-              ))}
-          </ul>
-        )}
-
-        <div style={{ textAlign: "center", marginTop: "20px" }}>
+        {/* Locale Switch */}
+        <div className="ml-6 flex gap-2">
           <button
-            onClick={() => setTodayEventsOpen(false)}
-            style={{
-              padding: "8px 20px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: "#e5e7eb",
-              cursor: "pointer",
-              transition: "background-color 0.2s",
-            }}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = "#d1d5db")}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "#e5e7eb")}
+            onClick={() => setLocale(jaLocale)}
+            className={`px-3 py-1 rounded-md border ${
+              locale === jaLocale
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-white border-gray-300 hover:bg-gray-100"
+            }`}
           >
-            閉じる
+            日本語
+          </button>
+          <button
+            onClick={() => setLocale("en")}
+            className={`px-3 py-1 rounded-md border ${
+              locale === "en"
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-white border-gray-300 hover:bg-gray-100"
+            }`}
+          >
+            English
           </button>
         </div>
       </div>
-    </div>
-  </>
-)}
 
+      {/* Calendar */}
+      <div className="bg-white rounded-xl shadow-md p-4">
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, interactionPlugin, listPlugin]}
+          locale={locale}
+          headerToolbar={{ left: "title", center: "", right: "" }}
+          initialDate={currentDate}
+          selectable
+          editable
+          events={events.map((e) => ({
+            ...e,
+            backgroundColor: e.color,
+            borderColor: e.color,
+            textColor: "#fff",
+          }))}
+          eventContent={(arg) => (
+            <div className="whitespace-normal text-sm">
+              {!arg.event.allDay && (
+                <span className="font-bold mr-1">{arg.timeText}</span>
+              )}
+              <span>{arg.event.title}</span>
+            </div>
+          )}
+          select={(info) => {
+            const allDay = info.allDay;
+            const startStr = formatDateJP(info.start) + (allDay ? "T00:00" : "T09:00");
+            const modalEndStr = allDay
+              ? formatDateJP(new Date(info.end.getTime() - 86400000)) + "T00:00"
+              : formatDateJP(info.end) + "T10:00";
+            openModal(
+              {
+                id: String(Date.now()),
+                title: "",
+                start: startStr,
+                end: modalEndStr,
+                color: "#3b82f6",
+                allDay,
+              },
+              true
+            );
+          }}
+          eventClick={(info) =>
+            openModal(events.find((e) => e.id === info.event.id))
+          }
+          height="80vh"
+        />
+      </div>
 
-
-
-      {/* 通知 */}
-      <div className="notification-container">
+      {/* Notifications */}
+      <div className="fixed top-5 right-5 space-y-2 z-[2000]">
         {notifications.map((n) => (
-          <div key={n.id} className="notification">
+          <div
+            key={n.id}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md shadow-lg animate-slide-in"
+          >
             {n.text}
           </div>
         ))}
       </div>
 
-
-
-
-      {/* モーダル */}
+      {/* Modal */}
       {modal.open && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: "10px",
-            boxSizing: "border-box",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#fff",
-              padding: "25px",
-              borderRadius: "10px",
-              width: "100%",
-              maxWidth: "500px",
-              maxHeight: "95vh",
-              overflowY: "auto",
-              boxSizing: "border-box",
-              textAlign: "center",
-            }}
-          >
-            <h3 style={{ marginBottom: "10px" }}>
-              {modal.isNew ? "新しいイベント" : "イベント編集・削除"}
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-[1000]">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl animate-fade-in">
+            <h3 className="text-xl font-semibold mb-5 text-gray-800">
+              {modal.isNew ? "📝 新しいイベント" : "✏️ イベント編集"}
             </h3>
+
             <input
               type="text"
-              placeholder="タイトル"
+              placeholder="タイトルを入力..."
               value={modal.event.title}
               onChange={(e) =>
                 setModal({
@@ -556,231 +209,140 @@ const Calendar = () => {
                   event: { ...modal.event, title: e.target.value },
                 })
               }
-              style={{
-                width: "80%",
-                padding: "12px",
-                marginBottom: "15px",
-                borderRadius: "6px",
-                border: "1px solid #ccc",
-              }}
+              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:ring-2 focus:ring-blue-400"
             />
 
-
-
-
-            <div style={{ width: "80%", margin: "0 auto 10px" }}>
-              <label
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={modal.event.allDay || false}
-                  onChange={(e) =>
-                    setModal({
-                      ...modal,
-                      event: { ...modal.event, allDay: e.target.checked },
-                    })
-                  }
-                />
-                終日
-              </label>
-            </div>
-
-
-
-
-            {/* 開始日時 */}
-            <div style={{ width: "80%", margin: "0 auto 10px" }}>
-              <label>開始日</label>
+            <label className="flex items-center gap-2 mb-3 font-semibold text-gray-700">
               <input
-                type="date"
-                value={modal.event.start?.split("T")[0] || ""}
+                type="checkbox"
+                checked={modal.event.allDay || false}
                 onChange={(e) =>
                   setModal({
                     ...modal,
-                    event: {
-                      ...modal.event,
-                      start:
-                        e.target.value +
-                        "T" +
-                        (modal.event.start?.split("T")[1] || "09:00"),
-                    },
+                    event: { ...modal.event, allDay: e.target.checked },
                   })
                 }
-                style={{
-                  width: "100%",
-                  padding: "8px",
-                  marginTop: "4px",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                }}
               />
-              {!modal.event.allDay && (
+              終日イベント
+            </label>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600">開始</label>
                 <input
-                  type="time"
-                  value={modal.event.start?.split("T")[1] || "09:00"}
+                  type="date"
+                  value={modal.event.start?.split("T")[0] || ""}
                   onChange={(e) =>
                     setModal({
                       ...modal,
                       event: {
                         ...modal.event,
                         start:
-                          modal.event.start.split("T")[0] + "T" + e.target.value,
+                          e.target.value +
+                          "T" +
+                          (modal.event.start?.split("T")[1] || "09:00"),
                       },
                     })
                   }
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    marginTop: "4px",
-                    borderRadius: "6px",
-                    border: "1px solid #ccc",
-                  }}
+                  className="w-full border border-gray-300 rounded-md p-2"
                 />
-              )}
-            </div>
-
-
-
-
-            {/* 終了日時 */}
-            <div style={{ width: "80%", margin: "0 auto 10px" }}>
-              <label>終了日</label>
-              <input
-                type="date"
-                value={modal.event.end?.split("T")[0] || ""}
-                onChange={(e) =>
-                  setModal({
-                    ...modal,
-                    event: {
-                      ...modal.event,
-                      end:
-                        e.target.value +
-                        "T" +
-                        (modal.event.end?.split("T")[1] || "10:00"),
-                    },
-                  })
-                }
-                style={{
-                  width: "100%",
-                  padding: "8px",
-                  marginTop: "4px",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                }}
-              />
-              {!modal.event.allDay && (
+                {!modal.event.allDay && (
+                  <input
+                    type="time"
+                    value={modal.event.start?.split("T")[1] || "09:00"}
+                    onChange={(e) =>
+                      setModal({
+                        ...modal,
+                        event: {
+                          ...modal.event,
+                          start:
+                            modal.event.start.split("T")[0] + "T" + e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full border border-gray-300 rounded-md p-2 mt-1"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600">終了</label>
                 <input
-                  type="time"
-                  value={modal.event.end?.split("T")[1] || "10:00"}
+                  type="date"
+                  value={modal.event.end?.split("T")[0] || ""}
                   onChange={(e) =>
                     setModal({
                       ...modal,
                       event: {
                         ...modal.event,
                         end:
-                          modal.event.end.split("T")[0] + "T" + e.target.value,
+                          e.target.value +
+                          "T" +
+                          (modal.event.end?.split("T")[1] || "10:00"),
                       },
                     })
                   }
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    marginTop: "4px",
-                    borderRadius: "6px",
-                    border: "1px solid #ccc",
-                  }}
+                  className="w-full border border-gray-300 rounded-md p-2"
                 />
-              )}
+                {!modal.event.allDay && (
+                  <input
+                    type="time"
+                    value={modal.event.end?.split("T")[1] || "10:00"}
+                    onChange={(e) =>
+                      setModal({
+                        ...modal,
+                        event: {
+                          ...modal.event,
+                          end:
+                            modal.event.end.split("T")[0] + "T" + e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full border border-gray-300 rounded-md p-2 mt-1"
+                  />
+                )}
+              </div>
             </div>
 
-
-
-
-            {/* 色選択 */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "10px",
-                flexWrap: "wrap",
-                marginBottom: "15px",
-              }}
-            >
+            <div className="flex justify-center gap-3 mb-5">
               {COLOR_OPTIONS.map((color) => (
                 <button
                   key={color}
                   onClick={() =>
                     setModal({ ...modal, event: { ...modal.event, color } })
                   }
-                  style={{
-                    width: "35px",
-                    height: "35px",
-                    borderRadius: "50%",
-                    backgroundColor: color,
-                    border:
-                      modal.event.color === color
-                        ? "3px solid black"
-                        : "1px solid #ccc",
-                    cursor: "pointer",
-                  }}
+                  className={`w-9 h-9 rounded-full border-2 ${
+                    modal.event.color === color
+                      ? "border-black scale-110"
+                      : "border-gray-300"
+                  } transition-transform`}
+                  style={{ backgroundColor: color }}
                 />
               ))}
             </div>
 
-
-
-
-            {/* ボタン群 */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "12px",
-                flexWrap: "wrap",
-              }}
-            >
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() =>
-                  handleSave({ ...modal.event, end: modal.event.realEnd || modal.event.end })
+                  handleSave({
+                    ...modal.event,
+                    end: modal.event.realEnd || modal.event.end,
+                  })
                 }
-                style={{
-                  backgroundColor: "#2563eb",
-                  color: "#fff",
-                  padding: "12px 22px",
-                  borderRadius: "6px",
-                  border: "none",
-                }}
+                className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700"
               >
                 {modal.isNew ? "追加" : "保存"}
               </button>
               {!modal.isNew && (
                 <button
                   onClick={handleDelete}
-                  style={{
-                    backgroundColor: "#ff4d4d",
-                    color: "#fff",
-                    padding: "10px 18px",
-                    borderRadius: "6px",
-                    border: "none",
-                  }}
+                  className="bg-red-500 text-white px-5 py-2 rounded-md hover:bg-red-600"
                 >
                   削除
                 </button>
               )}
               <button
                 onClick={closeModal}
-                style={{
-                  padding: "10px 18px",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                }}
+                className="px-5 py-2 rounded-md border border-gray-300 hover:bg-gray-100"
               >
                 閉じる
               </button>
@@ -792,14 +354,4 @@ const Calendar = () => {
   );
 };
 
-
-
-
 export default Calendar;
-
-
-
-
-
-
-
