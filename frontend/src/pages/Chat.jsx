@@ -106,37 +106,36 @@ const Chat = () => {
 
   return (
     // h-screen でビューポートの高さに固定し、メイン画面全体のスクロールを防止
-    <div className="flex w-full h-screen bg-white font-inter p-0 m-0"> 
-      
-      {/* 1. 左側: チャットルーム一覧 (Sidebar) */}
-      <div 
-        className={`flex-shrink-0 flex-col border-r border-gray-200 ${
-            selectedChat === null ? 'w-full flex' : 'w-full sm:w-1/3 flex' // ルーム選択がない場合はモバイルで全幅表示
-        } h-full`} // h-full を追加
-      >
-        <div className="p-4 border-b flex-shrink-0">
-          <h2 className="text-xl font-bold text-gray-800">ルーム一覧</h2>
-        </div>
-        
-        {/* ルームリスト */}
-        <div className="overflow-y-auto flex-grow h-full"> {/* h-full を追加し、高さを明示的に確保 */}
-          {chats.map((chat) => (
-            <div
-              key={chat.id}
-              onClick={() => setSelectedChat(chat.id)}
-              className={`p-4 cursor-pointer transition ${
-                selectedChat === chat.id 
-                  ? "bg-blue-100 border-l-4 border-blue-600 font-bold" 
-                  : "hover:bg-gray-50"
-              }`}
-            >
-              <p className="text-gray-800">{chat.name}</p>
-              <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
-              <span className="text-xs text-gray-400 float-right">{chat.timestamp}</span>
-            </div>
-          ))}
-        </div>
+    <div className="flex w-full h-screen overflow-hidden bg-white font-inter p-0 m-0"> 
+
+    {/* ルーム一覧（左側） */}
+    <div className="flex-shrink-0 flex flex-col w-full sm:w-1/3 h-full border-r border-gray-200">
+
+      {/* ヘッダー：スクロールしない */}
+      <div className="p-4 border-b flex-shrink-0">
+        <h2 className="text-xl font-bold text-gray-800">ルーム一覧</h2>
       </div>
+
+      {/* ルームリスト：ここだけスクロール */}
+      <div className="flex-grow overflow-y-auto">
+        {chats.map(chat => (
+          <div
+            key={chat.id}
+            onClick={() => setSelectedChat(chat.id)}
+            className={`p-4 cursor-pointer transition ${
+              selectedChat === chat.id
+                ? "bg-blue-100 border-l-4 border-blue-600 font-bold"
+                : "hover:bg-gray-50"
+            }`}
+          >
+            <p className="text-gray-800">{chat.name}</p>
+            <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
+            <span className="text-xs text-gray-400 float-right">{chat.timestamp}</span>
+          </div>
+        ))}
+      </div>
+
+    </div>
 
       {/* 2. 右側: メインチャットエリア */}
       {/* 💡 修正1: h-full を追加し、親の h-screen の高さを確実に継承 */}
