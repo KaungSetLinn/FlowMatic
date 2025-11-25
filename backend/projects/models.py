@@ -38,11 +38,11 @@ class Project(models.Model):
     class Meta:
         constraints = [
             CheckConstraint(
-                check=Q(deadline__gte=F('start_date')),
+                condition=Q(deadline__gte=F('start_date')),
                 name='valid_project_dates'
             ),
             CheckConstraint(
-                check=Q(progress__gte=0) & Q(progress__lte=100),
+                condition=Q(progress__gte=0) & Q(progress__lte=100),
                 name='valid_project_progress'
             ),
         ]

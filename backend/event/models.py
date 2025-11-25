@@ -31,11 +31,11 @@ class Event(models.Model):
     class Meta:
         constraints = [
             CheckConstraint(
-                check=Q(color__in=[choice.value for choice in EventColor]),
+                condition=Q(color__in=[choice.value for choice in EventColor]),
                 name='valid_event_color'
             ),
             CheckConstraint(
-                check=Q(end_date__gte=models.F('start_date')),
+                condition=Q(end_date__gte=models.F('start_date')),
                 name='valid_event_date_range'
             ),
         ]
