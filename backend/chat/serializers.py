@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from tasks.models import Project
+from projects.models import Project
 from .models import ChatRoom, ChatRoomUser, Message
 
 

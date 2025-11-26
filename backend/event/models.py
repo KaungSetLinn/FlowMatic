@@ -1,7 +1,7 @@
 import uuid
 from django.db import models
 from django.db.models import Q, CheckConstraint
-from tasks.models import Project
+from projects.models import Project
 
 
 class EventColor(models.TextChoices):

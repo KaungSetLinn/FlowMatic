@@ -2,13 +2,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Project
+from projects.models import Project
 from .serializers import TaskCreateSerializer
 
 class TaskCreateView(APIView):
     def post(self, request, project_id):
         try:
-            project = Project.objects.get(id=project_id)
+            project = Project.objects.get(project_id=project_id)
         except Project.DoesNotExist:
             return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
 
