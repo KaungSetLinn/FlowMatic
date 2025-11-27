@@ -40,3 +40,36 @@
 .read-the-docs {
   color: #888;
 }
+
+/* FullCalendar の縦線・横線が消える問題の完全修正版 */
+
+.custom-flowmatic-calendar .fc-scrollgrid,
+.custom-flowmatic-calendar .fc-scrollgrid table ,
+.custom-flowmatic-calendar .fc-daygrid-body,
+.custom-flowmatic-calendar .fc-daygrid-day,
+.custom-flowmatic-calendar .fc-col-header-cell {
+  border: 1px solid #e5e7eb !important;
+}
+
+.custom-flowmatic-calendar .fc-scrollgrid table{
+  border-collapse: collapse !important;
+}
+
+.custom-flowmatic-calendar .fc-scrollgrid td,
+.custom-flowmatic-calendar .fc-scrollgrid th {
+  border: 1px solid #e5e7eb !important;
+  border-collapse: collapse !important;
+}
+
+.custom-flowmatic-calendar .fc-col-header-cell {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.today-circle {
+  background-color: inherit !important; /* 元の色に戻す */
+  border: 3px solid #3b82f6;            /* 太い青枠 */
+  border-radius: 50%;                    /* 丸くする */
+  box-sizing: border-box;
+}
+
