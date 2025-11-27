@@ -66,10 +66,3 @@
   font-weight: 600;
 }
 
-.today-circle {
-  background-color: inherit !important; /* 元の色に戻す */
-  border: 3px solid #3b82f6;            /* 太い青枠 */
-  border-radius: 50%;                    /* 丸くする */
-  box-sizing: border-box;
-}
-
