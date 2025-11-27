@@ -229,7 +229,7 @@ export default function NewProjectForm() {
             {searchQuery && filteredMembers.length > 0 && (
               <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden shadow-lg">
                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-600">
+                  <h3 className="text-lg font-semibold text-gray-600">
                     検索結果 ({filteredMembers.length}件)
                   </h3>
                 </div>
