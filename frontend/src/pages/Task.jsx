@@ -147,7 +147,7 @@ const Task = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto md:p-6 space-y-10">
+    <div className="mx-auto md:p-6 space-y-10">
       {/* Header */}
       <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-6 rounded-2xl shadow-lg">
         <h1 className="text-3xl font-bold tracking-wide">タスク管理</h1>

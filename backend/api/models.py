@@ -1,5 +1,7 @@
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+
 
 # Create your models here.
 class User(AbstractUser):
@@ -8,6 +10,7 @@ class User(AbstractUser):
 
     # enforce unique email instead
     email = models.EmailField(unique=True)
+    
 
     # optional profile picture
     profile_picture = models.ImageField(
@@ -18,3 +21,5 @@ class User(AbstractUser):
 
     USERNAME_FIELD = "email"   # login with email
     REQUIRED_FIELDS = ["username"]  # keep username for display, but not unique
+
+

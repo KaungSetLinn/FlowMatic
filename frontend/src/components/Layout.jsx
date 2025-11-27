@@ -11,9 +11,11 @@ function Layout() {
   const { user, setIsAuthorized } = useAuth();
   const [username, setUsername] = useState("");
 
-  const { projects, currentProject, handleProjectChange, loading } = useProject();
+  const { projects, currentProject, handleProjectChange, loading } =
+    useProject();
 
-  if (loading) return <div className="p-6 text-gray-600">Loading projects...</div>;
+  if (loading)
+    return <div className="p-6 text-gray-600">Loading projects...</div>;
 
   const handleLogout = () => {
     localStorage.clear();
@@ -46,6 +48,11 @@ function Layout() {
     { to: "/project", icon: "fas fa-project-diagram", label: "プロジェクト" },
     { to: "/task", icon: "fas fa-tasks", label: "タスク" },
     { to: "/files", icon: "fas fa-file", label: "共有ファイル" },
+    {
+      to: "/gantt-chart",
+      icon: "fas fa-chart-gantt",
+      label: "タイムライン",
+    },
     { to: "/chat", icon: "fas fa-comments", label: "チャット" },
     { to: "/calendar", icon: "fas fa-calendar-alt", label: "カレンダー" },
     { to: "/account", icon: "fas fa-gear", label: "アカウント設定" },

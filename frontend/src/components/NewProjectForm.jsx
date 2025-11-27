@@ -8,17 +8,15 @@ import { getUsers } from "../services/UserService";
 
 export default function NewProjectForm() {
   const navigate = useNavigate();
-
   const inputRef = useRef(null);
 
   const [availableMembers, setAvailableMembers] = useState([]);
-
   const [searchQuery, setSearchQuery] = useState("");
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    startDate: dayjs().toISOString(), // default to now
+    startDate: dayjs().toISOString(),
     deadline: "",
     status: "planning",
     members: [],
@@ -33,7 +31,6 @@ export default function NewProjectForm() {
   const filteredMembers = useMemo(() => {
     const excludedIds = new Set(formData.members);
 
-    // Exclude selected members first
     const unselectedMembers = availableMembers.filter(
       (member) => !excludedIds.has(member.id)
     );
@@ -66,10 +63,7 @@ export default function NewProjectForm() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleMemberChange = (e) => {
@@ -77,16 +71,12 @@ export default function NewProjectForm() {
       e.target.selectedOptions,
       (option) => option.value
     );
-    setFormData((prev) => ({
-      ...prev,
-      members: selectedOptions,
-    }));
+    setFormData((prev) => ({ ...prev, members: selectedOptions }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // API送信用データの作成
     const submitData = {
       title: formData.title,
       description: formData.description,
@@ -94,16 +84,9 @@ export default function NewProjectForm() {
       deadline: formData.deadline,
       status: formData.status,
       members: formData.members,
-      // progressはサーバー側で自動的に0が設定される
     };
 
     console.log("送信データ:", submitData);
-    // ここでAPIリクエストを送信
-  };
-
-  const formatDateForInput = (dateString) => {
-    if (!dateString) return "";
-    return dateString.slice(0, 16); // YYYY-MM-DDThh:mm 形式に変換
   };
 
   const handleDateChange = (name, newValue) => {
@@ -115,7 +98,6 @@ export default function NewProjectForm() {
 
   return (
     <div className="flex flex-col items-center max-w-full md:max-w-5xl mx-auto justify-center min-h-screen p-4 sm:p-6 lg:p-8 relative">
-      {/* Back Button */}
       <div className="w-full mb-6">
         <button
           type="button"
@@ -133,9 +115,9 @@ export default function NewProjectForm() {
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* タイトル入力 */}
+          {/* タイトル */}
           <div>
-            <label htmlFor="title" className="block text-xl font-bold  mb-3">
+            <label htmlFor="title" className="block text-xl font-bold mb-3">
               タイトル
             </label>
             <input
@@ -151,12 +133,9 @@ export default function NewProjectForm() {
             />
           </div>
 
-          {/* 説明入力 */}
+          {/* 説明 */}
           <div>
-            <label
-              htmlFor="description"
-              className="block text-xl font-bold  mb-3"
-            >
+            <label htmlFor="description" className="block text-xl font-bold mb-3">
               説明
             </label>
             <textarea
@@ -173,10 +152,7 @@ export default function NewProjectForm() {
 
           {/* 開始日 */}
           <div>
-            <label
-              htmlFor="startDate"
-              className="block text-xl font-bold  mb-3"
-            >
+            <label htmlFor="startDate" className="block text-xl font-bold mb-3">
               開始日
             </label>
             <MobileDateTimePicker
@@ -194,9 +170,9 @@ export default function NewProjectForm() {
             />
           </div>
 
-          {/* 締切日 */}
+          {/* 締切 */}
           <div>
-            <label htmlFor="deadline" className="block text-xl font-bold  mb-3">
+            <label htmlFor="deadline" className="block text-xl font-bold mb-3">
               締切日
             </label>
             <MobileDateTimePicker
@@ -214,9 +190,9 @@ export default function NewProjectForm() {
             />
           </div>
 
-          {/* ステータス選択 */}
+          {/* ステータス */}
           <div>
-            <label htmlFor="status" className="block text-xl font-bold  mb-3">
+            <label htmlFor="status" className="block text-xl font-bold mb-3">
               ステータス
             </label>
             <select
@@ -234,8 +210,7 @@ export default function NewProjectForm() {
             </select>
           </div>
 
-          {/* メンバー選択 */}
-          {/* メンバー選択 */}
+          {/* メンバー選択（frontend version kept!) */}
           <div>
             <label className="block text-xl font-bold mb-3">メンバー</label>
 
@@ -250,11 +225,11 @@ export default function NewProjectForm() {
               />
             </div>
 
-            {/* Search results dropdown */}
+            {/* Search results */}
             {searchQuery && filteredMembers.length > 0 && (
               <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden shadow-lg">
                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-600">
+                  <h3 className="text-lg font-semibold text-gray-600">
                     検索結果 ({filteredMembers.length}件)
                   </h3>
                 </div>
@@ -266,13 +241,11 @@ export default function NewProjectForm() {
                         key={member.id}
                         className="flex items-center justify-between p-4 border-b border-gray-100 last:border-b-0 hover:bg-blue-50 cursor-pointer transition-colors"
                         onClick={() => {
-                          if (!formData.members.includes(member.id)) {
-                            setFormData((prev) => ({
-                              ...prev,
-                              members: [...prev.members, member.id],
-                            }));
-                            setSearchQuery(""); // Clear search after adding
-                          }
+                          setFormData((prev) => ({
+                            ...prev,
+                            members: [...prev.members, member.id],
+                          }));
+                          setSearchQuery("");
                         }}
                       >
                         <div className="flex items-center justify-center">
@@ -294,7 +267,7 @@ export default function NewProjectForm() {
                               ...prev,
                               members: [...prev.members, member.id],
                             }));
-                            setSearchQuery(""); // Clear search after adding
+                            setSearchQuery("");
                           }}
                           className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors"
                         >
@@ -306,7 +279,7 @@ export default function NewProjectForm() {
               </div>
             )}
 
-            {/* No results message */}
+            {/* No results */}
             {searchQuery && filteredMembers.length === 0 && (
               <div className="mb-4 p-4 text-center font-bold text-gray-500 bg-gray-50 rounded-lg">
                 <div className="text-xl mb-1">メンバーが見つかりません</div>
@@ -314,7 +287,7 @@ export default function NewProjectForm() {
               </div>
             )}
 
-            {/* Selected members - Chips */}
+            {/* Selected members */}
             <div className="mb-4">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-lg font-semibold text-gray-700">
@@ -387,7 +360,7 @@ export default function NewProjectForm() {
             </div>
           </div>
 
-          {/* 送信ボタン */}
+          {/* 送信 */}
           <div className="flex justify-end">
             <button
               type="submit"

@@ -62,7 +62,7 @@ const Project = () => {
   };
 
   return (
-    <div className="space-y-8 w-full md:max-w-6xl mx-auto p-2 md:p-4">
+    <div className="space-y-8 w-full mx-auto p-2 md:p-4">
       {/* Page Title */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-extrabold text-gray-800">プロジェクト一覧</h1>
