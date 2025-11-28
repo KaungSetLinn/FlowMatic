@@ -101,21 +101,13 @@
 
 ```json
 {
-    "title": "string",
-    "is_all_day": false,
-    "start_date": "2024-01-01T09:00:00Z",
-    "end_date": "2024-01-01T10:00:00Z",
-    "color": "red | blue | green | orange"
+    // POST /projects/{project_id}/events のRequest bodyと同じ
 }
 ```
 
 | Name | Type | Description |
 | - | - | - |
-| title | string | eventのタイトル |
-| is_all_day | boolean | 終日イベントかどうか |
-| start_date | string | eventの開始日時 |
-| end_date | string | eventの終了日時 |
-| color | string | eventの色（red, blue, green, orange） |
+| | POST /projects/{project_id}/events のRequest bodyと同じ | 
 
 ## Response
 
@@ -123,7 +115,6 @@
 
 ```json
 {
-    "event_id": "uuid",
     // 以下、Request bodyと同じ
 }
 ```
