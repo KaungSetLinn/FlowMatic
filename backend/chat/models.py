@@ -43,7 +43,7 @@ class Message(models.Model):
 		ordering = ['timestamp']
 		constraints = [
 			CheckConstraint(
-				check=Q(content__gt=''),
+				condition=Q(content__gt=''),
 				name='message_content_not_empty',
 			)
 		]

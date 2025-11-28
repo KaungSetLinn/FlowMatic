@@ -1,33 +1,32 @@
 
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+
 from projects.models import Project
-from .serializers import TaskCreateSerializer
+from .serializers import TaskCreateSerializer, TaskResponseSerializer
+
 
 class TaskCreateView(APIView):
-    def post(self, request, project_id):
-        try:
-            project = Project.objects.get(project_id=project_id)
-        except Project.DoesNotExist:
-            return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
+    """POST /api/projects/{project_id}/tasks - Create a new task for the project.
 
-        serializer = TaskCreateSerializer(data=request.data, context={'project': project})
-        if serializer.is_valid():
-            task = serializer.save()
-            return Response({
-                'task_id': str(task.id),
-                'name': task.name,
-                'description': task.description,
-                'deadline': task.deadline,
-                'priority': task.priority,
-                'status': task.status,
-                'assigned_user_ids': [str(user.id) for user in task.assigned_users.all()],
-                'parent_tasks': [
-                    {
-                        'task_id': str(rel.parent.id),
-                        'relation_type': rel.relation_type
-                    } for rel in task.parent_relations.all()
-                ]
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    Permissions: authenticated user assigned to the project.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_project(self, project_id):
+        project = get_object_or_404(Project.objects.prefetch_related('assigned_users'), project_id=project_id)
+        if not project.assigned_users.filter(pk=self.request.user.pk).exists():
+            raise PermissionDenied('You are not assigned to this project.')
+        return project
+
+    def post(self, request, project_id):
+        project = self._get_project(project_id)
+        serializer = TaskCreateSerializer(data=request.data, context={'project': project, 'request': request})
+        serializer.is_valid(raise_exception=True)
+        task = serializer.save()
+        response_serializer = TaskResponseSerializer(task)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
