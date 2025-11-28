@@ -3,19 +3,6 @@ from django.db import models
 from django.conf import settings
 from django.db.models import Q, CheckConstraint
 
-class Project(models.Model):
-    project_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
-
-    assigned_users = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        through='ProjectAssignedUser',
-        related_name='projects'
-    )
-
-    def __str__(self):
-        return self.name
-
 class TaskStatus(models.TextChoices):
     TO_DO = "to_do", "To Do"
     PENDING = "pending", "Pending"
@@ -33,7 +20,7 @@ class TaskPriority(models.TextChoices):
 
 class Task(models.Model):
     task_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks')
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='tasks')
 
     name = models.TextField()
     description = models.TextField(blank=True)
@@ -58,6 +45,7 @@ class Task(models.Model):
 
     def __str__(self):
         return self.name
+
     class Meta:
         constraints = [
             CheckConstraint(
@@ -115,6 +103,7 @@ class TaskAssignedUser(models.Model):
         unique_together = ('user', 'task')
 class ProjectAssignedUser(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE)
+    
     class Meta:
         unique_together = ('user', 'project')

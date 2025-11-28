@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from tasks.models import Project
+from projects.models import Project
 from .models import ChatRoom, Message
 from .serializers import (
 	ChatRoomCreateSerializer,
@@ -54,7 +54,7 @@ class ChatRoomMessageListCreateView(APIView):
 	def get(self, request, chatroom_id: str) -> Response:
 		chatroom = self._get_chatroom(chatroom_id)
 		try:
-			page = int(request.query_params.get('p', '1'))
+			page = int(request.query_params.get('page', '1'))
 			per_page = int(request.query_params.get('per_page', '20'))
 		except ValueError:
 			return Response({'detail': 'p and per_page must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
