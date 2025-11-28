@@ -45,6 +45,7 @@ class Task(models.Model):
 
     def __str__(self):
         return self.name
+
     class Meta:
         constraints = [
             CheckConstraint(
@@ -103,5 +104,6 @@ class TaskAssignedUser(models.Model):
 class ProjectAssignedUser(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     project = models.ForeignKey('projects.Project', on_delete=models.CASCADE)
+    
     class Meta:
         unique_together = ('user', 'project')

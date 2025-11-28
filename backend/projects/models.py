@@ -2,6 +2,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from django.db.models import Q, CheckConstraint, F
 
 class Project(models.Model):
     project_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -33,6 +34,18 @@ class Project(models.Model):
     def name(self):
         """Provide `name` property for compatibility with older code that expects Project.name."""
         return self.title
+
+    class Meta:
+        constraints = [
+            CheckConstraint(
+                condition=Q(deadline__gte=F('start_date')),
+                name='valid_project_dates'
+            ),
+            CheckConstraint(
+                condition=Q(progress__gte=0) & Q(progress__lte=100),
+                name='valid_project_progress'
+            ),
+        ]
 
 
 

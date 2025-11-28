@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from projects.models import Project
 from .models import Event
-from .serializers import EventSerializer
+from .serializers import EventCreateSerializer, EventResponseSerializer
 
 
 class ProjectEventListCreateView(APIView):
@@ -25,16 +25,30 @@ class ProjectEventListCreateView(APIView):
 
 	def get(self, request, project_id: str) -> Response:
 		project = self._get_project(project_id)
-		events = project.events.all().order_by('start_date')
-		serializer = EventSerializer(events, many=True)
-		return Response({'events': serializer.data})
+		try:
+			page = int(request.query_params.get('p', '1'))
+			per_page = int(request.query_params.get('per_page', '20'))
+		except ValueError:
+			return Response({'detail': 'p and per_page must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
+
+		if page < 1 or per_page < 1:
+			return Response({'detail': 'p and per_page must be greater than zero.'}, status=status.HTTP_400_BAD_REQUEST)
+
+		events_qs = project.events.all().order_by('start_date')
+		start = (page - 1) * per_page
+		end = start + per_page
+		events = list(events_qs[start:end])
+
+		serializer = EventResponseSerializer(events, many=True)
+		return Response({'events': serializer.data, 'page': page, 'per_page': per_page})
 
 	def post(self, request, project_id: str) -> Response:
 		project = self._get_project(project_id)
-		serializer = EventSerializer(data=request.data)
+		serializer = EventCreateSerializer(data=request.data, context={'project': project, 'request': request})
 		serializer.is_valid(raise_exception=True)
-		event = serializer.save(project=project)
-		return Response(serializer.data, status=status.HTTP_201_CREATED)
+		event = serializer.save()
+		response_serializer = EventResponseSerializer(event)
+		return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class EventDeleteView(APIView):
