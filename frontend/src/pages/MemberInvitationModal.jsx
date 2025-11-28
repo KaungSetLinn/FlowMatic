@@ -16,18 +16,6 @@ const MemberInvitationModal = () => {
   // 参照
   const modalRef = useRef(null);
   const debounceRef = useRef(null);
-  
-  // サンプルユーザーデータ
-  const sampleUsers = [
-    { id: 1, username: 'sato_taro', name: '佐藤太郎', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face' },
-    { id: 2, username: 'suzuki_hanako', name: '鈴木花子', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face' },
-    { id: 3, username: 'sato_jiro', name: '佐藤次郎', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop&crop=face' },
-    { id: 4, username: 'watanabe_yuki', name: '渡辺ゆき', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face' },
-    { id: 5, username: 'ito_haruka', name: '伊藤はるか', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face' },
-    { id: 6, username: 'yamamoto_kenta', name: '山本健太', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face' },
-    { id: 7, username: 'nakamura_ai', name: '中村愛', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face' },
-    { id: 8, username: 'kobayashi_riko', name: '小林理子', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face' }
-  ];
 
   // モーダルを開く
   const openModal = () => {
@@ -258,7 +246,16 @@ const MemberInvitationModal = () => {
                         key={user.id}
                         className="flex items-center bg-blue-100 text-blue-800 rounded-full px-3 py-1"
                       >
-                        <span className="text-md mr-1">{user.username}</span>
+                        {user.profile_picture ? (
+                            <img
+                            src={user.profile_picture}
+                            alt={user.username}
+                            className="w-6 h-6 rounded-full object-cover mr-3"
+                          />
+                          ) : (
+                            <i className="fa-solid fa-user text-gray-400 text-xl ml-2.5 mr-4"></i>
+                          )}
+                        <span className="text-md mr-1 font-bold">{user.username}</span>
                         <button
                           type="button"
                           onClick={() => removeUser(user.id)}
