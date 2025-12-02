@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { getProjects } from "../services/ProjectService";
 
 const ProjectContext = createContext();
 
@@ -16,14 +17,34 @@ export const ProjectProvider = ({ children }) => {
   ];
 
   useEffect(() => {
-    // todo: api callでプロジェクトリストを取得
-    setProjects(dummyProjects)
-    setCurrentProject(dummyProjects[0])
-    setLoading(false)
+    const fetchProjects = async () => {
+      try {
+        const data = await getProjects(); // fetch projects from API
+
+        // ✅ Extract the projects array from the response object
+        const projectsArray = Array.isArray(data.projects) ? data.projects : [];
+        setProjects(projectsArray);
+
+        // Set the first project as default if exists
+        if (projectsArray.length > 0) {
+          setCurrentProject(projectsArray[0]);
+        }
+
+        setLoading(false);
+      } catch (err) {
+        setError(err);
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
   }, []);
 
   const handleProjectChange = (projectId) => {
-    const selected = projects.find((p) => p.id === Number(projectId));
+    console.log(projects)
+    const selected = projects.find((p) => p.project_id === projectId);
+
+    console.log(selected)
     if (selected) setCurrentProject(selected);
   };
 
@@ -31,6 +52,7 @@ export const ProjectProvider = ({ children }) => {
     <ProjectContext.Provider
       value={{
         projects,
+        setProjects,
         currentProject,
         setCurrentProject,
         handleProjectChange,

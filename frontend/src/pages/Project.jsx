@@ -12,6 +12,7 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
+import { getProjectById, getProjects } from "../services/ProjectService";
 
 const Project = () => {
   const [projects, setProjects] = useState([
@@ -46,7 +47,22 @@ const Project = () => {
 
   useEffect(() => {
     // TODO: Replace with API fetch (e.g. axios.get("/api/projects"))
+    fetchProjects();
+
+    fetchProjectById();
   }, []);
+
+  const fetchProjects = async () => {
+    const projects = await getProjects();
+
+    console.log(projects);
+  }
+
+  const fetchProjectById = async () => {
+    const project = await getProjectById('f28497cc-6801-46a1-ac69-dada7febd96c')
+
+    // console.log(project)
+  }
 
   const getStatusColor = (status) => {
     switch (status) {

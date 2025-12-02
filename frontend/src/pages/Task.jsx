@@ -11,8 +11,12 @@ import {
   faPlusCircle,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
+import { useProject } from "../context/ProjectContext";
+import { getTasks } from "../services/TaskService";
 
 const Task = () => {
+  const { currentProject } = useProject();
+
   const [tasks, setTasks] = useState([]);
   const [filter, setFilter] = useState("all");
 
@@ -94,7 +98,15 @@ const Task = () => {
       },
     ];
     setTasks(mockTasks);
+
+    fetchTasks(currentProject?.id);
   }, []);
+
+  const fetchTasks = async (projectId) => {
+    const tasks = await getTasks(projectId);
+
+    console.log(tasks)
+  }
 
   // ✅ Dynamic filter logic
   const filteredTasks = tasks.filter((task) => {
