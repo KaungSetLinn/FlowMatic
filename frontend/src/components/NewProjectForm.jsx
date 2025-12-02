@@ -5,10 +5,17 @@ import dayjs from "dayjs";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUsers } from "../services/UserService";
+import { createProject } from "../services/ProjectService";
+import { useAuth } from "../context/AuthContext";
+import { useProject } from "../context/ProjectContext";
 
 export default function NewProjectForm() {
   const navigate = useNavigate();
   const inputRef = useRef(null);
+
+  const { user } = useAuth();
+
+  const { projects, setProjects } = useProject();
 
   const [availableMembers, setAvailableMembers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,6 +55,8 @@ export default function NewProjectForm() {
   useEffect(() => {
     inputRef.current?.focus();
 
+    // console.log(user);
+
     const fetchUsers = async () => {
       try {
         const users = await getUsers();
@@ -65,28 +74,31 @@ export default function NewProjectForm() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
-  const handleMemberChange = (e) => {
-    const selectedOptions = Array.from(
-      e.target.selectedOptions,
-      (option) => option.value
-    );
-    setFormData((prev) => ({ ...prev, members: selectedOptions }));
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const loggedInUserId = user.id;
+
+    const newMembers = Array.from(
+      new Set([...formData.members, loggedInUserId]) // <— Automatically include yourself
+    );
 
     const submitData = {
       title: formData.title,
       description: formData.description,
-      startDate: formData.startDate,
+      start_date: formData.startDate,
+      progress: 0,
       deadline: formData.deadline,
       status: formData.status,
-      members: formData.members,
+      members: newMembers, // 🔥 Your ID is always included
     };
 
-    console.log("送信データ:", submitData);
+    const newProject = await createProject(submitData);
+    
+    setProjects([...projects, newProject]);
+
+    alert(newProject.title + "は正常に作成されました");
+    navigate("/project");
   };
 
   const handleDateChange = (name, newValue) => {
@@ -135,7 +147,10 @@ export default function NewProjectForm() {
 
           {/* 説明 */}
           <div>
-            <label htmlFor="description" className="block text-xl font-bold mb-3">
+            <label
+              htmlFor="description"
+              className="block text-xl font-bold mb-3"
+            >
               説明
             </label>
             <textarea

@@ -11,6 +11,10 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         auth().catch(() => setIsAuthorized(false));
+
+        if (localStorage.getItem('user')) {
+            setUser(JSON.parse(localStorage.getItem('user')))
+        }
     }, []);
 
     const refreshToken = async () => {

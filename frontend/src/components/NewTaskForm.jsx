@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../context/ProjectContext";
+import { createTask } from "../services/TaskService";
 
 export default function NewTaskForm() {
   const { currentProject } = useProject();
@@ -69,31 +70,46 @@ export default function NewTaskForm() {
     setDependencies(updated);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!projectId)
-      return showMessage("プロジェクトを選択してください。", "error");
-    if (!newTaskName.trim())
-      return showMessage("タスク名を入力してください。", "error");
-    if (!dueDate) return showMessage("期限日を選択してください。", "error");
+    // Basic validation
+    if (!projectId) return showMessage("Please select a project.", "error");
+    if (!newTaskName.trim()) return showMessage("Task name is required.", "error");
+    if (!dueDate) return showMessage("Due date is required.", "error");
     if (assignees.length === 0)
-      return showMessage("担当者を1人以上選択してください。", "error");
+      return showMessage("Select at least one assignee.", "error");
 
-    const task = {
-      projectId,
-      newTaskName,
+    // Format request body
+    const requestData = {
+      name: newTaskName,
       description,
-      dueDate,
+      deadline: new Date(dueDate).toISOString(),
       priority,
       status,
-      assignees,
-      dependencies,
+      assigned_user_ids: assignees,
+      parent_tasks: dependencies.map((dep) => ({
+        task_id: dep.taskId,
+        relation_type: dep.type.toUpperCase(),
+      })),
     };
 
-    console.log("✅ 新しいタスクデータ:", task);
-    showMessage(`タスク「${newTaskName}」が正常に作成されました！`, "success");
+    // console.log("API request:", requestData);
 
+    const response = await createTask(requestData);
+
+    console.log("API response:", response);
+
+    showMessage(`Task "${newTaskName}" created successfully!`, "success");
+    resetForm();
+  };
+
+  const showMessage = (text, type) => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage({ text: "", type: "" }), 4000);
+  };
+
+  const resetForm = () => {
     setNewTaskName("");
     setDescription("");
     setDueDate("");
@@ -101,12 +117,7 @@ export default function NewTaskForm() {
     setStatus("to_do");
     setAssignees([]);
     setDependencies([]);
-  };
-
-  const showMessage = (text, type) => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage({ text: "", type: "" }), 4000);
-  };
+  }
 
   return (
     <div className="flex flex-col items-center max-w-full md:max-w-5xl mx-auto justify-center min-h-screen md:p-6 relative">
