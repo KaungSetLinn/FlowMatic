@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from tasks.models import Project
+from projects.models import Project
 from .models import ChatRoom, ChatRoomUser, Message
 
 
@@ -49,7 +49,7 @@ class ChatRoomCreateSerializer(serializers.Serializer):
             self.fail('invalid_members')
 
         assigned_user_ids = set(
-            project.assigned_users.filter(pk__in=unique_member_ids).values_list('pk', flat=True)
+            project.members.filter(pk__in=unique_member_ids).values_list('pk', flat=True)
         )
         if assigned_user_ids != set(unique_member_ids):
             self.fail('not_in_project')

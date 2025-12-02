@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from tasks.models import Project
+from projects.models import Project
 from .models import ChatRoom, Message
 from .serializers import (
 	ChatRoomCreateSerializer,
@@ -19,8 +19,8 @@ class ProjectChatRoomListCreateView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def _get_project(self, project_id: str) -> Project:
-		project = get_object_or_404(Project.objects.prefetch_related('assigned_users'), project_id=project_id)
-		if not project.assigned_users.filter(pk=self.request.user.pk).exists():
+		project = get_object_or_404(Project.objects.prefetch_related('members'), project_id=project_id)
+		if not project.members.filter(pk=self.request.user.pk).exists():
 			raise PermissionDenied('You are not assigned to this project.')
 		return project
 
@@ -54,7 +54,7 @@ class ChatRoomMessageListCreateView(APIView):
 	def get(self, request, chatroom_id: str) -> Response:
 		chatroom = self._get_chatroom(chatroom_id)
 		try:
-			page = int(request.query_params.get('p', '1'))
+			page = int(request.query_params.get('page', '1'))
 			per_page = int(request.query_params.get('per_page', '20'))
 		except ValueError:
 			return Response({'detail': 'p and per_page must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -84,7 +84,7 @@ class ChatRoomDeleteView(APIView):
 
 	def delete(self, request, chatroom_id: str) -> Response:
 		chatroom = get_object_or_404(ChatRoom.objects.select_related('project'), chatroom_id=chatroom_id)
-		if not chatroom.project.assigned_users.filter(pk=request.user.pk).exists():
+		if not chatroom.project.members.filter(pk=request.user.pk).exists():
 			raise PermissionDenied('You are not assigned to this project.')
 		chatroom.delete()
 		return Response(status=status.HTTP_204_NO_CONTENT)

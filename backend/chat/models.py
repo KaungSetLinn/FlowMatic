@@ -8,7 +8,7 @@ from django.db.models import CheckConstraint, Q
 class ChatRoom(models.Model):
 	chatroom_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	project = models.ForeignKey(
-		'tasks.Project',
+		'projects.Project',
 		on_delete=models.CASCADE,
 		related_name='chatrooms',
 	)
@@ -43,7 +43,7 @@ class Message(models.Model):
 		ordering = ['timestamp']
 		constraints = [
 			CheckConstraint(
-				check=Q(content__gt=''),
+				condition=Q(content__gt=''),
 				name='message_content_not_empty',
 			)
 		]
