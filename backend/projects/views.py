@@ -20,7 +20,7 @@ class ProjectListCreateView(APIView):
         user = self.request.user
         if user.is_staff:
             return Project.objects.all().order_by('-start_date')
-        return Project.objects.filter(assigned_users=user).order_by('-start_date')
+        return Project.objects.filter(members=user).order_by('-start_date')
 
     def get(self, request, *args, **kwargs):
         try:
@@ -56,12 +56,12 @@ class ProjectDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _get_project(self, project_id: str) -> Project:
-        project = get_object_or_404(Project.objects.prefetch_related('assigned_users'), project_id=project_id)
+        project = get_object_or_404(Project.objects.prefetch_related('members'), project_id=project_id)
         return project
 
     def _assert_assigned_or_staff(self, project: Project):
         user = self.request.user
-        if not (project.assigned_users.filter(pk=user.pk).exists() or user.is_staff):
+        if not (project.members.filter(pk=user.pk).exists() or user.is_staff):
             raise PermissionDenied('You are not assigned to this project.')
 
     def get(self, request, project_id: str) -> Response:
