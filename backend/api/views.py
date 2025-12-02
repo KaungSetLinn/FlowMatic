@@ -1,10 +1,11 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from .models import *
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.http import Http404
 
 # Create your views here.
 class CreateUserView(generics.CreateAPIView):
@@ -41,3 +42,26 @@ class UserListView(generics.ListAPIView):
         current_user = self.request.user
         
         return User.objects.exclude(id = current_user.id)
+
+class UsernameView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, user_id):
+        try:
+            target_user = get_object_or_404(User, id=user_id)
+            current_user = request.user
+            
+            # Check if users share any projects
+            shared_projects = current_user.projects.filter(
+                assigned_users=target_user
+            ).exists()
+            
+            if not shared_projects:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+            
+            return Response({
+                'username': target_user.username
+            })
+            
+        except Http404:
+            return Response(status=status.HTTP_404_NOT_FOUND)
