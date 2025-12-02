@@ -20,12 +20,6 @@ class Project(models.Model):
     status = models.CharField(max_length=20, choices=status_choices, default="planning")
     
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True)
-    assigned_users = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        through='tasks.ProjectAssignedUser',
-        related_name='projects',
-        blank=True,
-    )
 
     def __str__(self):
         return self.title
