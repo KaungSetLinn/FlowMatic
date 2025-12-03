@@ -45,7 +45,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
         # Ensure assigned users are all in the project
         if users:
-            assigned_user_pks = set(project.assigned_users.filter(pk__in=unique_user_ids).values_list('pk', flat=True))
+            assigned_user_pks = set(project.members.filter(pk__in=unique_user_ids).values_list('pk', flat=True))
             if assigned_user_pks != set(unique_user_ids):
                 self.fail('not_in_project')
 

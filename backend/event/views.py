@@ -18,8 +18,8 @@ class ProjectEventListCreateView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def _get_project(self, project_id: str) -> Project:
-		project = get_object_or_404(Project.objects.prefetch_related('assigned_users'), project_id=project_id)
-		if not project.assigned_users.filter(pk=self.request.user.pk).exists():
+		project = get_object_or_404(Project.objects.prefetch_related('members'), project_id=project_id)
+		if not project.members.filter(pk=self.request.user.pk).exists():
 			raise PermissionDenied('You are not assigned to this project.')
 		return project
 
@@ -60,11 +60,11 @@ class EventDeleteView(APIView):
 
 	def delete(self, request, project_id: str, event_id: str) -> Response:
 		event = get_object_or_404(
-			Event.objects.select_related('project').prefetch_related('project__assigned_users'),
+			Event.objects.select_related('project').prefetch_related('project__members'),
 			event_id=event_id,
 			project__project_id=project_id,
 		)
-		if not event.project.assigned_users.filter(pk=request.user.pk).exists():
+		if not event.project.members.filter(pk=request.user.pk).exists():
 			raise PermissionDenied('You are not assigned to this project.')
 		event.delete()
 		return Response(status=status.HTTP_204_NO_CONTENT)
