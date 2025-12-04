@@ -134,13 +134,20 @@ const Chat = () => {
 
         {/* 下：入力フォーム */}
         <div className="p-4 border-t bg-white flex items-cente gap-3 mb-">
-          <input
-            type="text"
-            className="flex-grow p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+          <textarea
+            rows={2}
+            className="flex-grow p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
             placeholder="メッセージを入力..."
             value={messageInput}
             onChange={e => setMessageInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleSendMessage()}
+            onKeyDown={e => {
+              // Enterのみ → 送信
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();   // 改行を防ぐ
+                handleSendMessage();
+              }
+              // Shift + Enter → 何もしない（＝通常の改行）
+            }}
           />
           <button
             onClick={handleSendMessage}
