@@ -99,8 +99,8 @@ const Chat = () => {
           {currentMessages.map(msg => (
             <div
               key={msg.id}
-              className={`flex items-start space-x-3 ${
-                msg.self ? "justify-end flex-row-reverse" : ""
+              className={`flex items-start ${
+                msg.self ? "justify-end" : "justify-start"
               }`}
             >
               {/* 相手アイコン */}
@@ -110,19 +110,29 @@ const Chat = () => {
                 </div>
               )}
 
-              {/* メッセージ本文 */}
+              {/* メッセージ本文（吹き出し） */}
               <div className="max-w-lg">
                 {!msg.self && (
-                  <p className="text-xl font-semibold text-gray-700">
+                  <p className="text-xl font-semibold text-gray-700 mb-1">
                     {msg.user}
                   </p>
                 )}
 
-                <p className="text-base text-gray-900 leading-relaxed whitespace-pre-wrap">
+                <div
+                  className={`px-4 py-2 rounded-2xl shadow text-base leading-relaxed whitespace-pre-wrap ${
+                    msg.self
+                      ? "bg-blue-600 text-white rounded-br-none"
+                      : "bg-gray-100 text-gray-900 rounded-bl-none"
+                  }`}
+                >
                   {msg.text}
-                </p>
+                </div>
 
-                <p className="text-sm text-gray-400 text-right mt-1">
+                <p
+                  className={`text-sm text-gray-400 mt-1 ${
+                    msg.self ? "text-right" : "text-left"
+                  }`}
+                >
                   {msg.time}
                 </p>
               </div>
@@ -133,14 +143,14 @@ const Chat = () => {
         </div>
 
         {/* 下：入力フォーム */}
-        <div className="p-4 border-t bg-white flex items-cente gap-3 mb-">
+        <div className="p-4 border-t bg-white flex items-center gap-3 mb-4">
           <textarea
             rows={2}
             className="flex-grow p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
             placeholder="メッセージを入力..."
             value={messageInput}
             onChange={e => setMessageInput(e.target.value)}
-            onKeyDown={e => {
+              onKeyDown={e => {
               // Enterのみ → 送信
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();   // 改行を防ぐ
