@@ -4,12 +4,9 @@ from django.conf import settings
 from django.db.models import Q, CheckConstraint
 
 class TaskStatus(models.TextChoices):
-    TO_DO = "to_do", "To Do"
-    PENDING = "pending", "Pending"
-    READY = "ready", "Ready"
+    TODO = "todo", "Todo"
     IN_PROGRESS = "in_progress", "In Progress"
-    IN_REVIEW = "in_review", "In Review"
-    TESTING = "testing", "Testing"
+    DONE = "done", "Done"
 
 
 class TaskPriority(models.TextChoices):
@@ -29,7 +26,7 @@ class Task(models.Model):
     status = models.CharField(
         max_length=20,
         choices=TaskStatus.choices,
-        default=TaskStatus.TO_DO
+        default=TaskStatus.TODO
     )
     priority = models.CharField(
         max_length=10,
@@ -49,21 +46,21 @@ class Task(models.Model):
     class Meta:
         constraints = [
             CheckConstraint(
-                check=Q(status__in=[choice.value for choice in TaskStatus]),
+                condition=Q(status__in=[TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE]),
                 name='valid_task_status'
             ),
             CheckConstraint(
-                check=Q(priority__in=[choice.value for choice in TaskPriority]),
+                condition=Q(priority__in=[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH]),
                 name='valid_task_priority'
             ),
         ]
 
 
 class TaskRelationType(models.TextChoices):
-    START_TO_START = "start_to_start", "Start to Start"
-    START_TO_FINISH = "start_to_finish", "Start to Finish"
-    FINISH_TO_START = "finish_to_start", "Finish to Start"
-    FINISH_TO_FINISH = "finish_to_finish", "Finish to Finish"
+    FINISH_TO_START = "FtS", "Finish to Start"
+    FINISH_TO_FINISH = "FtF", "Finish to Finish"
+    START_TO_START = "StS", "Start to Start"
+    START_TO_FINISH = "StF", "Start to Finish"
 
 
 class TaskRelation(models.Model):
@@ -90,7 +87,7 @@ class TaskRelation(models.Model):
         unique_together = ('parent_task', 'child_task')
         constraints = [
             CheckConstraint(
-                check=Q(relation_type__in=[choice.value for choice in TaskRelationType]),
+                check=Q(relation_type__in=[TaskRelationType.FINISH_TO_START, TaskRelationType.FINISH_TO_FINISH, TaskRelationType.START_TO_START, TaskRelationType.START_TO_FINISH]),
                 name='valid_relation_type'
             ),
         ]

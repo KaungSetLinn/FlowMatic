@@ -11,7 +11,7 @@ class TaskRelationInputSerializer(serializers.Serializer):
     relation_type = serializers.ChoiceField(choices=[(choice.value, choice.label) for choice in TaskRelationType])
 
 class TaskCreateSerializer(serializers.ModelSerializer):
-    assigned_user_ids = serializers.ListField(child=serializers.UUIDField(), write_only=True, required=False, default=list)
+    assigned_user_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False, default=list)
     parent_tasks = TaskRelationInputSerializer(many=True, write_only=True, required=False, default=list)
 
     class Meta:
@@ -66,13 +66,14 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         assigned_user_ids = validated_data.pop('assigned_user_ids', [])
         parent_tasks = validated_data.pop('parent_relations', [])
+        users = validated_data.pop('member_objects', [])
+        validated_data.pop('parent_tasks', None)
         project = self.context['project']
 
         # Create the task
         task = Task.objects.create(project=project, **validated_data)
 
         # Attach assigned users
-        users = validated_data.pop('member_objects', [])
         if users:
             task.assigned_users.set(users)
 
