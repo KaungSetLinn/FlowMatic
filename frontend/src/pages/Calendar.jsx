@@ -3,28 +3,25 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faListUl,faPlayCircle,faCheckCircle,faExclamationCircle,}
+from "@fortawesome/free-solid-svg-icons";
 
-const STATUS_COLOR_MAP = {
-  active: "#f59e0b",     // 進行中（黄）
-  completed: "#22c55e",  // 完了（緑）
-  urgent: "#ef4444",     // 締切間近（赤）
-};
+
+const STATUS_COLOR_MAP = { active: "#f59e0b", completed: "#22c55e", urgent: "#ef4444" };
+
 
 const Calendar = () => {
   const STORAGE_KEY = "calendar_events";
-  const PRIORITY_OPTIONS = ["high", "medium", "low"];
-  const STATUS_OPTIONS = ["active", "completed"];
   const calendarRef = useRef(null);
-
   const [events, setEvents] = useState([]);
   const [modal, setModal] = useState({ open: false, event: null, isNew: false });
-  const [currentDate, setCurrentDate] = useState("2025-10-01");
+  const [modalAnimating, setModalAnimating] = useState(false);
+  const [modalReady, setModalReady] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("all");
 
-  // ---------------------------
-  // 初回レンダリング時にタスク読み込み
-  // ---------------------------
+
   useEffect(() => {
     const mockTasks = [
       { id: 1, title: "要件定義書の作成", dueDate: "2025-11-05", priority: "high", status: "active" },
@@ -34,337 +31,169 @@ const Calendar = () => {
       { id: 5, title: "ドキュメント整理", dueDate: "2025-11-20", priority: "low", status: "active" },
       { id: 6, title: "バックアップ確認", dueDate: "2025-11-01", priority: "low", status: "completed" },
     ];
-
-    const taskEvents = mockTasks.map((t) => ({
-      id: t.id,
-      title: t.title,
+    const taskEvents = mockTasks.map(t => ({
+      ...t,
       start: t.dueDate + "T09:00",
       end: t.dueDate + "T10:00",
       color: STATUS_COLOR_MAP[t.status] || "#3b82f6",
       allDay: false,
-      priority: t.priority,
-      status: t.status,
     }));
-
     const storedEvents = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-
-    const combined = [...taskEvents, ...storedEvents];
-
-    const unique = combined.filter(
-      (evt, index, self) => index === self.findIndex((e) => e.id === evt.id)
-    );
-
-    setEvents(unique);
+    setEvents([...taskEvents, ...storedEvents].filter((v,i,a)=>i===a.findIndex(e=>e.id===v.id)));
   }, []);
 
-  // カレンダーサイズ調整
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (calendarRef.current) calendarRef.current.getApi().updateSize();
-    }, 300);
 
-    return () => clearTimeout(timer);
-  }, []);
+  useEffect(() => { setTimeout(() => calendarRef.current?.getApi().updateSize(), 500); }, []);
 
-  // ---------------------------
-  // 通知
-  // ---------------------------
-  const addNotification = (text) => {
+
+  const addNotification = text => {
     const id = Date.now();
-    setNotifications((prev) => [...prev, { id, text }]);
-
-    setTimeout(
-      () => setNotifications((prev) => prev.filter((n) => n.id !== id)),
-      3000
-    );
+    setNotifications(prev => [...prev, { id, text }]);
+    setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 3000);
   };
 
-  // ---------------------------
-  // 保存
-  // ---------------------------
-  const saveEvents = (newEvents, actionText) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newEvents));
-    setEvents(newEvents);
-    addNotification(actionText);
-  };
 
-  // ---------------------------
-  // モーダル
-  // ---------------------------
-  const openModal = (event = null, isNew = false) =>
-    setModal({ open: true, event, isNew });
+  const saveEvents = (newEvents, msg) => { localStorage.setItem(STORAGE_KEY, JSON.stringify(newEvents)); setEvents(newEvents); addNotification(msg); };
 
-  const closeModal = () =>
-    setModal({ open: false, event: null, isNew: false });
 
-  const handleSave = (evt) => {
-    const newEvent = {
-      ...evt,
-      color: STATUS_COLOR_MAP[evt.status] || "#3b82f6",
-    };
-
-    const updatedEvents = modal.isNew
-      ? [...events, newEvent]
-      : events.map((e) => (e.id === newEvent.id ? newEvent : e));
-
-    saveEvents(
-      updatedEvents,
-      modal.isNew ? "イベントを追加しました 📝" : "イベントを保存しました 💾"
-    );
-
+  const handleSave = evt => {
+    const newEvent = { ...evt, color: STATUS_COLOR_MAP[evt.status] || "#3b82f6" };
+    saveEvents(modal.isNew ? [...events, newEvent] : events.map(e => e.id === newEvent.id ? newEvent : e), modal.isNew ? "イベントを追加しました 📝" : "イベントを保存しました 💾");
     closeModal();
   };
 
-  const handleDelete = () => {
-    if (!window.confirm("本当に削除しますか？")) return;
 
-    saveEvents(
-      events.filter((e) => e.id !== modal.event.id),
-      "イベントが削除されました 🗑️"
-    );
+  const handleDelete = () => { if(window.confirm("本当に削除しますか？")) { saveEvents(events.filter(e => e.id !== modal.event.id), "イベントが削除されました 🗑️"); closeModal(); } };
 
-    closeModal();
-  };
 
-  // ---------------------------
-  // 日付フォーマット
-  // ---------------------------
-  const formatDateJP = (date) => {
-    const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-${String(d.getDate()).padStart(2, "0")}`;
-  };
+  const openModal = (event=null, isNew=false) => { setModalAnimating(true); setModal({ open:true,event,isNew }); requestAnimationFrame(()=>setModalReady(true)); };
+  const closeModal = () => { setModalReady(false); setModal(prev=>({...prev,open:false})); setTimeout(()=>setModalAnimating(false),750)};
 
-  // ---------------------------
-  // カレンダー移動
-  // ---------------------------
-  const goPrev = () => {
-    const api = calendarRef.current.getApi();
-    api.prev();
-    setCurrentDate(api.getDate().toISOString());
-  };
 
-  const goNext = () => {
-    const api = calendarRef.current.getApi();
-    api.next();
-    setCurrentDate(api.getDate().toISOString());
-  };
+  const formatDateJP = date => { const d = new Date(date.getTime()-date.getTimezoneOffset()*60000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
-  const goToday = () => {
-    const api = calendarRef.current.getApi();
-    api.today();
-    setCurrentDate(api.getDate().toISOString());
-  };
+
+  const filters = [
+    { type:"all", label:"すべて", icon:faListUl, color:"blue" },
+    { type:"active", label:"進行中", icon:faPlayCircle, color:"yellow" },
+    { type:"completed", label:"完了", icon:faCheckCircle, color:"green" },
+    { type:"high", label:"締め切り近い", icon:faExclamationCircle, color:"red" },
+  ];
+
 
   return (
-    <div className="max-w-6xl mx-auto min-h-screen bg-gray-50 py-8 relative flex gap-6">
-      {/* カスタムスタイル */}
-      <style>
-        {`
-          .today-circle {
-            background-color: white !important;
-            border: 3px solid #3b82f6 !important;
-            border-radius: 50% !important;
-            box-sizing: border-box !important;
-          }
-          .fc-event,
-          .fc-event:hover,
-          .fc-event.fc-event-draggable {
-            background-color: inherit !important;
-            border-color: inherit !important;
-            color: inherit !important;
-          }
-        `}
-      </style>
+    <div className="max-w-6xl mx-auto min-h-screen bg-gray-50 py-8 relative flex flex-row-reverse gap-6">
+      <style>{`
+        .today-circle { background:white !important; border:3px solid #3b82f6 !important; border-radius:50% !important; box-sizing:border-box !important; }
+        .fc-event,.fc-event:hover,.fc-event.fc-event-draggable { background:inherit !important;color:inherit !important; }
+        .fc .fc-today-button { background:#3b82f6 !important;color:white !important;border:none !important;font-weight:bold !important;}
+        .fc .fc-today-button:hover{background:#2563eb !important;}
+        .fc .fc-prev-button,.fc .fc-next-button{background:#3b82f6;color:white;border:none;}
+        .fc .fc-prev-button:hover,.fc .fc-next-button:hover{background:#2563eb;}
+        .fc .fc-toolbar-title{font-weight:bold !important;font-size:2rem;}
+        .fc .fc-col-header-cell-cushion{font-weight:bold;}
+        .fc .fc-col-header-cell.fc-day-sat .fc-col-header-cell-cushion{color:#3b82f6;}
+        .fc .fc-col-header-cell.fc-day-sun .fc-col-header-cell-cushion{color:#ef4444;}
+        .modal-overlay{opacity:0;backdrop-filter:blur(0px);background:rgba(0,0,0,0);transition:0.45s;}
+        .modal-overlay.show{opacity:1;backdrop-filter:blur(4px);background:rgba(0,0,0,0.3);}
+        .modal-content{opacity:0;transform:scale(0.95);transition:0.45s;}
+        .modal-content.show{opacity:1;transform:scale(1);}
+        .fc .fc-daygrid-day.fc-day-today {
+          background-color: #dff3ff !important;
+      `}</style>
 
-      {/* ---------------------------------
-          サイドパネル
-      --------------------------------- */}
+
+      {/* サイドパネル */}
       <div className="w-64 bg-white rounded-xl shadow-md p-4 flex-shrink-0">
         <h2 className="text-lg font-semibold mb-4">タスク一覧</h2>
-
-        {/* フィルタ */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {[
-            { label: "すべて", value: "all" },
-            { label: "🟡 進行中", value: "active" },
-            { label: "🟢 完了", value: "completed" },
-            { label: "🔴 締め切り間近", value: "urgent" },
-          ].map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`px-2 py-1 rounded-full text-sm ${
-                filter === f.value
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+          {filters.map(f=>{
+            const isActive = filter===f.type;
+            const colorClasses = { blue: isActive?"bg-blue-600 text-white":"bg-white border border-blue-300 text-blue-600 hover:bg-blue-50", yellow: isActive?"bg-yellow-500 text-white":"bg-white border border-yellow-300 text-yellow-600 hover:bg-yellow-50", green:isActive?"bg-green-600 text-white":"bg-white border border-green-300 text-green-600 hover:bg-green-50", red:isActive?"bg-red-600 text-white":"bg-white border border-red-300 text-red-600 hover:bg-red-50"}[f.color];
+            return <button key={f.type} onClick={()=>setFilter(f.type)} className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${colorClasses}`}><FontAwesomeIcon icon={f.icon}/> {f.label}</button>
+          })}
         </div>
-
-        {/* タスク一覧 */}
         <div className="space-y-2 max-h-[80vh] overflow-y-auto">
-          {events
-            .filter((e) => {
-              if (filter === "all") return true;
-
-              if (filter === "urgent") {
-                const due = new Date(e.start.split("T")[0]);
-                const today = new Date();
-                const diffDays = Math.ceil(
-                  (due - today) / (1000 * 60 * 60 * 24)
-                );
-                return diffDays >= 0 && diffDays <= 3;
-              }
-
-              return e.status === filter;
-            })
-            .sort((a, b) => {
-              const priorityOrder = { high: 1, medium: 2, low: 3 };
-              return priorityOrder[a.priority] - priorityOrder[b.priority];
-            })
-            .map((e) => (
-              <div
-                key={e.id}
-                className="p-2 rounded-md cursor-pointer flex items-center justify-between hover:bg-gray-100 transition"
-                onClick={() => openModal(e)}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: e.color }}
-                  ></span>
-
-                  <div>
-                    <p
-                      className={`text-sm font-medium ${
-                        e.status === "completed"
-                          ? "line-through text-gray-400"
-                          : ""
-                      }`}
-                    >
-                      {e.title}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {e.start.split("T")[0]}
-                    </p>
-                  </div>
+          {events.filter(e=>filter==="all"?true:filter==="urgent"?(()=>{const d=new Date(e.start.split("T")[0]),today=new Date();return Math.ceil((d-today)/(1000*60*60*24))<=3})():e.status===filter).sort((a,b)=>({high:1,medium:2,low:3}[a.priority]-{high:1,medium:2,low:3}[b.priority])).map(e=>(
+            <div key={e.id} className="p-2 rounded-md cursor-pointer flex items-center justify-between hover:bg-gray-100 transition" onClick={()=>openModal(e)}>
+              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{backgroundColor:e.color}}></span>
+                <div>
+                  <p className={`text-sm font-medium ${e.status==="completed"?"line-through text-gray-400":""}`}>{e.title}</p>
+                  <p className="text-xs text-gray-500">{e.start.split("T")[0]}</p>
                 </div>
-
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full ${
-                    e.priority === "high"
-                      ? "bg-red-100 text-red-700"
-                      : e.priority === "medium"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-green-100 text-green-700"
-                  }`}
-                >
-                  {e.priority === "high"
-                    ? "高"
-                    : e.priority === "medium"
-                    ? "中"
-                    : "低"}
-                </span>
               </div>
-            ))}
+              <span className={`text-xs px-2 py-0.5 rounded-full ${e.priority==="high"?"bg-red-100 text-red-700":e.priority==="medium"?"bg-yellow-100 text-yellow-700":"bg-green-100 text-green-700"}`}>{e.priority==="high"?"高":e.priority==="medium"?"中":"低"}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* ---------------------------------
-          カレンダー本体
-      --------------------------------- */}
+
+      {/* カレンダー */}
       <div className="flex-1 bg-white rounded-xl shadow-md p-4">
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, interactionPlugin, listPlugin]}
-          locale="en"
-          firstDay={0}
-          headerToolbar={{
-            left: "title",
-            center: "",
-            right: "prev next today",
-          }}
-          selectable
-          editable
-          events={events.map((e) => ({
-            ...e,
-            backgroundColor: STATUS_COLOR_MAP[e.status] || "#3b82f6",
-            borderColor: "transparent",
-            textColor: "#fff",
-            display: "block",
-          }))}
+          locale="ja" firstDay={0} headerToolbar={{left:"title",center:"",right:"prev next today"}} selectable editable
+          events={events.map(e=>({...e,backgroundColor:STATUS_COLOR_MAP[e.status]||"#3b82f6",borderColor:"transparent",textColor:"#fff",display:"block"}))}
           eventDisplay="block"
-          dayCellClassNames={(arg) =>
-            arg.isToday ? ["today-circle"] : []
-          }
-          eventContent={(arg) => (
-            <div
-              className={`whitespace-normal text-sm font-semibold ${
-                arg.event.extendedProps.status === "completed"
-                  ? "line-through"
-                  : ""
-              }`}
-              style={{
-                backgroundColor: arg.event.backgroundColor,
-                color: arg.event.textColor,
-                borderRadius: "4px",
-                padding: "1px 3px",
-              }}
-            >
-              {arg.event.title}
-            </div>
-          )}
-          select={(info) => {
-            const allDay = info.allDay;
-            const startStr =
-              formatDateJP(info.start) + (allDay ? "T00:00" : "T09:00");
-            const endStr =
-              formatDateJP(info.end) + (allDay ? "T00:00" : "T10:00");
-
-            openModal(
-              {
-                id: String(Date.now()),
-                title: "",
-                start: startStr,
-                end: endStr,
-                color: "#3b82f6",
-                allDay,
-              },
-              true
+          dayCellContent={arg=>{const d=arg.date.getDay();return <div className="text-sm font-medium" style={{color:d===0?"#ef4444":d===6?"#3b82f6":"#374151"}}>{arg.date.getDate()}</div>}}
+          eventContent={arg=><div className={`whitespace-normal text-sm font-semibold ${arg.event.extendedProps.status==="completed"?"line-through":""}`} style={{backgroundColor:arg.event.backgroundColor,color:arg.event.textColor,borderRadius:"4px",padding:"1px 3px"}}>{arg.event.title}</div>}
+          select={info=>{const allDay=info.allDay,start=formatDateJP(info.start)+(allDay?"T00:00":"T09:00"),end=formatDateJP(info.end)+(allDay?"T00:00":"T10:00");openModal({id:String(Date.now()),title:"",start,end,color:"#3b82f6",allDay},true)}}
+          eventClick={info=>openModal(events.find(e=>e.id===info.event.id))}
+          height="auto" contentHeight="auto"
+          eventDrop={(info) => {
+            const updated = events.map(e =>
+             e.id === info.event.id
+              ? { ...e, start: info.event.startStr, end: info.event.endStr }
+              : e
             );
+            saveEvents(updated, "イベントを移動しました 🔄");
           }}
-          eventClick={(info) =>
-            openModal(events.find((e) => e.id === info.event.id))
-          }
-          height="auto"
-          contentHeight="auto"
+ 
         />
       </div>
 
-      {/* ---------------------------------
-          通知
-      --------------------------------- */}
+
+      {/* 通知 */}
       <div className="fixed top-5 right-5 space-y-2 z-[2000]">
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md shadow-lg animate-slide-in"
-          >
-            {n.text}
-          </div>
-        ))}
+        {notifications.map(n=><div key={n.id} className="bg-blue-600 text-white px-4 py-2 rounded-md shadow-lg animate-slide-in">{n.text}</div>)}
       </div>
 
-      
-      
+
+      {/* モーダル */}
+      {modal.open||modalAnimating ? (
+        <div className={`modal-overlay fixed inset-0 flex justify-center items-center z-[3000] ${modalReady?"show":""}`} onClick={closeModal}>
+          <div className={`modal-content bg-white rounded-xl p-6 w-[420px] shadow-lg max-h-[90vh] overflow-y-auto ${modalReady?"show":""}`} onClick={e=>e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">{modal.isNew?"📝 新規イベント":"✏️ イベント編集"}</h3>
+            {["title","start","end","status","priority","comment"].map(field=>{
+              if(field==="title") return <div key={field}><label className="text-sm text-gray-600">タイトル</label><input type="text" className="w-full p-2 border rounded" value={modal.event.title} onChange={e=>setModal(p=>({...p,event:{...p.event,title:e.target.value}}))} /></div>
+              if(field==="comment") return <div key={field}><label className="text-sm text-gray-600">コメント</label><textarea className="w-full p-2 border rounded" rows={4} value={modal.event.comment||""} onChange={e=>setModal(p=>({...p,event:{...p.event,comment:e.target.value}}))}/></div>
+              return <div key={field}><label className="text-sm text-gray-600">{field==="start"?"開始日":field==="end"?"終了日":field==="status"?"ステータス":"優先度"}</label>{
+                field==="start"||field==="end"?<input type="datetime-local" className="w-full p-2 border rounded" value={modal.event[field]} onChange={e=>setModal(p=>({...p,event:{...p.event,[field]:e.target.value}}))}/>:
+                <select className="w-full p-2 border rounded" value={modal.event[field]||(field==="status"?"active":"medium")} onChange={e=>setModal(p=>({...p,event:{...p.event,[field]:e.target.value}}))}>{field==="status"?<><option value="active">進行中</option><option value="completed">完了</option></>:<><option value="high">高</option><option value="medium">中</option><option value="low">低</option></>}</select>
+              }</div>
+            })}
+            <div className="mt-5 flex justify-between items-center">
+              {!modal.isNew && <button onClick={handleDelete} className="px-3 py-1.5 bg-red-500 text-white rounded">削除</button>}
+              <div className="flex ml-auto gap-3">
+                <button onClick={closeModal} className="px-3 py-1.5 bg-gray-300 rounded">キャンセル</button>
+                <button onClick={()=>{
+                  if(!modal.event.title.trim()){addNotification("タイトルは必須です");return;}
+                  if(new Date(modal.event.end)<new Date(modal.event.start)){addNotification("終了日は開始日より後に設定してください");return;}
+                  handleSave(modal.event);
+                }} className="px-4 py-1.5 bg-blue-600 text-white rounded">保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
 
+
 export default Calendar;
+
+
+
