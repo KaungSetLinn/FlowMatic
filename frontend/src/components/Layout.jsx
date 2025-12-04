@@ -14,15 +14,6 @@ function Layout() {
   const { projects, currentProject, handleProjectChange, loading } =
     useProject();
 
-  if (loading)
-    return <div className="p-6 text-gray-600">Loading projects...</div>;
-
-  const handleLogout = () => {
-    localStorage.clear();
-    setIsAuthorized(false);
-    window.location.href = "/login";
-  };
-
   // Close dropdown if clicked outside
   useEffect(() => {
     const userString = localStorage.getItem(CURRENT_USER);
@@ -42,6 +33,15 @@ function Layout() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  if (loading)
+    return <div className="p-6 text-gray-600">Loading projects...</div>;
+
+  const handleLogout = () => {
+    localStorage.clear();
+    setIsAuthorized(false);
+    window.location.href = "/login";
+  };
 
   const menuItems = [
     { to: "/", icon: "fas fa-tachometer-alt", label: "ダッシュボード" },
@@ -130,13 +130,13 @@ function Layout() {
           {/* On mobile, this sits below blue bar (top-14), on desktop it's top-0 */}
           <span className="text-lg font-bold">現在のプロジェクト：</span>
           <select
-            value={currentProject?.id || ""}
-            onChange={(e) => handleProjectChange(e.target.value)}
+            value={currentProject?.project_id || ""}
+            onChange={(e) => {handleProjectChange(e.target.value); console.log(e.target.value)}}
             className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white hover:cursor-pointer"
           >
             {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
+              <option key={project.project_id} value={project.project_id}>
+                {project.title}
               </option>
             ))}
           </select>
