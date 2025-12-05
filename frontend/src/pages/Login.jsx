@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react';
 import api from '../api';
 import { ACCESS_TOKEN, CURRENT_USER, REFRESH_TOKEN } from '../constants';
-import { useAuth } from '../AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 function Login() {
     const { setIsAuthorized, setUser } = useAuth();
