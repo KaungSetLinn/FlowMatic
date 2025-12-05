@@ -66,6 +66,7 @@ const Chat = () => {
       ...prev,
       [selectedChat]: [...prev[selectedChat], newMessage],
     }));
+      setMessageInput("");
   };
 
   return (
