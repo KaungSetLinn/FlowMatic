@@ -20,6 +20,7 @@ class ProjectAPITest(APITestCase):
         # 他のメンバー作成
         self.member1 = User.objects.create_user(username="member1", email="member1@example.com", password="password")
         self.member2 = User.objects.create_user(username="member2", email="member2@example.com", password="password")
+        self.stranger = User.objects.create_user(username="stranger", email="stranger@example.com", password="password")
 
         self.url_list = reverse("project-list")
 
@@ -86,3 +87,62 @@ class ProjectAPITest(APITestCase):
         response = self.client.delete(url_detail)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Project.objects.filter(project_id=project.project_id).exists())
+
+
+
+
+    def test_unauthenticated_user_cannot_access(self):
+        
+        self.client.force_authenticate(user=None)
+        project = self.create_project_helper()
+        url_detail = reverse("project-detail", args=[project.project_id])
+
+        response = self.client.get(url_detail)
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_non_member_cannot_view_project(self):
+        
+        project = self.create_project_helper()
+
+        self.client.force_authenticate(self.stranger)
+        url_detail = reverse("project-detail", args=[project.project_id])
+
+        response = self.client.get(url_detail)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_non_member_cannot_update_project(self):
+        
+        project = self.create_project_helper()
+
+        self.client.force_authenticate(self.stranger)
+        url_detail = reverse("project-detail", args=[project.project_id])
+
+        response = self.client.patch(url_detail, {"title": "Hacked"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_non_member_cannot_delete_project(self):
+        
+        project = self.create_project_helper()
+
+        self.client.force_authenticate(self.stranger)
+        url_detail = reverse("project-detail", args=[project.project_id])
+
+        response = self.client.delete(url_detail)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+    def test_member_can_view_edit_and_delete(self):
+        
+        project = self.create_project_helper()
+        self.client.force_authenticate(self.member1)
+
+        url_detail = reverse("project-detail", args=[project.project_id])
+
+        response = self.client.get(url_detail)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.client.patch(url_detail, {"title": "Member Edited"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.client.delete(url_detail)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
