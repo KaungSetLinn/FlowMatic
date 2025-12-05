@@ -131,7 +131,7 @@ function Layout() {
           <span className="text-lg font-bold">現在のプロジェクト：</span>
           <select
             value={currentProject?.project_id || ""}
-            onChange={(e) => {handleProjectChange(e.target.value); console.log(e.target.value)}}
+            onChange={(e) => handleProjectChange(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white hover:cursor-pointer"
           >
             {projects.map((project) => (
