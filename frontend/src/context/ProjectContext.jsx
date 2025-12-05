@@ -44,6 +44,8 @@ export const ProjectProvider = ({ children }) => {
         // Fallback: select first project only if no saved project found
       if (projectsArray.length > 0) {
         setCurrentProject(projectsArray[0]);
+        const currentProjectId = projectsArray[0].project_id;
+        localStorage.setItem(CURRENT_PROJECT_ID, currentProjectId)
       }
 
         setLoading(false);
