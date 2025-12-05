@@ -20,7 +20,8 @@ const Calendar = () => {
   const [modalReady, setModalReady] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("all");
-  const [sortType, setSortType] = useState("dueDate"); 
+  const [sortType, setSortType] = useState("dueDate");
+  const [showDetail, setShowDetail] = useState(false); 
 
   const sortFunctions = {
   dueDate: (a, b) => new Date(a.start) - new Date(b.start),
@@ -71,6 +72,10 @@ const Calendar = () => {
 
 
   const handleSave = evt => {
+    if (evt.allDay) {
+    evt.start = evt.start.split("T")[0];
+    evt.end   = evt.end.split("T")[0];
+  }
     const newEvent = { ...evt, color: STATUS_COLOR_MAP[evt.status] || "#3b82f6" };
     saveEvents(modal.isNew ? [...events, newEvent] : events.map(e => e.id === newEvent.id ? newEvent : e), modal.isNew ? "イベントを追加しました 📝" : "イベントを保存しました 💾");
     closeModal();
@@ -93,6 +98,9 @@ const Calendar = () => {
     { type:"completed", label:"完了", icon:faCheckCircle, color:"green" },
     { type:"high", label:"締め切り近い", icon:faExclamationCircle, color:"red" },
   ];
+
+  const updateEvent = (field, value) =>
+  setModal(p => ({ ...p, event: { ...p.event, [field]: value } }));
 
 
   return (
@@ -162,8 +170,27 @@ const Calendar = () => {
           eventDisplay="block"
           dayCellContent={arg=>{const d=arg.date.getDay();return <div className="text-sm font-medium" style={{color:d===0?"#ef4444":d===6?"#3b82f6":"#374151"}}>{arg.date.getDate()}</div>}}
           eventContent={arg=><div className={`whitespace-normal text-sm font-semibold ${arg.event.extendedProps.status==="completed"?"line-through":""}`} style={{backgroundColor:arg.event.backgroundColor,color:arg.event.textColor,borderRadius:"4px",padding:"1px 3px"}}>{arg.event.title}</div>}
-          select={info=>{const allDay=info.allDay,start=formatDateJP(info.start)+(allDay?"T00:00":"T09:00"),end=formatDateJP(info.end)+(allDay?"T00:00":"T10:00");openModal({id:String(Date.now()),title:"",start,end,color:"#3b82f6",allDay},true)}}
-          eventClick={info=>openModal(events.find(e=>e.id===info.event.id))}
+          select={info=>{
+  const allDay = info.allDay;
+
+  const start = allDay
+    ? formatDateJP(info.start)
+    : formatDateJP(info.start) + "T09:00";
+
+  const end = allDay
+    ? formatDateJP(info.end)
+    : formatDateJP(info.end) + "T10:00";
+
+  openModal({
+    id:String(Date.now()),
+    title:"",
+    start,
+    end,
+    color:"#3b82f6",
+    allDay
+  },true)
+}}
+
           height="auto" contentHeight="auto"
           eventDrop={(info) => {
             const updated = events.map(e =>
@@ -185,35 +212,188 @@ const Calendar = () => {
 
 
       {/* モーダル */}
-      {modal.open||modalAnimating ? (
-        <div className={`modal-overlay fixed inset-0 flex justify-center items-center z-[3000] ${modalReady?"show":""}`} onClick={closeModal}>
-          <div className={`modal-content bg-white rounded-xl p-6 w-[420px] shadow-lg max-h-[90vh] overflow-y-auto ${modalReady?"show":""}`} onClick={e=>e.stopPropagation()}>
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">{modal.isNew?"📝 新規イベント":"✏️ イベント編集"}</h3>
-            {["title","start","end","status","priority","comment"].map(field=>{
-              if(field==="title") return <div key={field}><label className="text-sm text-gray-600">タイトル</label><input type="text" className="w-full p-2 border rounded" value={modal.event.title} onChange={e=>setModal(p=>({...p,event:{...p.event,title:e.target.value}}))} /></div>
-              if(field==="comment") return <div key={field}><label className="text-sm text-gray-600">コメント</label><textarea className="w-full p-2 border rounded" rows={4} value={modal.event.comment||""} onChange={e=>setModal(p=>({...p,event:{...p.event,comment:e.target.value}}))}/></div>
-              return <div key={field}><label className="text-sm text-gray-600">{field==="start"?"開始日":field==="end"?"終了日":field==="status"?"ステータス":"優先度"}</label>{
-                field==="start"||field==="end"?<input type="datetime-local" className="w-full p-2 border rounded" value={modal.event[field]} onChange={e=>setModal(p=>({...p,event:{...p.event,[field]:e.target.value}}))}/>:
-                <select className="w-full p-2 border rounded" value={modal.event[field]||(field==="status"?"active":"medium")} onChange={e=>setModal(p=>({...p,event:{...p.event,[field]:e.target.value}}))}>{field==="status"?<><option value="active">進行中</option><option value="completed">完了</option></>:<><option value="high">高</option><option value="medium">中</option><option value="low">低</option></>}</select>
-              }</div>
-            })}
-            <div className="mt-5 flex justify-between items-center">
-              {!modal.isNew && <button onClick={handleDelete} className="px-3 py-1.5 bg-red-500 text-white rounded">削除</button>}
-              <div className="flex ml-auto gap-3">
-                <button onClick={closeModal} className="px-3 py-1.5 bg-gray-300 rounded">キャンセル</button>
-                <button onClick={()=>{
-                  if(!modal.event.title.trim()){addNotification("タイトルは必須です");return;}
-                  if(new Date(modal.event.end)<new Date(modal.event.start)){addNotification("終了日は開始日より後に設定してください");return;}
-                  handleSave(modal.event);
-                }} className="px-4 py-1.5 bg-blue-600 text-white rounded">保存</button>
-              </div>
+{modal.open || modalAnimating ? (
+  <div
+    className={`modal-overlay fixed inset-0 flex justify-center items-center z-[3000] ${modalReady ? "show" : ""}`}
+    onClick={closeModal}
+  >
+    <div
+      className={`modal-content bg-white rounded-xl p-6 w-[420px] shadow-lg max-h-[85vh] overflow-y-auto ${modalReady ? "show" : ""}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+        {modal.isNew ? "📝 新規イベント" : "✏️ イベント編集"}
+      </h3>
+
+      {/* 基本情報 */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+
+        {/* タイトル */}
+        <div className="col-span-2">
+          <label className="text-sm text-gray-600">タイトル</label>
+          <input
+            type="text"
+            className="w-full p-2 border rounded"
+            value={modal.event.title}
+            onChange={(e) => updateEvent("title", e.target.value)}
+          />
+        </div>
+
+        {/* 開始日 */}
+        <div>
+          <label className="text-sm text-gray-600">開始日</label>
+          <input
+            type={modal.event.allDay ? "date" : "datetime-local"}
+            className="w-full p-2 border rounded"
+            value={modal.event.start}
+            onChange={(e) => updateEvent("start", e.target.value)}
+          />
+        </div>
+
+        {/* 終了日 */}
+        <div>
+          <label className="text-sm text-gray-600">終了日</label>
+          <input
+            type={modal.event.allDay ? "date" : "datetime-local"}
+            className="w-full p-2 border rounded"
+            value={modal.event.end}
+            onChange={(e) => updateEvent("end", e.target.value)}
+          />
+        </div>
+
+        {/* 終日 */}
+        <div className="col-span-2 flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={modal.event.allDay || false}
+            onChange={(e) => {
+              const isAllDay = e.target.checked;
+              setModal((p) => ({
+                ...p,
+                event: {
+                  ...p.event,
+                  allDay: isAllDay,
+                  start: isAllDay
+                    ? p.event.start.split("T")[0]
+                    : p.event.start + "T09:00",
+                  end: isAllDay
+                    ? p.event.end.split("T")[0]
+                    : p.event.end + "T10:00",
+                },
+              }));
+            }}
+          />
+          <label className="text-sm text-gray-700">終日イベント</label>
+        </div>
+      </div>
+
+      {/* ステータス（グリッド外でOK） */}
+      <div className="mb-4">
+        <label className="text-sm text-gray-600">ステータス</label>
+        <select
+          className="w-full p-2 border rounded"
+          value={modal.event.status || "active"}
+          onChange={(e) => updateEvent("status", e.target.value)}
+        >
+          <option value="active">進行中</option>
+          <option value="completed">完了</option>
+        </select>
+      </div>
+
+      {/* 詳細設定 */}
+      <div className="mb-4">
+        <button
+          className="text-blue-600 font-medium underline"
+          onClick={() => setShowDetail((s) => !s)}
+        >
+          {showDetail ? "▲ 詳細を隠す" : "▼ 詳細設定"}
+        </button>
+
+        {showDetail && (
+          <div className="mt-3 grid grid-cols-2 gap-4">
+            {/* 優先度 */}
+            <div>
+              <label className="text-sm text-gray-600">優先度</label>
+              <select
+                className="w-full p-2 border rounded"
+                value={modal.event.priority || "medium"}
+                onChange={(e) => updateEvent("priority", e.target.value)}
+              >
+                <option value="high">高</option>
+                <option value="medium">中</option>
+                <option value="low">低</option>
+              </select>
+            </div>
+
+            {/* コメント */}
+            <div className="col-span-2">
+              <label className="text-sm text-gray-600">コメント</label>
+              <textarea
+                className="w-full p-2 border rounded"
+                rows={3}
+                value={modal.event.comment || ""}
+                onChange={(e) => updateEvent("comment", e.target.value)}
+              />
             </div>
           </div>
+        )}
+      </div>
+
+      {/* ボタン */}
+      <div className="mt-5 flex justify-between items-center">
+        {!modal.isNew && (
+          <button
+            onClick={handleDelete}
+            className="px-3 py-1.5 bg-red-500 text-white rounded"
+          >
+            削除
+          </button>
+        )}
+
+        <div className="flex ml-auto gap-3">
+          <button
+            onClick={closeModal}
+            className="px-3 py-1.5 bg-gray-300 rounded"
+          >
+            キャンセル
+          </button>
+
+          <button
+            onClick={() => {
+              if (!modal.event.title.trim()) {
+                addNotification("タイトルは必須です");
+                return;
+              }
+              if (new Date(modal.event.end) < new Date(modal.event.start)) {
+                addNotification("終了日は開始日より後に設定してください");
+                return;
+              }
+
+              const evt = { ...modal.event };
+              if (evt.allDay) {
+                evt.start = evt.start.split("T")[0];
+                evt.end = evt.end.split("T")[0];
+              }
+              handleSave(evt);
+            }}
+            className="px-4 py-1.5 bg-blue-600 text-white rounded"
+          >
+            保存
+          </button>
         </div>
-      ) : null}
+      </div>
     </div>
+  </div>
+) : null}
+
+
+
+     
+      </div>
   );
 };
+   
+
 
 
 export default Calendar;
