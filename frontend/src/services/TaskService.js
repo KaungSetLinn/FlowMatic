@@ -1,9 +1,9 @@
 import api from "../api";
 
-export async function createTask(taskData) {
+export async function createTask(projectId, taskData) {
   try {
     // f28497cc-6801-46a1-ac69-dada7febd96c = 実際のprojectId
-    const response = await api.post(`/api/projects/f28497cc-6801-46a1-ac69-dada7febd96c/tasks/`, taskData);
+    const response = await api.post(`/api/projects/${projectId}/tasks/`, taskData);
     return response.data;
   } catch (error) {
     console.error("API Error:", error);
@@ -14,8 +14,8 @@ export async function createTask(taskData) {
 export async function getTasks(projectId) {
     try {
         // f28497cc-6801-46a1-ac69-dada7febd96c = 実際のprojectId
-    const response = await api.get(`/api/projects/f28497cc-6801-46a1-ac69-dada7febd96c/tasks/`);
-    return response.data;
+    const response = await api.get(`/api/projects/${projectId}/tasks/`);
+    return response.data.tasks;
   } catch (error) {
     console.error("API Error:", error);
     throw error;
