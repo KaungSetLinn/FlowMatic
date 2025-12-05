@@ -20,6 +20,20 @@ const Calendar = () => {
   const [modalReady, setModalReady] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [sortType, setSortType] = useState("dueDate"); 
+
+  const sortFunctions = {
+  dueDate: (a, b) => new Date(a.start) - new Date(b.start),
+  priority: (a, b) =>
+    ({ high: 1, medium: 2, low: 3 }[a.priority] -
+     { high: 1, medium: 2, low: 3 }[b.priority]),
+  status: (a, b) =>
+    ({ active: 1, completed: 2 }[a.status] -
+     { active: 1, completed: 2 }[b.status]),
+};
+
+
+
 
 
   useEffect(() => {
@@ -106,6 +120,15 @@ const Calendar = () => {
       {/* サイドパネル */}
       <div className="w-64 bg-white rounded-xl shadow-md p-4 flex-shrink-0">
         <h2 className="text-lg font-semibold mb-4">タスク一覧</h2>
+        <select
+          className="w-full border rounded p-2 mb-3"
+          value={sortType}
+          onChange={(e) => setSortType(e.target.value)}
+        >
+        <option value="dueDate">期限が早い順</option>
+        <option value="priority">優先度順（高 → 低）</option>
+        <option value="status">ステータス順</option>
+        </select>
         <div className="flex flex-wrap gap-2 mb-4">
           {filters.map(f=>{
             const isActive = filter===f.type;
@@ -114,7 +137,7 @@ const Calendar = () => {
           })}
         </div>
         <div className="space-y-2 max-h-[80vh] overflow-y-auto">
-          {events.filter(e=>filter==="all"?true:filter==="urgent"?(()=>{const d=new Date(e.start.split("T")[0]),today=new Date();return Math.ceil((d-today)/(1000*60*60*24))<=3})():e.status===filter).sort((a,b)=>({high:1,medium:2,low:3}[a.priority]-{high:1,medium:2,low:3}[b.priority])).map(e=>(
+          {events.filter(e=>filter==="all"?true:filter==="urgent"?(()=>{const d=new Date(e.start.split("T")[0]),today=new Date();return Math.ceil((d-today)/(1000*60*60*24))<=3})():e.status===filter).sort(sortFunctions[sortType]).map(e=>(
             <div key={e.id} className="p-2 rounded-md cursor-pointer flex items-center justify-between hover:bg-gray-100 transition" onClick={()=>openModal(e)}>
               <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{backgroundColor:e.color}}></span>
                 <div>
