@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheckCircle,
@@ -11,9 +11,26 @@ import {
   faPlusCircle,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
+import { useProject } from "../context/ProjectContext";
+import { getTasks } from "../services/TaskService";
+import { CURRENT_PROJECT_ID } from "../constants";
 
 const Task = () => {
+  const { currentProject } = useProject();
+  const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
+
+  const fetchTasks = async (projectId) => {
+    const tasks = await getTasks(projectId);
+
+    // return tasks;
+    console.log(tasks)
+  }
+
+  // For testing
   const [tasks, setTasks] = useState([]);
+
+  const [existingTasks, setExistingTasks] = useState([]);
+
   const [filter, setFilter] = useState("all");
 
   const [activeTaskId, setActiveTaskId] = useState(null);
@@ -94,6 +111,8 @@ const Task = () => {
       },
     ];
     setTasks(mockTasks);
+
+    fetchTasks(currentProjectId);
   }, []);
 
   // ✅ Dynamic filter logic
