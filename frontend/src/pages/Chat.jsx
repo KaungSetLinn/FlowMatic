@@ -19,7 +19,13 @@ const INITIAL_MESSAGES = {
 
 const Chat = () => {
   const [chats] = useState(INITIAL_CHATS);
-  const [allMessages, setAllMessages] = useState(INITIAL_MESSAGES);
+
+  // ✅ localStorage から復元
+  const [allMessages, setAllMessages] = useState(() => {
+    const saved = localStorage.getItem("chatMessages");
+    return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
+  });
+
   const [selectedChat, setSelectedChat] = useState(1);
   const [messageInput, setMessageInput] = useState("");
 
@@ -28,10 +34,17 @@ const Chat = () => {
   const currentMessages = allMessages[selectedChat] || [];
   const currentChat = chats.find(c => c.id === selectedChat);
 
+  // ✅ スクロール自動追従
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentMessages]);
 
+  // ✅ メッセージ変更時に localStorage 保存
+  useEffect(() => {
+    localStorage.setItem("chatMessages", JSON.stringify(allMessages));
+  }, [allMessages]);
+
+  // ✅ 送信処理（入力リセットなし）
   const handleSendMessage = () => {
     if (!messageInput.trim()) return;
 
@@ -53,22 +66,19 @@ const Chat = () => {
       ...prev,
       [selectedChat]: [...prev[selectedChat], newMessage],
     }));
-
-    setMessageInput("");
+      setMessageInput("");
   };
 
   return (
-    <div className="flex w-full bg-white mb-31">
+    <div className="flex w-full bg-white mb-4">
 
       {/* 左側（ルーム一覧） */}
       <div className="w-1/3 border-r h-full flex flex-col">
 
-        {/* タイトル */}
         <div className="p-4 border-b bg-gray-50">
           <h2 className="text-3xl font-bold">ルーム一覧</h2>
         </div>
 
-        {/* ルーム一覧（独立スクロール） */}
         <div className="flex-grow overflow-y-auto">
           {chats.map(chat => (
             <div
@@ -86,43 +96,49 @@ const Chat = () => {
       </div>
 
       {/* 右側（チャット画面） */}
-      <div className="w-2/3 h-full grid ">
+      <div className="w-2/3 h-full grid">
 
-        {/* 上：タイトルバー */}
+        {/* タイトルバー */}
         <div className="p-4 border-b bg-gray-100">
           <h2 className="text-3xl font-bold">{currentChat?.name}</h2>
         </div>
 
-        {/* 中：メッセージ一覧（高さ固定・独立スクロール） */}
+        {/* メッセージ一覧 */}
         <div className="overflow-y-auto p-4 space-y-4 bg-white h-[350px]">
-
           {currentMessages.map(msg => (
             <div
               key={msg.id}
-              className={`flex items-start space-x-3 ${
-                msg.self ? "justify-end flex-row-reverse" : ""
-              }`}
+              className={`flex ${msg.self ? "justify-end" : "justify-start"}`}
             >
-              {/* 相手アイコン */}
               {!msg.self && (
-                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold">
+                <div className="w-10 h-10 mr-2 rounded-full bg-gray-300 flex items-center justify-center font-bold">
                   {msg.user[0]}
                 </div>
               )}
 
-              {/* メッセージ本文 */}
               <div className="max-w-lg">
                 {!msg.self && (
-                  <p className="text-xl font-semibold text-gray-700">
+                  <p className="text-xl font-semibold text-gray-700 mb-1">
                     {msg.user}
                   </p>
                 )}
 
-                <p className="text-base text-gray-900 leading-relaxed whitespace-pre-wrap">
+                {/* ✅ 吹き出し */}
+                <div
+                  className={`px-4 py-2 rounded-2xl shadow text-base whitespace-pre-wrap ${
+                    msg.self
+                      ? "bg-blue-600 text-white rounded-br-none"
+                      : "bg-gray-100 text-gray-900 rounded-bl-none"
+                  }`}
+                >
                   {msg.text}
-                </p>
+                </div>
 
-                <p className="text-sm text-gray-400 text-right mt-1">
+                <p
+                  className={`text-sm text-gray-400 mt-1 ${
+                    msg.self ? "text-right" : "text-left"
+                  }`}
+                >
                   {msg.time}
                 </p>
               </div>
@@ -132,8 +148,8 @@ const Chat = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* 下：入力フォーム */}
-        <div className="p-4 border-t bg-white flex items-cente gap-3 mb-">
+        {/* 入力フォーム */}
+        <div className="p-4 border-t bg-white flex items-center gap-3">
           <textarea
             rows={2}
             className="flex-grow p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
@@ -141,12 +157,12 @@ const Chat = () => {
             value={messageInput}
             onChange={e => setMessageInput(e.target.value)}
             onKeyDown={e => {
-              // Enterのみ → 送信
+              // ✅ Enterだけで送信
               if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();   // 改行を防ぐ
+                e.preventDefault();
                 handleSendMessage();
               }
-              // Shift + Enter → 何もしない（＝通常の改行）
+              // ✅ Shift + Enter は改行
             }}
           />
           <button
