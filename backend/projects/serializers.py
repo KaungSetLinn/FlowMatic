@@ -6,11 +6,17 @@ from .models import Project
 User = get_user_model()
 
 
-class ProjectResponseSerializer(serializers.ModelSerializer):
-    members = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=User.objects.all()
-    )
+class MemberSerializer(serializers.ModelSerializer):
+    user_id = serializers.UUIDField(source='id')
+    name = serializers.CharField(source='username')
+
+    class Meta:
+        model = User
+        fields = ['user_id', 'name']
+
+
+class ProjectListSerializer(serializers.ModelSerializer):
+    members = MemberSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project
@@ -22,7 +28,24 @@ class ProjectResponseSerializer(serializers.ModelSerializer):
             'deadline',
             'progress',
             'status',
-            'members'
+            'members',
+        ]
+
+
+class ProjectResponseSerializer(serializers.ModelSerializer):
+    members = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+
+    class Meta:
+        model = Project
+        fields = [
+            'project_id',
+            'title',
+            'description',
+            'start_date',
+            'deadline',
+            'progress',
+            'status',
+            'members',
         ]
         read_only_fields = ['project_id']
 
@@ -33,19 +56,18 @@ class ProjectCreateSerializer(serializers.Serializer):
     start_date = serializers.DateTimeField()
     deadline = serializers.DateTimeField()
     progress = serializers.IntegerField(required=False, default=0)
-    status = serializers.ChoiceField(choices=[(c[0], c[1]) for c in Project.status_choices], default='planning')
+    status = serializers.ChoiceField(
+        choices=[(c[0], c[1]) for c in Project.status_choices], default='planning'
+    )
     members = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=User.objects.all(),
-        required=False,
-        default=[]
+        many=True, queryset=User.objects.all(), required=False, default=[]
     )
 
     default_error_messages = {
         'invalid_date_range': 'deadline must be greater than or equal to start_date.',
         'blank_title': 'title may not be blank.',
         'invalid_progress': 'progress must be between 0 and 100.',
-        'invalid_status': 'invalid status value.'
+        'invalid_status': 'invalid status value.',
     }
 
     def validate(self, attrs):
