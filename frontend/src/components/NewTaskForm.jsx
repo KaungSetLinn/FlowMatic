@@ -1,29 +1,28 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../context/ProjectContext";
+import { createTask, getTasks } from "../services/TaskService";
+import { MobileDateTimePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
+import { CURRENT_PROJECT_ID } from "../constants";
 
 export default function NewTaskForm() {
   const { currentProject } = useProject();
+  const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
 
-  const [projectId, setProjectId] = useState("");
-  const [newTaskName, setNewTaskName] = useState("");
+  const [existingTasks, setExistingTasks] = useState([]);
+
+  const [taskName, setTaskName] = useState("");
   const [description, setDescription] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const [deadline, setDeadline] = useState(null);
   const [priority, setPriority] = useState("medium");
-  const [status, setStatus] = useState("to_do");
+  const [status, setStatus] = useState("todo"); // fixed default
   const [assignees, setAssignees] = useState([]);
   const [dependencies, setDependencies] = useState([]);
   const [message, setMessage] = useState({ text: "", type: "" });
 
-  const inputRef = useRef(null);
   const navigate = useNavigate();
-
-  const allAssignees = [
-    { id: "john_doe", label: "ジョン・ドウ" },
-    { id: "jane_smith", label: "ジェーン・スミス" },
-    { id: "peter_jones", label: "ピーター・ジョーンズ" },
-    { id: "alice_brown", label: "アリス・ブラウン" },
-  ];
+  const inputRef = useRef(null);
 
   const sampleTasks = [
     { id: "task_1", name: "要件定義" },
@@ -34,34 +33,46 @@ export default function NewTaskForm() {
   ];
 
   const dependencyTypes = [
-    { id: "fts", label: "完了→開始 (FtS)" },
-    { id: "ftf", label: "完了→完了 (FtF)" },
-    { id: "sts", label: "開始→開始 (StS)" },
-    { id: "stf", label: "開始→完了 (StF)" },
+    { id: "FtS", label: "完了→開始 (FtS)" },
+    { id: "FtF", label: "完了→完了 (FtF)" },
+    { id: "StS", label: "開始→開始 (StS)" },
+    { id: "StF", label: "開始→完了 (StF)" },
   ];
+
+  const fetchTasks = async (projectId) => {
+    const tasks = await getTasks(projectId);
+
+    setExistingTasks(tasks);
+  };
 
   useEffect(() => {
     inputRef.current?.focus();
+    // console.log(currentProject)
+    fetchTasks(currentProjectId);
   }, []);
 
   useEffect(() => {
-    // console.log(currentProject.id);
-    setProjectId(currentProject.id);
-  }, [currentProject]);
+    console.log(existingTasks);
+  }, [existingTasks]);
+
+  const groupMembers = useMemo(() => currentProject.members, [currentProject]);
+  // console.log(groupMembers)
+
+  const handleDateChange = (name, value) => {
+    setDeadline(value);
+  };
 
   const handleAssigneeChange = (id) => {
     setAssignees((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
-  const handleAddDependency = () => {
-    setDependencies([...dependencies, { taskId: "", type: "fts" }]);
-  };
+  const handleAddDependency = () =>
+    setDependencies([...dependencies, { taskId: "", type: "FtS" }]);
 
-  const handleRemoveDependency = (index) => {
+  const handleRemoveDependency = (index) =>
     setDependencies(dependencies.filter((_, i) => i !== index));
-  };
 
   const handleDependencyChange = (index, field, value) => {
     const updated = [...dependencies];
@@ -69,43 +80,62 @@ export default function NewTaskForm() {
     setDependencies(updated);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!projectId)
-      return showMessage("プロジェクトを選択してください。", "error");
-    if (!newTaskName.trim())
-      return showMessage("タスク名を入力してください。", "error");
-    if (!dueDate) return showMessage("期限日を選択してください。", "error");
+    if (!taskName.trim()) return showMessage("タスク名が必要です。", "error");
+    if (!deadline) return showMessage("期限日を設定してください。", "error");
     if (assignees.length === 0)
-      return showMessage("担当者を1人以上選択してください。", "error");
+      return showMessage("担当者を1名以上選択してください。", "error");
 
-    const task = {
-      projectId,
-      newTaskName,
-      description,
-      dueDate,
+    // Validate dependencies - check if any dependency has an empty taskId
+    const hasEmptyDependency = dependencies.some(
+      (dep) => !dep.taskId || dep.taskId.trim() === ""
+    );
+    if (hasEmptyDependency) {
+      return showMessage(
+        "すべてのタスク間関係で既存タスクを選択してください。",
+        "error"
+      );
+    }
+
+    const requestData = {
+      name: taskName,
+      description: description,
+      deadline: deadline.toISOString(),
       priority,
       status,
-      assignees,
-      dependencies,
+      assigned_user_ids: assignees,
+      parent_tasks: dependencies.map((d) => ({
+        task_id: d.taskId,
+        relation_type: d.type,
+      })),
     };
 
-    console.log("✅ 新しいタスクデータ:", task);
-    showMessage(`タスク「${newTaskName}」が正常に作成されました！`, "success");
+    // console.log("📦 Sending API request:", requestData);
 
-    setNewTaskName("");
-    setDescription("");
-    setDueDate("");
-    setPriority("medium");
-    setStatus("to_do");
-    setAssignees([]);
-    setDependencies([]);
+    const response = await createTask(currentProjectId, requestData);
+
+    console.log("🎉 API Response:", response);
+
+    // showMessage(`タスク "${taskName}" を作成しました！`, "success");
+    alert(taskName + "を作成しました");
+    resetForm();
   };
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: "", type: "" }), 4000);
+  };
+
+  const resetForm = () => {
+    setTaskName("");
+    setDescription("");
+    setDeadline(null);
+    setPriority("medium");
+    setStatus("todo");
+    setAssignees([]);
+    setDependencies([]);
   };
 
   return (
@@ -135,8 +165,8 @@ export default function NewTaskForm() {
             </label>
             <input
               type="text"
-              value={newTaskName}
-              onChange={(e) => setNewTaskName(e.target.value)}
+              value={taskName}
+              onChange={(e) => setTaskName(e.target.value)}
               ref={inputRef}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg"
               placeholder="タスク名を入力してください"
@@ -159,15 +189,36 @@ export default function NewTaskForm() {
 
           {/* Due Date + Assignees */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
+            {/* <div>
               <label className="block text-gray-700 text-lg font-semibold mb-2">
                 期限日
               </label>
               <input
                 type="date"
-                value={dueDate}
+                value={deadline}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg"
+              />
+            </div> */}
+            <div>
+              <label
+                htmlFor="deadline"
+                className="block text-xl font-bold mb-3"
+              >
+                期限日
+              </label>
+              <MobileDateTimePicker
+                label="期限日を設定してください"
+                value={deadline ? dayjs(deadline) : null}
+                onChange={(newValue) => handleDateChange("deadline", newValue)}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    required: true,
+                    className:
+                      "w-full px-3 py-2 border border-gray-300 text-xl rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                  },
+                }}
               />
             </div>
 
@@ -175,21 +226,21 @@ export default function NewTaskForm() {
               <label className="block text-gray-700 text-lg font-semibold mb-2">
                 担当者
               </label>
-              <div className="max-h-[110px] overflow-y-auto border border-gray-300 rounded-lg p-2">
-                {allAssignees.map((a) => (
+              <div className="max-h-full overflow-y-auto border border-gray-300 rounded-lg p-2">
+                {groupMembers.map((member) => (
                   <label
-                    key={a.id}
-                    htmlFor={`assignee_${a.id}`}
+                    key={member}
+                    htmlFor={`assignee_${member}`}
                     className="flex items-center py-1 text-lg text-gray-700"
                   >
                     <input
-                      id={`assignee_${a.id}`}
+                      id={`assignee_${member}`}
                       type="checkbox"
-                      checked={assignees.includes(a.id)}
-                      onChange={() => handleAssigneeChange(a.id)}
+                      checked={assignees.includes(member)}
+                      onChange={() => handleAssigneeChange(member)}
                       className="mr-2"
                     />
-                    {a.label}
+                    {member}
                   </label>
                 ))}
               </div>
@@ -253,8 +304,8 @@ export default function NewTaskForm() {
               </p>
             ) : (
               dependencies.map((dep, i) => {
-                const relatedTask = sampleTasks.find(
-                  (t) => t.id === dep.taskId
+                const relatedTask = existingTasks.find(
+                  (t) => t.task_id === dep.taskId
                 );
                 return (
                   <div
@@ -288,8 +339,8 @@ export default function NewTaskForm() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-lg bg-white"
                         >
                           <option value="">タスクを選択</option>
-                          {sampleTasks.map((task) => (
-                            <option key={task.id} value={task.id}>
+                          {existingTasks.map((task) => (
+                            <option key={task.task_id} value={task.task_id}>
                               {task.name}
                             </option>
                           ))}
@@ -318,22 +369,22 @@ export default function NewTaskForm() {
 
                     {/* Relation Preview */}
                     <div className="mt-3 text-lg text-gray-700 flex items-center justify-center gap-2">
-                      {relatedTask && newTaskName && (
+                      {relatedTask && taskName && (
                         <span>
                           <span className="font-semibold text-green-700">
                             {relatedTask.name}
                           </span>
-                          {dep.type === "fts" && " が完了後に "}
-                          {dep.type === "ftf" && " が完了後に "}
-                          {dep.type === "sts" && " が開始後に "}
-                          {dep.type === "stf" && " が開始後に "}
+                          {dep.type === "FtS" && " が完了後に "}
+                          {dep.type === "FtF" && " が完了後に "}
+                          {dep.type === "StS" && " が開始後に "}
+                          {dep.type === "StF" && " が開始後に "}
                           <span className="font-semibold text-blue-700">
-                            {newTaskName}
+                            {taskName}
                           </span>
-                          {dep.type === "fts" && " を開始"}
-                          {dep.type === "ftf" && " を完了"}
-                          {dep.type === "sts" && " を開始"}
-                          {dep.type === "stf" && " を完了"}
+                          {dep.type === "FtS" && " を開始"}
+                          {dep.type === "FtF" && " を完了"}
+                          {dep.type === "StS" && " を開始"}
+                          {dep.type === "StF" && " を完了"}
                         </span>
                       )}
                     </div>
