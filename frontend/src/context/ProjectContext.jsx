@@ -8,7 +8,7 @@ export const ProjectProvider = ({ children }) => {
   const [projects, setProjects] = useState([]);
   const [currentProject, setCurrentProject] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error] = useState(null);
+  const [error, setError] = useState(null);
 
   // 🔹 Dummy data for now
   const dummyProjects = [
@@ -51,6 +51,9 @@ export const ProjectProvider = ({ children }) => {
         setLoading(false);
       } catch (err) {
         setError(err);
+        setLoading(false);
+      }
+      finally {
         setLoading(false);
       }
     };
