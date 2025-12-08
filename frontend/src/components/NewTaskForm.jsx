@@ -229,18 +229,18 @@ export default function NewTaskForm() {
               <div className="max-h-full overflow-y-auto border border-gray-300 rounded-lg p-2">
                 {groupMembers.map((member) => (
                   <label
-                    key={member}
-                    htmlFor={`assignee_${member}`}
+                    key={member.user_id}
+                    htmlFor={`assignee_${member.user_id}`}
                     className="flex items-center py-1 text-lg text-gray-700"
                   >
                     <input
-                      id={`assignee_${member}`}
+                      id={`assignee_${member.user_id}`}
                       type="checkbox"
-                      checked={assignees.includes(member)}
-                      onChange={() => handleAssigneeChange(member)}
+                      checked={assignees.includes(member.user_id)}
+                      onChange={() => handleAssigneeChange(member.user_id)}
                       className="mr-2"
                     />
-                    {member}
+                    {member.name}
                   </label>
                 ))}
               </div>
