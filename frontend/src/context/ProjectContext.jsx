@@ -1,23 +1,22 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { getProjects } from "../services/ProjectService";
 import { CURRENT_PROJECT_ID } from "../constants";
+import { useAuth } from "./AuthContext";
 
 const ProjectContext = createContext();
 
 export const ProjectProvider = ({ children }) => {
+  const { isAuthorized, auth } = useAuth();
+
   const [projects, setProjects] = useState([]);
   const [currentProject, setCurrentProject] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 🔹 Dummy data for now
-  const dummyProjects = [
-    { id: 1, name: "Project Alpha", description: "Main website redesign" },
-    { id: 2, name: "Project Beta", description: "Mobile app launch" },
-    { id: 3, name: "Project Gamma", description: "Internal tools update" },
-  ];
-
   useEffect(() => {
+    if (isAuthorized === null) return;  // wait until auth check finishes
+    if (!isAuthorized) return; // not logged in → no request
+
     const fetchProjects = async () => {
       try {
         const data = await getProjects(); // fetch projects from API
@@ -59,7 +58,7 @@ export const ProjectProvider = ({ children }) => {
     };
 
     fetchProjects();
-  }, []);
+  }, [isAuthorized]);
 
   const handleProjectChange = (projectId) => {
     const selectedProject = projects.find((p) => p.project_id === projectId);
