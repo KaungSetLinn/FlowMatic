@@ -69,17 +69,8 @@ const Task = () => {
     }
   };
 
-  const mapStatus = (status) => {
-    switch (status) {
-      case "todo":
-      case "in_progress":
-        return "active";
-      case "done":
-        return "completed";
-      default:
-        return "active";
-    }
-  };
+  const isActiveStatus = (status) => 
+  ["todo", "pending", "in_progress", "in_review", "testing"].includes(status);
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -95,7 +86,7 @@ const Task = () => {
           description: task.description,
           dueDate: task.deadline,
           priority: task.priority,
-          status: mapStatus(task.status), // convert to UI format
+          status: task.status,
           assignedUsers: task.assigned_user_ids,
           parentTasks: task.parent_tasks,
           comments: task.comments || [], // default empty array
@@ -112,17 +103,42 @@ const Task = () => {
     loadTasks();
   }, [currentProjectId]);
 
+  const isDeadlineNear = (dueDate) => {
+  if (!dueDate) return false;
+
+  const now = new Date();
+  const due = new Date(dueDate);
+
+  const diffDays = (due - now) / (1000 * 60 * 60 * 24);
+  return diffDays >= 0 && diffDays <= 7; // ⬅ consistent rule
+};
+
+
   // ✅ Dynamic filter logic
   const filteredTasks = tasks.filter((task) => {
-    if (filter === "all") return true;
-    if (filter === "high") {
-      const now = new Date();
-      const due = new Date(task.dueDate);
-      const diffDays = (due - now) / (1000 * 60 * 60 * 24);
-      return diffDays >= 0 && diffDays <= 3; // due within 3 days
-    }
-    return task.status === filter;
-  });
+  if (filter === "all") return true;
+
+  if (filter === "high") {
+    return isDeadlineNear(task.dueDate);
+  }
+
+  if (filter === "active") {
+    return [
+      "todo",
+      "pending",
+      "in_progress",
+      "in_review",
+      "testing",
+    ].includes(task.status);
+  }
+
+  if (filter === "done") {
+    return task.status === "done";
+  }
+
+  return false;
+});
+
 
   const toggleTaskStatus = (taskId) => {
     setTasks((tasks) =>
@@ -130,7 +146,7 @@ const Task = () => {
         task.id === taskId
           ? {
               ...task,
-              status: task.status === "active" ? "completed" : "active",
+              status: task.status === "done" ? "in_progress" : "done",
             }
           : task
       )
@@ -191,17 +207,17 @@ const Task = () => {
         <StatCard title="すべてのタスク" value={tasks.length} color="blue" />
         <StatCard
           title="進行中"
-          value={tasks.filter((t) => t.status === "active").length}
+          value={tasks.filter((t) => isActiveStatus(t.status)).length}
           color="yellow"
         />
         <StatCard
           title="完了"
-          value={tasks.filter((t) => t.status === "completed").length}
+          value={tasks.filter((t) => t.status === "done").length}
           color="green"
         />
         <StatCard
           title="締め切り近い"
-          value={tasks.filter((t) => t.priority === "high").length}
+          value={tasks.filter((t) => isDeadlineNear(t.dueDate)).length}
           color="red"
         />
       </div>
@@ -217,7 +233,7 @@ const Task = () => {
             color: "yellow",
           },
           {
-            type: "completed",
+            type: "done",
             label: "完了",
             icon: faCheckCircle,
             color: "green",
@@ -250,7 +266,7 @@ const Task = () => {
             <button
               key={type}
               onClick={() => setFilter(type)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-lg font-medium transition-all duration-300 hover:cursor-pointer shadow-sm ${
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xl font-bold transition-all duration-300 hover:cursor-pointer shadow-sm ${
                 isActive ? "scale-105 shadow-md" : ""
               } ${colorClasses}`}
             >
@@ -264,8 +280,8 @@ const Task = () => {
       {/* Task List */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-500 text-lg font-medium">
+          <div className="text-center py-16 font-bold">
+            <p className="text-gray-500 text-lg">
               タスクがありません
             </p>
             <p className="text-gray-400 mt-2">
@@ -283,12 +299,12 @@ const Task = () => {
                   <button
                     onClick={() => toggleTaskStatus(task.id)}
                     className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center hover:cursor-pointer transition-all ${
-                      task.status === "completed"
+                      task.status === "done"
                         ? "bg-green-500 border-green-500"
                         : "border-gray-300 hover:border-green-500"
                     }`}
                   >
-                    {task.status === "completed" && (
+                    {task.status === "done" && (
                       <svg
                         className="w-3 h-3 text-white"
                         fill="none"
@@ -309,7 +325,7 @@ const Task = () => {
                     <div className="flex items-center gap-3">
                       <h3
                         className={`text-2xl font-bold ${
-                          task.status === "completed"
+                          task.status === "done"
                             ? "text-gray-400 line-through"
                             : "text-gray-800"
                         }`}
@@ -344,12 +360,28 @@ const Task = () => {
 
                       <span
                         className={`px-2 py-1 rounded-full ${
-                          task.status === "completed"
+                          task.status === "done"
                             ? "bg-green-100 text-green-700 border border-green-300"
-                            : "bg-blue-100 text-blue-700 border border-blue-300"
+                            : task.status === "in_progress"
+                            ? "bg-blue-100 text-blue-700 border border-blue-300"
+                            : task.status === "in_review"
+                            ? "bg-purple-100 text-purple-700 border border-purple-300"
+                            : task.status === "testing"
+                            ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                            : "bg-gray-100 text-gray-700 border border-gray-300"
                         }`}
                       >
-                        {task.status === "completed" ? "完了" : "進行中"}
+                        {task.status === "done"
+                          ? "完了"
+                          : task.status === "in_progress"
+                          ? "進行中"
+                          : task.status === "in_review"
+                          ? "レビュー中"
+                          : task.status === "testing"
+                          ? "テスト中"
+                          : task.status === "pending"
+                          ? "保留中"
+                          : "未着手"}
                       </span>
                     </div>
 
@@ -458,10 +490,10 @@ const StatCard = ({ title, value, color }) => {
 
   return (
     <div
-      className={`flex flex-col justify-center px-8 py-6 border rounded-2xl shadow-sm ${colorClasses}`}
+      className={`flex flex-col gap-3 justify-center px-8 py-6 border rounded-2xl shadow-sm ${colorClasses}`}
     >
-      <p className="text-xl font-semibold">{title}</p>
-      <p className="text-3xl font-extrabold mt-1">{value}</p>
+      <p className="text-2xl font-semibold">{title}</p>
+      <p className="text-4xl font-extrabold mt-1">{value}</p>
     </div>
   );
 };
