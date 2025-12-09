@@ -142,7 +142,6 @@ package project_tables {
 
     projects ||--o{ events
     events .. event_color_enum
-
     projects ||--o{ chatrooms
     chatrooms ||--o{ chatroom_users
     users ||--o{ chatroom_users

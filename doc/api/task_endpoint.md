@@ -18,7 +18,7 @@
     "description": "string",
     "deadline": "2024-01-01T00:00:00Z",
     "priority": "low | medium | high",
-    "status": "todo | in_progress | done",
+    "status": "todo | pending | in_progress | in_review | testing | done",
     "assigned_user_ids": ["uuid1"],
     "parent_tasks": [
         {
