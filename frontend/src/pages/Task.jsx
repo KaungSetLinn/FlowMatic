@@ -14,118 +14,131 @@ import {
 import { useProject } from "../context/ProjectContext";
 import { getTasks } from "../services/TaskService";
 import { CURRENT_PROJECT_ID } from "../constants";
+import { useAuth } from "../context/AuthContext";
+import { createComment } from "../services/CommentService";
 
 const Task = () => {
+  const { user } = useAuth();
   const { currentProject } = useProject();
   const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
-
-  const fetchTasks = async (projectId) => {
-    const tasks = await getTasks(projectId);
-
-    // return tasks;
-    console.log(tasks)
-  }
 
   // For testing
   const [tasks, setTasks] = useState([]);
 
-  const [existingTasks, setExistingTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [filter, setFilter] = useState("all");
 
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [newComment, setNewComment] = useState("");
 
-  const addComment = (taskId) => {
+  const [openCommentsTaskId, setOpenCommentsTaskId] = useState(null);
+
+  const addComment = async (projectId, taskId) => {
     if (!newComment.trim()) return;
 
-    setTasks((tasks) =>
-      tasks.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              comments: [
-                ...(task.comments || []),
-                { id: Date.now(), text: newComment },
-              ],
-            }
-          : task
-      )
-    );
+    try {
+      const user_id = user.id;
 
-    setNewComment("");
-    setActiveTaskId(null);
+      const body = {
+        user_id,
+        content: newComment,
+      };
 
-    alert("新しいコメントを追加しました。");
+      // Call API
+      const savedComment = await createComment(projectId, taskId, body);
+
+      // Update UI
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                comments: [...task.comments, savedComment],
+              }
+            : task
+        )
+      );
+
+      setNewComment("");
+      setActiveTaskId(null);
+      alert("新しいコメントを追加しました。");
+    } catch (err) {
+      console.error(err);
+      alert("⚠ コメントの送信に失敗しました。");
+    }
   };
 
-  useEffect(() => {
-    const mockTasks = [
-      {
-        id: 1,
-        title: "プロジェクト計画書を作成",
-        description: "Q4のプロジェクト計画書を完成させる",
-        status: "active",
-        dueDate: "2025-10-25",
-        priority: "high",
-        comments: [
-          { id: 1, text: "レビュー依頼を忘れずに！" },
-          { id: 2, text: "締め切り前に共有しましょう。" },
-        ],
-      },
-      {
-        id: 2,
-        title: "チームミーティング",
-        description: "週次チームミーティングの準備と議題整理",
-        status: "completed",
-        dueDate: "2025-10-10",
-        priority: "medium",
-        comments: [],
-      },
-      {
-        id: 3,
-        title: "コードレビュー",
-        description: "新機能のプルリクエストをレビューしてコメント",
-        status: "active",
-        dueDate: "2025-10-20",
-        priority: "high",
-        comments: [{ id: 1, text: "フロント部分の修正が必要です。" }],
-      },
-      {
-        id: 4,
-        title: "資料整理",
-        description: "共有ドライブの資料を整理・権限設定を確認",
-        status: "active",
-        dueDate: "2025-10-30",
-        priority: "low",
-        comments: [],
-      },
-      {
-        id: 5,
-        title: "バグ修正",
-        description: "報告されたUIバグを修正する",
-        status: "completed",
-        dueDate: "2025-10-15",
-        priority: "medium",
-        comments: [{ id: 1, text: "再発防止のためテスト追加。" }],
-      },
-    ];
-    setTasks(mockTasks);
+  const isActiveStatus = (status) => 
+  ["todo", "pending", "in_progress", "in_review", "testing"].includes(status);
 
-    fetchTasks(currentProjectId);
-  }, []);
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const response = await getTasks(currentProjectId);
+
+        console.log(response);
+
+        // Normalize API → UI format
+        const normalized = response.map((task) => ({
+          id: task.task_id, // map to id field used in UI
+          title: task.name, // your UI uses title
+          description: task.description,
+          dueDate: task.deadline,
+          priority: task.priority,
+          status: task.status,
+          assignedUsers: task.assigned_user_ids,
+          parentTasks: task.parent_tasks,
+          comments: task.comments || [], // default empty array
+        }));
+
+        setTasks(normalized);
+      } catch (error) {
+        console.error("Failed to fetch tasks:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTasks();
+  }, [currentProjectId]);
+
+  const isDeadlineNear = (dueDate) => {
+  if (!dueDate) return false;
+
+  const now = new Date();
+  const due = new Date(dueDate);
+
+  const diffDays = (due - now) / (1000 * 60 * 60 * 24);
+  return diffDays >= 0 && diffDays <= 7; // ⬅ consistent rule
+};
+
 
   // ✅ Dynamic filter logic
   const filteredTasks = tasks.filter((task) => {
-    if (filter === "all") return true;
-    if (filter === "high") {
-      const now = new Date();
-      const due = new Date(task.dueDate);
-      const diffDays = (due - now) / (1000 * 60 * 60 * 24);
-      return diffDays >= 0 && diffDays <= 3; // due within 3 days
-    }
-    return task.status === filter;
-  });
+  if (filter === "all") return true;
+
+  if (filter === "high") {
+    return isDeadlineNear(task.dueDate);
+  }
+
+  if (filter === "active") {
+    return [
+      "todo",
+      "pending",
+      "in_progress",
+      "in_review",
+      "testing",
+    ].includes(task.status);
+  }
+
+  if (filter === "done") {
+    return task.status === "done";
+  }
+
+  return false;
+});
+
 
   const toggleTaskStatus = (taskId) => {
     setTasks((tasks) =>
@@ -133,7 +146,7 @@ const Task = () => {
         task.id === taskId
           ? {
               ...task,
-              status: task.status === "active" ? "completed" : "active",
+              status: task.status === "done" ? "in_progress" : "done",
             }
           : task
       )
@@ -157,13 +170,21 @@ const Task = () => {
     }
   };
 
-  const formatDate = (dateString) =>
-    new Date(dateString).toLocaleDateString("ja-JP");
+  const formatDateTime = (isoString) => {
+    if (!isoString) return "-";
 
-  const openComments = (taskId) => {
-    const task = tasks.find((t) => t.id === taskId);
-    alert(`${task.comments.length}件のコメントがあります`);
+    const date = new Date(isoString);
+
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}/${String(date.getDate()).padStart(2, "0")} ${String(
+      date.getHours()
+    ).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   };
+
+  if (loading)
+    return <div className="p-6 text-gray-600">タスクの読み込み中...</div>;
 
   return (
     <div className="mx-auto md:p-6 space-y-10">
@@ -186,17 +207,17 @@ const Task = () => {
         <StatCard title="すべてのタスク" value={tasks.length} color="blue" />
         <StatCard
           title="進行中"
-          value={tasks.filter((t) => t.status === "active").length}
+          value={tasks.filter((t) => isActiveStatus(t.status)).length}
           color="yellow"
         />
         <StatCard
           title="完了"
-          value={tasks.filter((t) => t.status === "completed").length}
+          value={tasks.filter((t) => t.status === "done").length}
           color="green"
         />
         <StatCard
           title="締め切り近い"
-          value={tasks.filter((t) => t.priority === "high").length}
+          value={tasks.filter((t) => isDeadlineNear(t.dueDate)).length}
           color="red"
         />
       </div>
@@ -212,7 +233,7 @@ const Task = () => {
             color: "yellow",
           },
           {
-            type: "completed",
+            type: "done",
             label: "完了",
             icon: faCheckCircle,
             color: "green",
@@ -245,7 +266,7 @@ const Task = () => {
             <button
               key={type}
               onClick={() => setFilter(type)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-lg font-medium transition-all duration-300 hover:cursor-pointer shadow-sm ${
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xl font-bold transition-all duration-300 hover:cursor-pointer shadow-sm ${
                 isActive ? "scale-105 shadow-md" : ""
               } ${colorClasses}`}
             >
@@ -259,8 +280,8 @@ const Task = () => {
       {/* Task List */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-500 text-lg font-medium">
+          <div className="text-center py-16 font-bold">
+            <p className="text-gray-500 text-lg">
               タスクがありません
             </p>
             <p className="text-gray-400 mt-2">
@@ -278,12 +299,12 @@ const Task = () => {
                   <button
                     onClick={() => toggleTaskStatus(task.id)}
                     className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center hover:cursor-pointer transition-all ${
-                      task.status === "completed"
+                      task.status === "done"
                         ? "bg-green-500 border-green-500"
                         : "border-gray-300 hover:border-green-500"
                     }`}
                   >
-                    {task.status === "completed" && (
+                    {task.status === "done" && (
                       <svg
                         className="w-3 h-3 text-white"
                         fill="none"
@@ -304,7 +325,7 @@ const Task = () => {
                     <div className="flex items-center gap-3">
                       <h3
                         className={`text-2xl font-bold ${
-                          task.status === "completed"
+                          task.status === "done"
                             ? "text-gray-400 line-through"
                             : "text-gray-800"
                         }`}
@@ -323,23 +344,44 @@ const Task = () => {
                           : "低"}
                       </span>
                     </div>
-                    <p className="font-bold text-lg">{task.description}</p>
+                    <p className="font-bold text-3xl">{task.name}</p>
+
+                    <p className="font-semibold text-gray-500 text-lg">
+                      {task.description}
+                    </p>
 
                     <div className="flex items-center font-bold gap-4 text-gray-700 text-lg">
                       <span>
                         期限:{" "}
                         <span className="text-gray-700">
-                          {formatDate(task.dueDate)}
+                          {formatDateTime(task.dueDate)}
                         </span>
                       </span>
+
                       <span
                         className={`px-2 py-1 rounded-full ${
-                          task.status === "completed"
+                          task.status === "done"
                             ? "bg-green-100 text-green-700 border border-green-300"
-                            : "bg-blue-100 text-blue-700 border border-blue-300"
+                            : task.status === "in_progress"
+                            ? "bg-blue-100 text-blue-700 border border-blue-300"
+                            : task.status === "in_review"
+                            ? "bg-purple-100 text-purple-700 border border-purple-300"
+                            : task.status === "testing"
+                            ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
+                            : "bg-gray-100 text-gray-700 border border-gray-300"
                         }`}
                       >
-                        {task.status === "completed" ? "完了" : "進行中"}
+                        {task.status === "done"
+                          ? "完了"
+                          : task.status === "in_progress"
+                          ? "進行中"
+                          : task.status === "in_review"
+                          ? "レビュー中"
+                          : task.status === "testing"
+                          ? "テスト中"
+                          : task.status === "pending"
+                          ? "保留中"
+                          : "未着手"}
                       </span>
                     </div>
 
@@ -347,7 +389,11 @@ const Task = () => {
                     <div className="flex flex-wrap items-center gap-4">
                       {task.comments && task.comments.length > 0 && (
                         <button
-                          onClick={() => openComments(task.id)}
+                          onClick={() =>
+                            setOpenCommentsTaskId(
+                              openCommentsTaskId === task.id ? null : task.id
+                            )
+                          }
                           className="flex items-center gap-2 text-blue-600 text-lg font-bold hover:text-blue-800 hover:underline hover:cursor-pointer transition-transform duration-200 hover:translate-x-1"
                         >
                           <FontAwesomeIcon icon={faCommentDots} />
@@ -373,6 +419,20 @@ const Task = () => {
                       </button>
                     </div>
 
+                    {openCommentsTaskId === task.id &&
+                      task.comments.length > 0 && (
+                        <div className="mt-4 bg-gray-100 p-4 rounded-xl space-y-3 border border-gray-200">
+                          {task.comments.map((comment) => (
+                            <div
+                              key={comment.id}
+                              className="bg-white px-3 py-2 rounded-lg shadow-sm text-lg"
+                            >
+                              💬 {comment.text}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                     {/* Show input when active */}
                     {activeTaskId === task.id && (
                       <div className="flex items-center gap-2 mt-2">
@@ -384,7 +444,7 @@ const Task = () => {
                           className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                         />
                         <button
-                          onClick={() => addComment(task.id)}
+                          onClick={() => addComment(currentProjectId, task.id)}
                           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-all"
                         >
                           投稿
@@ -430,10 +490,10 @@ const StatCard = ({ title, value, color }) => {
 
   return (
     <div
-      className={`flex flex-col justify-center px-8 py-6 border rounded-2xl shadow-sm ${colorClasses}`}
+      className={`flex flex-col gap-3 justify-center px-8 py-6 border rounded-2xl shadow-sm ${colorClasses}`}
     >
-      <p className="text-xl font-semibold">{title}</p>
-      <p className="text-3xl font-extrabold mt-1">{value}</p>
+      <p className="text-2xl font-semibold">{title}</p>
+      <p className="text-4xl font-extrabold mt-1">{value}</p>
     </div>
   );
 };

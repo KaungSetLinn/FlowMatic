@@ -14,7 +14,12 @@ export default function NewTaskForm() {
 
   const [taskName, setTaskName] = useState("");
   const [description, setDescription] = useState("");
-  const [deadline, setDeadline] = useState(null);
+
+  const [dates, setDates] = useState({
+    startDate: dayjs().toDate(),
+    deadline: null,
+  });
+
   const [priority, setPriority] = useState("medium");
   const [status, setStatus] = useState("todo"); // fixed default
   const [assignees, setAssignees] = useState([]);
@@ -58,8 +63,8 @@ export default function NewTaskForm() {
   const groupMembers = useMemo(() => currentProject.members, [currentProject]);
   // console.log(groupMembers)
 
-  const handleDateChange = (name, value) => {
-    setDeadline(value);
+  const handleDateChange = (field, value) => {
+    setDates((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleAssigneeChange = (id) => {
@@ -84,11 +89,14 @@ export default function NewTaskForm() {
     e.preventDefault();
 
     if (!taskName.trim()) return showMessage("タスク名が必要です。", "error");
-    if (!deadline) return showMessage("期限日を設定してください。", "error");
-    if (assignees.length === 0)
-      return showMessage("担当者を1名以上選択してください。", "error");
+    if (!dates.deadline)
+      return showMessage("期限日を設定してください。", "error");
 
-    // Validate dependencies - check if any dependency has an empty taskId
+    if (assignees.length === 0) {
+      return showMessage("担当者を1名以上選択してください。", "error");
+    }
+
+    // Validate dependency selection
     const hasEmptyDependency = dependencies.some(
       (dep) => !dep.taskId || dep.taskId.trim() === ""
     );
@@ -99,10 +107,19 @@ export default function NewTaskForm() {
       );
     }
 
+    // Validate logical date order
+    if (dates.startDate && dates.deadline && dates.deadline < dates.startDate) {
+      return showMessage(
+        "期限日は開始日より後の日付を選択してください。",
+        "error"
+      );
+    }
+
     const requestData = {
       name: taskName,
-      description: description,
-      deadline: deadline.toISOString(),
+      description,
+      start_date: dates.startDate?.toISOString() || null,
+      deadline: dates.deadline?.toISOString(),
       priority,
       status,
       assigned_user_ids: assignees,
@@ -112,14 +129,13 @@ export default function NewTaskForm() {
       })),
     };
 
-    // console.log("📦 Sending API request:", requestData);
+    console.log("📦 Sending API request:", requestData);
 
     const response = await createTask(currentProjectId, requestData);
 
     console.log("🎉 API Response:", response);
 
-    // showMessage(`タスク "${taskName}" を作成しました！`, "success");
-    alert(taskName + "を作成しました");
+    alert(`${taskName} を作成しました！`);
     resetForm();
   };
 
@@ -131,11 +147,14 @@ export default function NewTaskForm() {
   const resetForm = () => {
     setTaskName("");
     setDescription("");
-    setDeadline(null);
     setPriority("medium");
     setStatus("todo");
     setAssignees([]);
     setDependencies([]);
+    setDates({
+      startDate: dayjs().toDate(),
+      deadline: null,
+    });
   };
 
   return (
@@ -189,28 +208,37 @@ export default function NewTaskForm() {
 
           {/* Due Date + Assignees */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* <div>
+            <div>
+              <label className="block text-gray-700 text-lg font-semibold mb-2">
+                開始日
+              </label>
+
+              <MobileDateTimePicker
+                label="開始日を設定してください"
+                value={dates.startDate ? dayjs(dates.startDate) : null}
+                onChange={(newValue) => handleDateChange("startDate", newValue)}
+                maxDate={dates.deadline ? dayjs(dates.deadline) : undefined} // prevent after deadline
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    required: true,
+                    className:
+                      "w-full px-3 py-2 border border-gray-300 text-xl rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                  },
+                }}
+              />
+            </div>
+
+            <div>
               <label className="block text-gray-700 text-lg font-semibold mb-2">
                 期限日
               </label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg"
-              />
-            </div> */}
-            <div>
-              <label
-                htmlFor="deadline"
-                className="block text-xl font-bold mb-3"
-              >
-                期限日
-              </label>
+
               <MobileDateTimePicker
                 label="期限日を設定してください"
-                value={deadline ? dayjs(deadline) : null}
+                value={dates.deadline ? dayjs(dates.deadline) : null}
                 onChange={(newValue) => handleDateChange("deadline", newValue)}
+                minDate={dates.startDate ? dayjs(dates.startDate) : undefined} // prevent before start
                 slotProps={{
                   textField: {
                     fullWidth: true,
@@ -229,18 +257,18 @@ export default function NewTaskForm() {
               <div className="max-h-full overflow-y-auto border border-gray-300 rounded-lg p-2">
                 {groupMembers.map((member) => (
                   <label
-                    key={member}
-                    htmlFor={`assignee_${member}`}
+                    key={member.user_id}
+                    htmlFor={`assignee_${member.user_id}`}
                     className="flex items-center py-1 text-lg text-gray-700"
                   >
                     <input
-                      id={`assignee_${member}`}
+                      id={`assignee_${member.user_id}`}
                       type="checkbox"
-                      checked={assignees.includes(member)}
-                      onChange={() => handleAssigneeChange(member)}
+                      checked={assignees.includes(member.user_id)}
+                      onChange={() => handleAssigneeChange(member.user_id)}
                       className="mr-2"
                     />
-                    {member}
+                    {member.name}
                   </label>
                 ))}
               </div>
