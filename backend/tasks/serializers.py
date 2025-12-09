@@ -155,9 +155,7 @@ class TaskCommentResponseSerializer(serializers.ModelSerializer):
 
 class TaskResponseSerializer(serializers.ModelSerializer):
     project_id = serializers.UUIDField(source="project.project_id", read_only=True)
-    assigned_users = AssignedUserSerializer(
-        source="assigned_users", many=True, read_only=True
-    )
+    assigned_users = AssignedUserSerializer(many=True, read_only=True)
     parent_tasks = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
 
