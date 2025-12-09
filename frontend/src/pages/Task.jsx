@@ -69,8 +69,8 @@ const Task = () => {
     }
   };
 
-  const isActiveStatus = (status) => 
-  ["todo", "pending", "in_progress", "in_review", "testing"].includes(status);
+  const isActiveStatus = (status) =>
+    ["todo", "pending", "in_progress", "in_review", "testing"].includes(status);
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -104,41 +104,39 @@ const Task = () => {
   }, [currentProjectId]);
 
   const isDeadlineNear = (dueDate) => {
-  if (!dueDate) return false;
+    if (!dueDate) return false;
 
-  const now = new Date();
-  const due = new Date(dueDate);
+    const now = new Date();
+    const due = new Date(dueDate);
 
-  const diffDays = (due - now) / (1000 * 60 * 60 * 24);
-  return diffDays >= 0 && diffDays <= 7; // ⬅ consistent rule
-};
-
+    const diffDays = (due - now) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7; // ⬅ consistent rule
+  };
 
   // ✅ Dynamic filter logic
   const filteredTasks = tasks.filter((task) => {
-  if (filter === "all") return true;
+    if (filter === "all") return true;
 
-  if (filter === "high") {
-    return isDeadlineNear(task.dueDate);
-  }
+    if (filter === "high") {
+      return isDeadlineNear(task.dueDate);
+    }
 
-  if (filter === "active") {
-    return [
-      "todo",
-      "pending",
-      "in_progress",
-      "in_review",
-      "testing",
-    ].includes(task.status);
-  }
+    if (filter === "active") {
+      return [
+        "todo",
+        "pending",
+        "in_progress",
+        "in_review",
+        "testing",
+      ].includes(task.status);
+    }
 
-  if (filter === "done") {
-    return task.status === "done";
-  }
+    if (filter === "done") {
+      return task.status === "done";
+    }
 
-  return false;
-});
-
+    return false;
+  });
 
   const toggleTaskStatus = (taskId) => {
     setTasks((tasks) =>
@@ -281,9 +279,7 @@ const Task = () => {
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
         {filteredTasks.length === 0 ? (
           <div className="text-center py-16 font-bold">
-            <p className="text-gray-500 text-lg">
-              タスクがありません
-            </p>
+            <p className="text-gray-500 text-lg">タスクがありません</p>
             <p className="text-gray-400 mt-2">
               新しいタスクを作成してみましょう。
             </p>
@@ -397,10 +393,11 @@ const Task = () => {
                           className="flex items-center gap-2 text-blue-600 text-lg font-bold hover:text-blue-800 hover:underline hover:cursor-pointer transition-transform duration-200 hover:translate-x-1"
                         >
                           <FontAwesomeIcon icon={faCommentDots} />
-                          {task.comments.length} コメント ＞＞
+                          {openCommentsTaskId === task.id
+                            ? `${task.comments.length} コメント ▲`
+                            : `${task.comments.length} コメント ▼`}
                         </button>
                       )}
-
                       <button
                         onClick={() =>
                           setActiveTaskId(
@@ -408,8 +405,8 @@ const Task = () => {
                           )
                         }
                         className="flex items-center gap-2 px-4 py-2 text-lg font-extrabold text-white hover:cursor-pointer
-                        bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-md hover:from-blue-600 
-                        hover:to-indigo-600 hover:shadow-lg transition-all duration-200"
+    bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-md hover:from-blue-600 
+    hover:to-indigo-600 hover:shadow-lg transition-all duration-200"
                       >
                         <FontAwesomeIcon
                           icon={faPlusCircle}
@@ -424,10 +421,10 @@ const Task = () => {
                         <div className="mt-4 bg-gray-100 p-4 rounded-xl space-y-3 border border-gray-200">
                           {task.comments.map((comment) => (
                             <div
-                              key={comment.id}
+                              key={comment.comment_id}
                               className="bg-white px-3 py-2 rounded-lg shadow-sm text-lg"
                             >
-                              💬 {comment.text}
+                              💬 {comment.content}
                             </div>
                           ))}
                         </div>
