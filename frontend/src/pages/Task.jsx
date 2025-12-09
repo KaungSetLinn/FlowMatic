@@ -416,19 +416,54 @@ const Task = () => {
                       </button>
                     </div>
 
-                    {openCommentsTaskId === task.id &&
-                      task.comments.length > 0 && (
-                        <div className="mt-4 bg-gray-100 p-4 rounded-xl space-y-3 border border-gray-200">
-                          {task.comments.map((comment) => (
-                            <div
-                              key={comment.comment_id}
-                              className="bg-white px-3 py-2 rounded-lg shadow-sm text-lg"
-                            >
-                              💬 {comment.content}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    {openCommentsTaskId === task.id && (
+                      <div className="mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200 animate-in slide-in-from-top duration-200">
+                        {task.comments.length > 0 ? (
+                          <div className="space-y-3">
+                            {task.comments.map((comment) => (
+                              <div
+                                key={comment.comment_id}
+                                className="bg-white px-4 py-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
+                              >
+                                <div className="flex items-start gap-3">
+                                  {/* Avatar with initials */}
+                                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                                    {comment.name.charAt(0).toUpperCase()}
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    {/* Author and timestamp */}
+                                    <div className="flex items-baseline gap-4 mb-1">
+                                      <span className="font-semibold text-gray-900 text-base">
+                                        {comment.name}
+                                      </span>
+                                      {comment.created_at && (
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(
+                                            comment.created_at
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Comment content */}
+                                    <p className="text-gray-700 text-base leading-relaxed break-words">
+                                      {comment.content}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-gray-500">
+                            <p className="text-base">
+                              No comments yet. Be the first to comment!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Show input when active */}
                     {activeTaskId === task.id && (
