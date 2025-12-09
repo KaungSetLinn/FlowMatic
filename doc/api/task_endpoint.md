@@ -16,7 +16,8 @@
 {
     "name": "string",
     "description": "string",
-    "deadline": "2024-01-01T00:00:00Z",
+    "start_date": "2024-01-01T00:00:00Z",
+    "deadline": "2024-01-15T00:00:00Z",
     "priority": "low | medium | high",
     "status": "todo | pending | in_progress | in_review | testing | done",
     "assigned_user_ids": ["uuid1"],
@@ -33,13 +34,14 @@
 | - | - | - |
 | name | string | taskの名前 |
 | description | string | taskの説明 |
-| priority | string | taskの優先度（low, medium, high） |
-| status | string | taskのステータス（todo, in_progress, done） |
+| start_date | string | taskの開始日 |
+| priority | string | taskの優先度(low, medium, high) |
+| status | string | taskのステータス(todo, in_progress, done) |
 | deadline | string | taskの期限 |
 | assigned_user_ids | uuid array | taskに割り当てられたユーザーのID |
 | parent_tasks | array of objects | 親タスクのリスト |
 | parent_tasks.task_id | uuid | 親タスクのID |
-| parent_tasks.relation_type | string | 依存関係のタイプ（FtS, FtF, StS, StF） |
+| parent_tasks.relation_type | string | 依存関係のタイプ(FtS, FtF, StS, StF) |
 
 ## Response
 
