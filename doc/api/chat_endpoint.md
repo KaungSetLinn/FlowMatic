@@ -30,7 +30,7 @@
 {
     "chatroom_id": "newly_created_chatroom_id",
     "project_id": "project_id",
-    "members": ["uuid1", "uuid2"]
+    "members": [1, 2]
 }
 ```
 
@@ -38,7 +38,7 @@
 | - | - | - |
 | chatroom_id | uuid | 作成されたチャットルームID |
 | project_id | uuid | プロジェクトID |
-| members | uuid array | チャットルーム参加ユーザーID |
+| members | int array | チャットルーム参加ユーザーID |
 
 # GET /projects/{project_id}/chatrooms
 
@@ -105,7 +105,7 @@
 {
     "message_id": "newly_created_message_id",
     "chatroom_id": "chatroom_id",
-    "user_id": "uuid",
+    "user_id": 1,
     "content": "string",
     "timestamp": "2024-01-01T12:00:00Z"
 }
@@ -115,7 +115,7 @@
 | - | - | - |
 | message_id | uuid | 作成されたメッセージID |
 | chatroom_id | uuid | チャットルームID |
-| user_id | uuid | 投稿ユーザーID |
+| user_id | int | 投稿ユーザーID |
 | content | string | メッセージ内容 |
 | timestamp | string | 投稿日時（ISO 8601） |
 
@@ -175,4 +175,4 @@
 
 ### 204 No Content
 
-<!-- TODO: 画像取り扱い/メンション -->
+<!-- TODO: 画像取り扱い/メンション -->� -->
