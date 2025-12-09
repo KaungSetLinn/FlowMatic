@@ -11,7 +11,7 @@ git clone https://github.com/KaungSetLinn/FlowMatic.git
 ## 2. 仮想環境の作成（プロジェクトルート）
 
 (新規コマンドプロンプトを開いて)
-cd C:\ProjectManagementGroupware
+cd C:\FlowMatic
 
 # 仮想環境を作成
 python -m venv venv
