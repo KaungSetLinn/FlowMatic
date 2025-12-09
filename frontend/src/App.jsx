@@ -15,6 +15,7 @@ import Files from "./pages/Files";
 import { ProjectProvider } from "./context/ProjectContext";
 import NewTaskForm from "./components/NewTaskForm";
 import NewProjectForm from "./components/NewProjectForm";
+import GanttChart from "./pages/GanttChart";
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/files" element={<Files />} />
+              <Route path="/gantt-chart" element={<GanttChart />} />
             </Route>
           </Route>
 

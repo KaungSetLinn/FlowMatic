@@ -12,6 +12,7 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
+import { getProjectById, getProjects } from "../services/ProjectService";
 
 const Project = () => {
   const [projects, setProjects] = useState([
@@ -46,7 +47,22 @@ const Project = () => {
 
   useEffect(() => {
     // TODO: Replace with API fetch (e.g. axios.get("/api/projects"))
+    fetchProjects();
+
+    fetchProjectById();
   }, []);
+
+  const fetchProjects = async () => {
+    const projects = await getProjects();
+
+    console.log(projects);
+  }
+
+  const fetchProjectById = async () => {
+    const project = await getProjectById('f28497cc-6801-46a1-ac69-dada7febd96c')
+
+    // console.log(project)
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -61,8 +77,9 @@ const Project = () => {
     }
   };
 
+  // プロジェクト詳細画面のレンダリング
   return (
-    <div className="space-y-8 w-full md:max-w-6xl mx-auto p-2 md:p-4">
+    <div className="space-y-8 w-full mx-auto p-2 md:p-4">
       {/* Page Title */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-extrabold text-gray-800">プロジェクト一覧</h1>
@@ -95,13 +112,16 @@ const Project = () => {
         </div>
       </div>
 
-      {/* Project List */}
+      {/* Project List / 詳細表示エリア */}
       <div className="bg-white rounded-2xl shadow p-6">
         <h2 className="text-2xl font-bold mb-4 border-b border-gray-200 pb-2">
           プロジェクト詳細
         </h2>
 
-        <div className="overflow-x-auto">
+        {/* ========================================================= */}
+        {/* 1. PC/タブレット用: テーブル表示 (スマホでは非表示) */}
+        {/* ========================================================= */}
+        <div className="overflow-x-auto hidden sm:block"> 
           <table className="min-w-full border-collapse">
             <thead>
               <tr className="bg-blue-50 text-gray-700 text-left">
@@ -189,6 +209,83 @@ const Project = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ========================================================= */}
+        {/* 2. スマホ用: カード表示 (PCでは非表示) */}
+        {/* ========================================================= */}
+        <div className="space-y-4 block sm:hidden"> 
+          {projects.map((project) => (
+            <div key={project.id} className="border border-gray-200 rounded-lg p-4 shadow-sm">
+              
+              {/* プロジェクト名 + ステータス */}
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-extrabold text-lg text-gray-800 break-words pr-2">
+                  {project.name}
+                </h3>
+                <span
+                  className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(
+                    project.status
+                  )}`}
+                >
+                  {project.status}
+                </span>
+              </div>
+
+              {/* 詳細/説明文 */}
+              <p className="text-sm text-gray-500 mb-3">{project.description}</p>
+
+              {/* 進捗バー */}
+              <div className="mb-3">
+                <p className="text-sm text-gray-600 mb-1">
+                  進捗: {project.progress}%
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full ${
+                      project.progress === 100
+                        ? "bg-green-500"
+                        : "bg-blue-500"
+                    }`}
+                    style={{ width: `${project.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* メンバーと期限 */}
+              <div className="grid grid-cols-2 gap-3 border-t pt-3">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">メンバー</p>
+                  <p className="text-sm text-gray-700 break-words">
+                    {project.members.join("、")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">期限</p>
+                  <p className="text-sm text-gray-700">{project.deadline}</p>
+                </div>
+              </div>
+
+              {/* 操作ボタン */}
+              <div className="flex justify-end space-x-3 mt-3 pt-3 border-t">
+                <button className="text-blue-600 hover:text-blue-800 transition">
+                  <i className="fa-solid fa-eye"></i>
+                </button>
+                <button className="text-yellow-600 hover:text-yellow-800 transition">
+                  <i className="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button className="text-red-600 hover:text-red-800 transition">
+                  <i className="fa-solid fa-trash"></i>
+                </button>
+              </div>
+
+            </div>
+          ))}
+          {projects.length === 0 && (
+            <div className="text-center text-gray-500 py-6 font-medium">
+              プロジェクトがまだ登録されていません。
+            </div>
+          )}
         </div>
       </div>
     </div>

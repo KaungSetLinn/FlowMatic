@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { getProjects } from "../services/ProjectService";
+import { CURRENT_PROJECT_ID } from "../constants";
 
 const ProjectContext = createContext();
 
@@ -16,21 +18,58 @@ export const ProjectProvider = ({ children }) => {
   ];
 
   useEffect(() => {
-    // todo: api callでプロジェクトリストを取得
-    setProjects(dummyProjects)
-    setCurrentProject(dummyProjects[0])
-    setLoading(false)
+    const fetchProjects = async () => {
+      try {
+        const data = await getProjects(); // fetch projects from API
+
+        // ✅ Extract the projects array from the response object
+        const projectsArray = Array.isArray(data.projects) ? data.projects : [];
+        setProjects(projectsArray);
+
+        // Try to restore previously selected project from localStorage
+        const savedProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
+
+        if (savedProjectId) {
+          const previouslySelectedProject = projectsArray.find(
+            (project) => project.project_id === savedProjectId
+          );
+
+          if (previouslySelectedProject) {
+            setCurrentProject(previouslySelectedProject);
+            setLoading(false);
+            return; // Stop here — no need to select a fallback
+          }
+        }
+
+        // Fallback: select first project only if no saved project found
+      if (projectsArray.length > 0) {
+        setCurrentProject(projectsArray[0]);
+      }
+
+        setLoading(false);
+      } catch (err) {
+        setError(err);
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
   }, []);
 
   const handleProjectChange = (projectId) => {
-    const selected = projects.find((p) => p.id === Number(projectId));
-    if (selected) setCurrentProject(selected);
+    const selectedProject = projects.find((p) => p.project_id === projectId);
+
+    if (selectedProject) {
+      setCurrentProject(selectedProject);
+      localStorage.setItem(CURRENT_PROJECT_ID, projectId);
+    }
   };
 
   return (
     <ProjectContext.Provider
       value={{
         projects,
+        setProjects,
         currentProject,
         setCurrentProject,
         handleProjectChange,

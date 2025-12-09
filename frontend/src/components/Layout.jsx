@@ -11,15 +11,8 @@ function Layout() {
   const { user, setIsAuthorized } = useAuth();
   const [username, setUsername] = useState("");
 
-  const { projects, currentProject, handleProjectChange, loading } = useProject();
-
-  if (loading) return <div className="p-6 text-gray-600">Loading projects...</div>;
-
-  const handleLogout = () => {
-    localStorage.clear();
-    setIsAuthorized(false);
-    window.location.href = "/login";
-  };
+  const { projects, currentProject, handleProjectChange, loading } =
+    useProject();
 
   // Close dropdown if clicked outside
   useEffect(() => {
@@ -41,11 +34,25 @@ function Layout() {
     };
   }, []);
 
+  if (loading)
+    return <div className="p-6 text-gray-600">Loading projects...</div>;
+
+  const handleLogout = () => {
+    localStorage.clear();
+    setIsAuthorized(false);
+    window.location.href = "/login";
+  };
+
   const menuItems = [
     { to: "/", icon: "fas fa-tachometer-alt", label: "ダッシュボード" },
     { to: "/project", icon: "fas fa-project-diagram", label: "プロジェクト" },
     { to: "/task", icon: "fas fa-tasks", label: "タスク" },
     { to: "/files", icon: "fas fa-file", label: "共有ファイル" },
+    {
+      to: "/gantt-chart",
+      icon: "fas fa-chart-gantt",
+      label: "タイムライン",
+    },
     { to: "/chat", icon: "fas fa-comments", label: "チャット" },
     { to: "/calendar", icon: "fas fa-calendar-alt", label: "カレンダー" },
     { to: "/account", icon: "fas fa-gear", label: "アカウント設定" },
@@ -123,13 +130,13 @@ function Layout() {
           {/* On mobile, this sits below blue bar (top-14), on desktop it's top-0 */}
           <span className="text-lg font-bold">現在のプロジェクト：</span>
           <select
-            value={currentProject?.id || ""}
+            value={currentProject?.project_id || ""}
             onChange={(e) => handleProjectChange(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white hover:cursor-pointer"
           >
             {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
+              <option key={project.project_id} value={project.project_id}>
+                {project.title}
               </option>
             ))}
           </select>
