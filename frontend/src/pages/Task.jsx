@@ -12,6 +12,7 @@ import {
   faPlusCircle,
   faTrash,
   faUser,
+  faUserCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import { useProject } from "../context/ProjectContext";
 import { getTasks } from "../services/TaskService";
@@ -29,7 +30,7 @@ const Task = () => {
 
   const [loading, setLoading] = useState(true);
 
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("my_tasks");
 
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [newComments, setNewComments] = useState({});
@@ -137,6 +138,13 @@ const Task = () => {
     return diffDays >= 0 && diffDays <= 7; // ⬅ consistent rule
   };
 
+  // ✅ Check if task is assigned to current user
+  const isMyTask = (task) => {
+    if (!user || !user.id || !task.assignedUsers) return false;
+
+    return task.assignedUsers.some((assignedUser) => assignedUser.user_id === user.id);
+  };
+
   // ✅ Dynamic filter logic
   const filteredTasks = tasks.filter((task) => {
     if (filter === "all") return true;
@@ -157,6 +165,10 @@ const Task = () => {
 
     if (filter === "done") {
       return task.status === "done";
+    }
+
+    if (filter === "my_tasks") {
+      return isMyTask(task);
     }
 
     return false;
@@ -225,7 +237,12 @@ const Task = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <StatCard 
+          title="マイタスク" 
+          value={tasks.filter((t) => isMyTask(t)).length}
+          color="indigo" 
+        />
         <StatCard title="すべてのタスク" value={tasks.length} color="blue" />
         <StatCard
           title="進行中"
@@ -247,6 +264,7 @@ const Task = () => {
       {/* Filter Buttons */}
       <div className="flex flex-wrap gap-4">
         {[
+          { type: "my_tasks", label: "マイタスク", icon: faUserCheck, color: "indigo" },
           { type: "all", label: "すべて", icon: faListUl, color: "blue" },
           {
             type: "active",
@@ -270,6 +288,9 @@ const Task = () => {
           const isActive = filter === type;
 
           const colorClasses = {
+            indigo: isActive
+              ? "bg-indigo-600 text-white"
+              : "bg-white border border-indigo-300 text-indigo-600 hover:bg-indigo-50",
             blue: isActive
               ? "bg-blue-600 text-white"
               : "bg-white border border-blue-300 text-blue-600 hover:bg-blue-50",
@@ -567,6 +588,7 @@ const Task = () => {
 const StatCard = ({ title, value, color }) => {
   const colorClasses = {
     blue: "bg-blue-50 border-blue-200 text-blue-700",
+    indigo: "bg-indigo-50 border-indigo-200 text-indigo-700",
     yellow: "bg-yellow-50 border-yellow-200 text-yellow-700",
     green: "bg-green-50 border-green-200 text-green-700",
     red: "bg-red-50 border-red-200 text-red-700",

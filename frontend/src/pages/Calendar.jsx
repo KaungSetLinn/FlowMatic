@@ -209,6 +209,16 @@ const Calendar = () => {
     },
   ];
 
+  const isDeadlineNear = (dueDate) => {
+    if (!dueDate) return false;
+
+    const now = new Date();
+    const due = new Date(dueDate);
+
+    const diffDays = (due - now) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7; // ⬅ consistent rule
+  };
+
   const updateEvent = (field, value) =>
     setModal((p) => ({ ...p, event: { ...p.event, [field]: value } }));
 
@@ -282,7 +292,7 @@ const Calendar = () => {
               <button
                 key={f.type}
                 onClick={() => setFilter(f.type)}
-                className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold ${colorClasses}`}
+                className={`flex items-center gap-2 px-3 py-1 rounded-full cursor-pointer text-sm font-bold ${colorClasses}`}
               >
                 <FontAwesomeIcon icon={f.icon} /> {f.label}
               </button>
@@ -295,7 +305,7 @@ const Calendar = () => {
               filter === "all"
                 ? true
                 : filter === "high"
-                ? new Date(e.start) - new Date() <= 3 * 24 * 60 * 60 * 1000
+                ? isDeadlineNear(e.start)
                 : e.status === filter
             )
             .sort(sortFunctions[sortType])
