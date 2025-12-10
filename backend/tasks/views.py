@@ -39,6 +39,7 @@ class TaskListCreateView(APIView):
             .prefetch_related(
                 "assigned_users", "parents__parent_task", "comments__user"
             )
+            .order_by("deadline")
         )
         serializer = TaskResponseSerializer(tasks, many=True)
         return Response({"tasks": serializer.data}, status=status.HTTP_200_OK)
