@@ -6,7 +6,14 @@ from rest_framework import status
 from uuid import uuid4
 
 from projects.models import Project
-from .models import Task, TaskRelation, TaskAssignedUser, TaskStatus, TaskPriority, TaskRelationType
+from .models import (
+    Task,
+    TaskRelation,
+    TaskAssignedUser,
+    TaskStatus,
+    TaskPriority,
+    TaskRelationType,
+)
 
 User = get_user_model()
 
@@ -14,28 +21,26 @@ User = get_user_model()
 class TaskModelTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username="testuser", email="test@example.com", password="testpass123"
         )
         self.project = Project.objects.create(
-            title='Test Project',
-            description='Test Description',
+            title="Test Project",
+            description="Test Description",
             start_date=timezone.now(),
-            deadline=timezone.now() + timezone.timedelta(days=30)
+            deadline=timezone.now() + timezone.timedelta(days=30),
         )
         self.project.members.add(self.user)
 
     def test_task_creation(self):
         task = Task.objects.create(
             project=self.project,
-            name='Test Task',
-            description='Test Description',
+            name="Test Task",
+            description="Test Description",
             deadline=timezone.now() + timezone.timedelta(days=7),
             status=TaskStatus.TODO,
-            priority=TaskPriority.HIGH
+            priority=TaskPriority.HIGH,
         )
-        self.assertEqual(str(task), 'Test Task')
+        self.assertEqual(str(task), "Test Task")
         self.assertEqual(task.project, self.project)
         self.assertEqual(task.status, TaskStatus.TODO)
         self.assertEqual(task.priority, TaskPriority.HIGH)
@@ -43,25 +48,23 @@ class TaskModelTests(TestCase):
     def test_task_default_values(self):
         task = Task.objects.create(
             project=self.project,
-            name='Default Task',
-            deadline=timezone.now() + timezone.timedelta(days=7)
+            name="Default Task",
+            deadline=timezone.now() + timezone.timedelta(days=7),
         )
         self.assertEqual(task.status, TaskStatus.TODO)
         self.assertEqual(task.priority, TaskPriority.MEDIUM)
 
     def test_task_assigned_users(self):
         user2 = User.objects.create_user(
-            username='user2',
-            email='user2@example.com',
-            password='testpass123'
+            username="user2", email="user2@example.com", password="testpass123"
         )
         self.project.members.add(user2)
 
         task = Task.objects.create(
             project=self.project,
-            name='Task with Users',
+            name="Task with Users",
             deadline=timezone.now() + timezone.timedelta(days=7),
-            status=TaskStatus.TODO
+            status=TaskStatus.TODO,
         )
         task.assigned_users.add(self.user, user2)
 
@@ -72,19 +75,19 @@ class TaskModelTests(TestCase):
     def test_task_relation_creation(self):
         parent_task = Task.objects.create(
             project=self.project,
-            name='Parent Task',
-            deadline=timezone.now() + timezone.timedelta(days=7)
+            name="Parent Task",
+            deadline=timezone.now() + timezone.timedelta(days=7),
         )
         child_task = Task.objects.create(
             project=self.project,
-            name='Child Task',
-            deadline=timezone.now() + timezone.timedelta(days=14)
+            name="Child Task",
+            deadline=timezone.now() + timezone.timedelta(days=14),
         )
 
         relation = TaskRelation.objects.create(
             parent_task=parent_task,
             child_task=child_task,
-            relation_type=TaskRelationType.FINISH_TO_START
+            relation_type=TaskRelationType.FINISH_TO_START,
         )
 
         self.assertEqual(relation.parent_task, parent_task)
@@ -94,9 +97,9 @@ class TaskModelTests(TestCase):
     def test_task_assigned_user_model(self):
         task = Task.objects.create(
             project=self.project,
-            name='Test Task',
+            name="Test Task",
             deadline=timezone.now() + timezone.timedelta(days=7),
-            status=TaskStatus.TODO
+            status=TaskStatus.TODO,
         )
         TaskAssignedUser.objects.create(user=self.user, task=task)
 
@@ -109,67 +112,60 @@ class TaskModelTests(TestCase):
 class TaskAPITests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username="testuser", email="test@example.com", password="testpass123"
         )
         self.user2 = User.objects.create_user(
-            username='user2',
-            email='user2@example.com',
-            password='testpass123'
+            username="user2", email="user2@example.com", password="testpass123"
         )
         self.project = Project.objects.create(
-            title='Test Project',
-            description='Test Description',
+            title="Test Project",
+            description="Test Description",
             start_date=timezone.now(),
-            deadline=timezone.now() + timezone.timedelta(days=30)
+            deadline=timezone.now() + timezone.timedelta(days=30),
         )
         self.project.members.add(self.user, self.user2)
         self.client.force_authenticate(user=self.user)
 
     def test_create_task_success(self):
-        url = f'/api/projects/{self.project.project_id}/tasks/'
+        url = f"/api/projects/{self.project.project_id}/tasks/"
         data = {
-            'name': 'New Task',
-            'description': 'Task Description',
-            'deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
-            'priority': 'high',
-            'status': 'todo',
-            'assigned_user_ids': [self.user2.pk],
-            'parent_tasks': []
+            "name": "New Task",
+            "description": "Task Description",
+            "deadline": (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+            "priority": "high",
+            "status": "todo",
+            "assigned_user_ids": [self.user2.pk],
+            "parent_tasks": [],
         }
-        response = self.client.post(url, data, format='json')
-        
+        response = self.client.post(url, data, format="json")
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Task.objects.count(), 1)
         task = Task.objects.first()
-        self.assertEqual(task.name, 'New Task')
+        self.assertEqual(task.name, "New Task")
         self.assertEqual(task.assigned_users.count(), 1)
         self.assertEqual(task.assigned_users.first(), self.user2)
 
     def test_create_task_with_parent(self):
         parent_task = Task.objects.create(
             project=self.project,
-            name='Parent Task',
+            name="Parent Task",
             deadline=timezone.now() + timezone.timedelta(days=7),
-            status=TaskStatus.TODO
+            status=TaskStatus.TODO,
         )
-        
-        url = f'/api/projects/{self.project.project_id}/tasks/'
+
+        url = f"/api/projects/{self.project.project_id}/tasks/"
         data = {
-            'name': 'Child Task',
-            'deadline': (timezone.now() + timezone.timedelta(days=14)).isoformat(),
-            'parent_tasks': [
-                {
-                    'task_id': str(parent_task.task_id),
-                    'relation_type': 'FtS'
-                }
-            ]
+            "name": "Child Task",
+            "deadline": (timezone.now() + timezone.timedelta(days=14)).isoformat(),
+            "parent_tasks": [
+                {"task_id": str(parent_task.task_id), "relation_type": "FtS"}
+            ],
         }
-        response = self.client.post(url, data, format='json')
-        
+        response = self.client.post(url, data, format="json")
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        child_task = Task.objects.get(name='Child Task')
+        child_task = Task.objects.get(name="Child Task")
         self.assertEqual(TaskRelation.objects.count(), 1)
         relation = TaskRelation.objects.first()
         self.assertEqual(relation.parent_task, parent_task)
@@ -178,170 +174,171 @@ class TaskAPITests(APITestCase):
 
     def test_create_task_unauthorized_user(self):
         self.client.force_authenticate(user=None)
-        url = f'/api/projects/{self.project.project_id}/tasks/'
+        url = f"/api/projects/{self.project.project_id}/tasks/"
         data = {
-            'name': 'Unauthorized Task',
-            'deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat()
+            "name": "Unauthorized Task",
+            "deadline": (timezone.now() + timezone.timedelta(days=7)).isoformat(),
         }
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_task_non_member(self):
         non_member = User.objects.create_user(
-            username='nonmember',
-            email='nonmember@example.com',
-            password='testpass123'
+            username="nonmember", email="nonmember@example.com", password="testpass123"
         )
         self.client.force_authenticate(user=non_member)
-        
-        url = f'/api/projects/{self.project.project_id}/tasks/'
+
+        url = f"/api/projects/{self.project.project_id}/tasks/"
         data = {
-            'name': 'Non-member Task',
-            'deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat()
+            "name": "Non-member Task",
+            "deadline": (timezone.now() + timezone.timedelta(days=7)).isoformat(),
         }
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_task_invalid_assigned_user(self):
-        url = f'/api/projects/{self.project.project_id}/tasks/'
+        url = f"/api/projects/{self.project.project_id}/tasks/"
         data = {
-            'name': 'Task with Invalid User',
-            'deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
-            'assigned_user_ids': ['999999']  # Non-existent user ID
+            "name": "Task with Invalid User",
+            "deadline": (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+            "assigned_user_ids": ["999999"],  # Non-existent user ID
         }
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_task_user_not_in_project(self):
         non_member_user = User.objects.create_user(
-            username='nonmember2',
-            email='nonmember2@example.com',
-            password='testpass123'
+            username="nonmember2",
+            email="nonmember2@example.com",
+            password="testpass123",
         )
-        
-        url = f'/api/projects/{self.project.project_id}/tasks/'
+
+        url = f"/api/projects/{self.project.project_id}/tasks/"
         data = {
-            'name': 'Task with Non-member User',
-            'deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
-            'assigned_user_ids': [non_member_user.pk]
+            "name": "Task with Non-member User",
+            "deadline": (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+            "assigned_user_ids": [non_member_user.pk],
         }
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_task_duplicate_assigned_users(self):
-        url = f'/api/projects/{self.project.project_id}/tasks/'
+        url = f"/api/projects/{self.project.project_id}/tasks/"
         data = {
-            'name': 'Task with Duplicate Users',
-            'deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
-            'assigned_user_ids': [self.user2.pk, self.user2.pk]
+            "name": "Task with Duplicate Users",
+            "deadline": (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+            "assigned_user_ids": [self.user2.pk, self.user2.pk],
         }
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_task_invalid_parent_task(self):
-        url = f'/api/projects/{self.project.project_id}/tasks/'
+        url = f"/api/projects/{self.project.project_id}/tasks/"
         data = {
-            'name': 'Task with Invalid Parent',
-            'deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat(),
-            'parent_tasks': [
+            "name": "Task with Invalid Parent",
+            "deadline": (timezone.now() + timezone.timedelta(days=7)).isoformat(),
+            "parent_tasks": [
                 {
-                    'task_id': str(uuid4()),  # Non-existent task ID
-                    'relation_type': 'FtS'
+                    "task_id": str(uuid4()),  # Non-existent task ID
+                    "relation_type": "FtS",
                 }
-            ]
+            ],
         }
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_list_tasks_success(self):
         # Create multiple tasks
         Task.objects.create(
             project=self.project,
-            name='Task 1',
+            name="Task 1",
             deadline=timezone.now() + timezone.timedelta(days=7),
-            status=TaskStatus.TODO
+            status=TaskStatus.TODO,
         )
         Task.objects.create(
             project=self.project,
-            name='Task 2',
+            name="Task 2",
             deadline=timezone.now() + timezone.timedelta(days=14),
-            status=TaskStatus.TODO
+            status=TaskStatus.TODO,
         )
-        
-        url = f'/api/projects/{self.project.project_id}/tasks/'
-        response = self.client.get(url, format='json')
-        
+
+        url = f"/api/projects/{self.project.project_id}/tasks/"
+        response = self.client.get(url, format="json")
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['tasks']), 2)
-        task_names = [task['name'] for task in response.data['tasks']]
-        self.assertIn('Task 1', task_names)
-        self.assertIn('Task 2', task_names)
+        self.assertEqual(len(response.data["tasks"]), 2)
+        task_names = [task["name"] for task in response.data["tasks"]]
+        self.assertIn("Task 1", task_names)
+        self.assertIn("Task 2", task_names)
 
     def test_list_tasks_unauthorized_user(self):
         self.client.force_authenticate(user=None)
-        url = f'/api/projects/{self.project.project_id}/tasks/'
-        response = self.client.get(url, format='json')
+        url = f"/api/projects/{self.project.project_id}/tasks/"
+        response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_list_tasks_non_member(self):
         non_member = User.objects.create_user(
-            username='nonmember3',
-            email='nonmember3@example.com',
-            password='testpass123'
+            username="nonmember3",
+            email="nonmember3@example.com",
+            password="testpass123",
         )
         self.client.force_authenticate(user=non_member)
-        
-        url = f'/api/projects/{self.project.project_id}/tasks/'
-        response = self.client.get(url, format='json')
+
+        url = f"/api/projects/{self.project.project_id}/tasks/"
+        response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_task_response_serializer_structure(self):
         user2 = User.objects.create_user(
-            username='user3',
-            email='user3@example.com',
-            password='testpass123'
+            username="user3", email="user3@example.com", password="testpass123"
         )
         self.project.members.add(user2)
-        
+
         parent_task = Task.objects.create(
             project=self.project,
-            name='Parent Task',
+            name="Parent Task",
             deadline=timezone.now() + timezone.timedelta(days=7),
-            status=TaskStatus.TODO
+            status=TaskStatus.TODO,
         )
-        
+
         task = Task.objects.create(
             project=self.project,
-            name='Test Task',
-            description='Test Description',
+            name="Test Task",
+            description="Test Description",
             deadline=timezone.now() + timezone.timedelta(days=14),
             status=TaskStatus.IN_PROGRESS,
-            priority=TaskPriority.HIGH
+            priority=TaskPriority.HIGH,
         )
         task.assigned_users.add(self.user, user2)
-        
+
         TaskRelation.objects.create(
             parent_task=parent_task,
             child_task=task,
-            relation_type=TaskRelationType.START_TO_FINISH
+            relation_type=TaskRelationType.START_TO_FINISH,
         )
-        
-        url = f'/api/projects/{self.project.project_id}/tasks/'
-        response = self.client.get(url, format='json')
-        
+
+        url = f"/api/projects/{self.project.project_id}/tasks/"
+        response = self.client.get(url, format="json")
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Find the 'Test Task' instead of assuming it's first
-        task_data = next(task for task in response.data['tasks'] if task['name'] == 'Test Task')
-        
-        self.assertEqual(task_data['name'], 'Test Task')
-        self.assertEqual(task_data['description'], 'Test Description')
-        self.assertEqual(task_data['status'], 'in_progress')
-        self.assertEqual(task_data['priority'], 'high')
-        self.assertEqual(task_data['project_id'], str(self.project.project_id))
-        self.assertEqual(len(task_data['assigned_user_ids']), 2)
-        self.assertIn(str(self.user.pk), task_data['assigned_user_ids'])
-        self.assertIn(str(user2.pk), task_data['assigned_user_ids'])
-        self.assertEqual(len(task_data['parent_tasks']), 1)
-        self.assertEqual(task_data['parent_tasks'][0]['task_id'], str(parent_task.task_id))
-        self.assertEqual(task_data['parent_tasks'][0]['relation_type'], 'StF')
+        task_data = next(
+            task for task in response.data["tasks"] if task["name"] == "Test Task"
+        )
+
+        self.assertEqual(task_data["name"], "Test Task")
+        self.assertEqual(task_data["description"], "Test Description")
+        self.assertEqual(task_data["status"], "in_progress")
+        self.assertEqual(task_data["priority"], "high")
+        self.assertEqual(task_data["project_id"], str(self.project.project_id))
+        self.assertEqual(len(task_data["users"]), 2)
+        user_ids = [user["user_id"] for user in task_data["users"]]
+        self.assertIn(self.user.pk, user_ids)
+        self.assertIn(user2.pk, user_ids)
+        self.assertEqual(len(task_data["parent_tasks"]), 1)
+        self.assertEqual(
+            task_data["parent_tasks"][0]["task_id"], str(parent_task.task_id)
+        )
+        self.assertEqual(task_data["parent_tasks"][0]["relation_type"], "StF")

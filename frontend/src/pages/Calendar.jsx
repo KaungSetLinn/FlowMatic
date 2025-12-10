@@ -221,7 +221,7 @@ const Calendar = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto min-h-screen bg-gray-50 py-8 relative flex flex-row-reverse gap-6">
+    <div className="max-w-7xl mx-auto min-h-screen bg-gray-50 py-8 relative flex flex-row-reverse gap-6">
       <style>{`
         .today-circle { background:white !important; border:3px solid #3b82f6 !important; border-radius:50% !important; box-sizing:border-box !important; }
         .fc-event,.fc-event:hover,.fc-event.fc-event-draggable { background:inherit !important;color:inherit !important; }
@@ -241,12 +241,12 @@ const Calendar = () => {
       `}</style>
 
       {/* サイドパネル */}
-      <div className="w-64 bg-white rounded-xl shadow-md p-4 flex-shrink-0">
+      <div className="w-80 bg-white rounded-xl shadow-md p-4 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">タスク一覧</h2>
+          <h2 className="text-xl font-semibold">タスク一覧</h2>
           <button
             onClick={fetchTasks}
-            className="text-blue-600 hover:text-blue-700 text-sm"
+            className="text-blue-600 cursor-pointer hover:text-blue-700 text-xl"
             title="再読み込み"
           >
             🔄
@@ -282,7 +282,7 @@ const Calendar = () => {
               <button
                 key={f.type}
                 onClick={() => setFilter(f.type)}
-                className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${colorClasses}`}
+                className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold ${colorClasses}`}
               >
                 <FontAwesomeIcon icon={f.icon} /> {f.label}
               </button>
@@ -312,7 +312,7 @@ const Calendar = () => {
                   ></span>
                   <div>
                     <p
-                      className={`text-sm font-medium ${
+                      className={`text-lg font-bold ${
                         e.status === "completed"
                           ? "line-through text-gray-400"
                           : ""
@@ -320,7 +320,7 @@ const Calendar = () => {
                     >
                       {e.title}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm text-gray-700">
                       {e.start.split("T")[0]}
                     </p>
                   </div>

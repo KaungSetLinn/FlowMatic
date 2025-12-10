@@ -11,6 +11,7 @@ from .serializers import (
     TaskResponseSerializer,
     TaskCommentCreateSerializer,
     TaskCommentResponseSerializer,
+    TaskCommentListSerializer,
 )
 from .models import Task, TaskComment
 
@@ -39,6 +40,7 @@ class TaskListCreateView(APIView):
             .prefetch_related(
                 "assigned_users", "parents__parent_task", "comments__user"
             )
+            .order_by("deadline")
         )
         serializer = TaskResponseSerializer(tasks, many=True)
         return Response({"tasks": serializer.data}, status=status.HTTP_200_OK)
@@ -106,5 +108,5 @@ class TaskCommentListView(APIView):
     def get(self, request, task_id):
         task = self._get_task(task_id)
         comments = task.comments.select_related("user").all()
-        serializer = TaskCommentResponseSerializer(comments, many=True)
+        serializer = TaskCommentListSerializer(comments, many=True)
         return Response({"comments": serializer.data}, status=status.HTTP_200_OK)
