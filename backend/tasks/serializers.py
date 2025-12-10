@@ -153,9 +153,20 @@ class TaskCommentResponseSerializer(serializers.ModelSerializer):
         fields = ["comment_id", "task_id", "user_id", "name", "content", "created_at"]
 
 
+class TaskCommentListSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaskComment
+        fields = ["comment_id", "user_id", "content", "created_at", "user"]
+
+    def get_user(self, obj):
+        return {"user_id": obj.user.pk, "name": obj.user.username}
+
+
 class TaskResponseSerializer(serializers.ModelSerializer):
     project_id = serializers.UUIDField(source="project.project_id", read_only=True)
-    assigned_users = AssignedUserSerializer(many=True, read_only=True)
+    users = AssignedUserSerializer(many=True, source="assigned_users", read_only=True)
     parent_tasks = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
 
@@ -169,7 +180,7 @@ class TaskResponseSerializer(serializers.ModelSerializer):
             "deadline",
             "priority",
             "status",
-            "assigned_users",
+            "users",
             "parent_tasks",
             "comments",
         ]
@@ -188,14 +199,3 @@ class TaskResponseSerializer(serializers.ModelSerializer):
     def get_comments(self, obj: Task) -> list[dict]:
         comments = obj.comments.select_related("user").all()
         return TaskCommentResponseSerializer(comments, many=True).data
-
-    def get_parent_tasks(self, obj: Task) -> list[dict]:
-        # related_name='parents' is on the child_task side, so we can iterate over obj.parents.all()
-        relations = obj.parents.select_related("parent_task").all()
-        return [
-            {
-                "task_id": str(rel.parent_task.task_id),
-                "relation_type": rel.relation_type,
-            }
-            for rel in relations
-        ]
