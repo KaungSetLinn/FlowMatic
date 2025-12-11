@@ -38,7 +38,7 @@
 | priority | string | taskの優先度(low, medium, high) |
 | status | string | taskのステータス(todo, in_progress, done) |
 | deadline | string | taskの期限 |
-| assigned_user_ids | uuid array | taskに割り当てられたユーザーのID |
+| assigned_user_ids | int array | taskに割り当てられたユーザーのID |
 | parent_tasks | array of objects | 親タスクのリスト |
 | parent_tasks.task_id | uuid | 親タスクのID |
 | parent_tasks.relation_type | string | 依存関係のタイプ(FtS, FtF, StS, StF) |
@@ -116,6 +116,13 @@
 | - | - | - |
 | project_id | uuid | 取得するtaskの所属するprojectのID |
 
+### Query Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| p | int | 取得するページ番号（1始まり、デフォルト: 1） |
+| per_page | int | 1ページあたりのタスク数（デフォルト: 20） |
+
 ## Response
 
 ### 200 OK
@@ -124,13 +131,40 @@
 {
     "tasks": [
         {
-            // 以下、users 以外 POST /projects/{project_id}/tasks の201レスポンスと同じ
-            "users": {
-                "user_id": "int",
-                "name": "string",
-            }
+            "task_id": "550e8400-e29b-41d4-a716-446655440000",
+            "project_id": "550e8400-e29b-41d4-a716-446655440001",
+            "name": "Sample Task",
+            "description": "This is a sample task",
+            "start_date": "2024-01-01T00:00:00Z",
+            "deadline": "2024-01-15T00:00:00Z",
+            "priority": "medium",
+            "status": "in_progress",
+            "users": [
+                {
+                    "user_id": 1,
+                    "name": "John Doe"
+                }
+            ],
+            "parent_tasks": [
+                {
+                    "task_id": "550e8400-e29b-41d4-a716-446655440002",
+                    "relation_type": "FtS"
+                }
+            ],
+            "comments": [
+                {
+                    "comment_id": "550e8400-e29b-41d4-a716-446655440003",
+                    "task_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "user_id": 1,
+                    "name": "John Doe",
+                    "content": "This is a comment",
+                    "created_at": "2024-01-01T12:00:00Z"
+                }
+            ]
         }
-    ]
+    ],
+    "page": 1,
+    "per_page": 20
 }
 ```
 
@@ -153,6 +187,13 @@
 | - | - | - |
 | task_id | uuid | 取得するコメントの所属するtaskのID |
 
+### Query Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| p | int | 取得するページ番号（1始まり、デフォルト: 1） |
+| per_page | int | 1ページあたりのコメント数（デフォルト: 20） |
+
 ## Response
 
 ### 200 OK
@@ -161,13 +202,18 @@
 {
     "comments": [
         {
-            // 以下、users 以外 POST /projects/{project_id}/tasks/{task_id}/comments の201レスポンスと同じ
+            "comment_id": "550e8400-e29b-41d4-a716-446655440000",
+            "user_id": 1,
+            "content": "This is a comment",
+            "created_at": "2024-01-01T12:00:00Z",
             "user": {
-                "user_id": "int",
-                "name": "string",
+                "user_id": 1,
+                "name": "John Doe",
             }
         }
-    ]
+    ],
+    "page": 1,
+    "per_page": 20
 }
 ```
 
@@ -175,3 +221,169 @@
 | - | - | - |
 | comments | array of objects | コメントのリスト |
 | comments.* | object | 以下、POST /projects/{project_id}/tasks/{task_id}/comments の201レスポンスと同じ |
+
+# GET /tasks/{task_id}
+
+指定したtaskを取得する
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| task_id | uuid | 取得するtaskのID |
+
+## Response
+
+### 200 OK
+
+```json
+{
+    "task_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_id": "550e8400-e29b-41d4-a716-446655440001",
+    "name": "Sample Task",
+    "description": "This is a sample task",
+    "start_date": "2024-01-01T00:00:00Z",
+    "deadline": "2024-01-15T00:00:00Z",
+    "priority": "medium",
+    "status": "in_progress",
+    "users": [
+        {
+            "user_id": 1,
+            "name": "John Doe"
+        }
+    ],
+    "parent_tasks": [
+        {
+            "task_id": "550e8400-e29b-41d4-a716-446655440002",
+            "relation_type": "FtS"
+        }
+    ],
+    "comments": [
+        {
+            "comment_id": "550e8400-e29b-41d4-a716-446655440003",
+            "task_id": "550e8400-e29b-41d4-a716-446655440000",
+            "user_id": 1,
+            "name": "John Doe",
+            "content": "This is a comment",
+            "created_at": "2024-01-01T12:00:00Z"
+        }
+    ]
+}
+```
+
+# PUT /tasks/{task_id}
+
+指定したtaskを更新する（全体更新）
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| task_id | uuid | 更新するtaskのID |
+
+### Request Body
+
+```json
+{
+    "name": "string",
+    "description": "string",
+    "start_date": "2024-01-01T00:00:00Z",
+    "deadline": "2024-01-15T00:00:00Z",
+    "priority": "low | medium | high",
+    "status": "todo | pending | in_progress | in_review | testing | done",
+    "assigned_user_ids": [1]
+}
+```
+
+## Response
+
+### 200 OK
+
+```json
+{
+    "task_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_id": "550e8400-e29b-41d4-a716-446655440001",
+    "name": "Updated Task",
+    "description": "This is an updated task",
+    "start_date": "2024-01-01T00:00:00Z",
+    "deadline": "2024-01-15T00:00:00Z",
+    "priority": "high",
+    "status": "done",
+    "users": [
+        {
+            "user_id": 1,
+            "name": "John Doe"
+        }
+    ],
+    "parent_tasks": [],
+    "comments": []
+}
+```
+
+# PATCH /tasks/{task_id}
+
+指定したtaskを部分更新する
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| task_id | uuid | 更新するtaskのID |
+
+### Request Body
+
+（更新可能なフィールドのみを送る）
+
+```json
+{
+    "status": "done",
+    "priority": "high"
+}
+```
+
+## Response
+
+### 200 OK
+
+```json
+{
+    "task_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_id": "550e8400-e29b-41d4-a716-446655440001",
+    "name": "Sample Task",
+    "description": "This is a sample task",
+    "start_date": "2024-01-01T00:00:00Z",
+    "deadline": "2024-01-15T00:00:00Z",
+    "priority": "high",
+    "status": "done",
+    "users": [
+        {
+            "user_id": 1,
+            "name": "John Doe"
+        }
+    ],
+    "parent_tasks": [],
+    "comments": []
+}
+```
+
+# DELETE /tasks/{task_id}
+
+指定したtaskを削除する
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| task_id | uuid | 削除するtaskのID |
+
+## Response
+
+### 204 No Content

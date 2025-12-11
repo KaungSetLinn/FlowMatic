@@ -14,7 +14,7 @@
 
 ```json
 {
-    "members": ["uuid1", "uuid2"]
+    "members": [1, 2]
 }
 ```
 
@@ -28,8 +28,8 @@
 
 ```json
 {
-    "chatroom_id": "newly_created_chatroom_id",
-    "project_id": "project_id",
+    "chatroom_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_id": "550e8400-e29b-41d4-a716-446655440001",
     "members": [1, 2]
 }
 ```
@@ -38,7 +38,7 @@
 | - | - | - |
 | chatroom_id | uuid | 作成されたチャットルームID |
 | project_id | uuid | プロジェクトID |
-| members | int array | チャットルーム参加ユーザーID |
+| members | uuid array | チャットルーム参加ユーザーID |
 
 # GET /projects/{project_id}/chatrooms
 
@@ -52,6 +52,13 @@
 | - | - | - |
 | project_id | uuid | プロジェクトID |
 
+### Query Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| p | int | 取得するページ番号（1始まり、デフォルト: 1） |
+| per_page | int | 1ページあたりのチャットルーム数（デフォルト: 20） |
+
 ## Response
 
 ### 200 OK
@@ -60,9 +67,13 @@
 {
     "chatrooms": [
         {
-            // 以下、POST /projects/{project_id}/chatrooms の201レスポンスと同じ
+            "chatroom_id": "550e8400-e29b-41d4-a716-446655440000",
+            "project_id": "550e8400-e29b-41d4-a716-446655440001",
+            "members": [1, 2]
         }
-    ]
+    ],
+    "page": 1,
+    "per_page": 20
 }
 ```
 
@@ -103,10 +114,10 @@
 
 ```json
 {
-    "message_id": "newly_created_message_id",
-    "chatroom_id": "chatroom_id",
-    "user_id": 1,
-    "content": "string",
+    "message_id": "550e8400-e29b-41d4-a716-446655440000",
+    "chatroom_id": "550e8400-e29b-41d4-a716-446655440001",
+    "user_id": "550e8400-e29b-41d4-a716-446655440002",
+    "content": "Hello, this is a message!",
     "timestamp": "2024-01-01T12:00:00Z"
 }
 ```
@@ -115,11 +126,11 @@
 | - | - | - |
 | message_id | uuid | 作成されたメッセージID |
 | chatroom_id | uuid | チャットルームID |
-| user_id | int | 投稿ユーザーID |
+| user_id | uuid | 投稿ユーザーID |
 | content | string | メッセージ内容 |
 | timestamp | string | 投稿日時（ISO 8601） |
 
-# GET /projects/{project_id}/chatrooms/{chatroom_id}/messages?p={page}&per_page={per_page}
+# GET /projects/{project_id}/chatrooms/{chatroom_id}/messages/?page={page}&per_page={per_page}
 
 チャットルームのメッセージ一覧を取得する
 
@@ -146,11 +157,15 @@
 {
     "messages": [
         {
-            // 以下、POST /projects/{project_id}/chatrooms/{chatroom_id}/messages の201レスポンスと同じ
+            "message_id": "550e8400-e29b-41d4-a716-446655440000",
+            "chatroom_id": "550e8400-e29b-41d4-a716-446655440001",
+            "user_id": "550e8400-e29b-41d4-a716-446655440002",
+            "content": "Hello, this is a message!",
+            "timestamp": "2024-01-01T12:00:00Z"
         }
     ],
-    "page": 0,
-    "per_page": 0
+    "page": 1,
+    "per_page": 20
 }
 ```
 
