@@ -194,9 +194,9 @@ const Calendar = () => {
     setEvents([...userEvents, ...taskEvents]);
   }, [tasks]);
 
-  useEffect(() => {
+  /* useEffect(() => {
     console.log(events);
-  }, [events]);
+  }, [events]); */
   // ========== Handlers ==========
   const fetchTasks = async () => {
     if (!currentProject?.project_id) return;
@@ -205,9 +205,9 @@ const Calendar = () => {
       setLoading(true);
       const fetchedTasks = await getTasks(currentProject.project_id);
 
-      console.log(fetchedTasks);
-
       const mappedTasks = fetchedTasks.map(mapTaskToCalendarFormat);
+
+      console.log(mappedTasks)
       setTasks(mappedTasks);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
@@ -412,10 +412,10 @@ const Calendar = () => {
     );
   }
 
-  const filteredAndSortedEvents = events
+  const filteredAndSortedEvents = tasks
     .filter((e) => {
       if (filter === "all") return true;
-      if (filter === "high") return isDeadlineNear(e.start);
+      if (filter === "high") return isDeadlineNear(e.dueDate);
       return e.status === filter;
     })
     .sort(sortFunctions[sortType]);
@@ -462,7 +462,6 @@ const Calendar = () => {
         >
           <option value="dueDate">期限が早い順</option>
           <option value="priority">優先度順(高 → 低)</option>
-          <option value="status">ステータス順</option>
         </select>
 
         <div className="flex flex-wrap gap-2 mb-4">
@@ -503,7 +502,8 @@ const Calendar = () => {
                     {e.title}
                   </p>
                   <p className="text-sm text-gray-700">
-                    {e.allDay ? e.start.split("T")[0] : formatUTC(e.start)}
+                    {formatUTC(e.dueDate)}
+                    {/* {e.allDay ? e.start.split("T")[0] : formatUTC(e.start)} */}
                   </p>
                 </div>
               </div>
