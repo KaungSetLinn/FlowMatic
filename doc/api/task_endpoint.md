@@ -16,10 +16,11 @@
 {
     "name": "string",
     "description": "string",
-    "deadline": "2024-01-01T00:00:00Z",
+    "start_date": "2024-01-01T00:00:00Z",
+    "deadline": "2024-01-15T00:00:00Z",
     "priority": "low | medium | high",
     "status": "todo | pending | in_progress | in_review | testing | done",
-    "assigned_user_ids": ["uuid1"],
+    "assigned_user_ids": [1],
     "parent_tasks": [
         {
             "task_id": "existing_task_id_1",
@@ -33,13 +34,14 @@
 | - | - | - |
 | name | string | taskの名前 |
 | description | string | taskの説明 |
-| priority | string | taskの優先度（low, medium, high） |
-| status | string | taskのステータス（todo, in_progress, done） |
+| start_date | string | taskの開始日 |
+| priority | string | taskの優先度(low, medium, high) |
+| status | string | taskのステータス(todo, in_progress, done) |
 | deadline | string | taskの期限 |
 | assigned_user_ids | uuid array | taskに割り当てられたユーザーのID |
 | parent_tasks | array of objects | 親タスクのリスト |
 | parent_tasks.task_id | uuid | 親タスクのID |
-| parent_tasks.relation_type | string | 依存関係のタイプ（FtS, FtF, StS, StF） |
+| parent_tasks.relation_type | string | 依存関係のタイプ(FtS, FtF, StS, StF) |
 
 ## Response
 
@@ -74,14 +76,14 @@
 
 ```json
 {
-    "user_id": "uuid",
+    "user_id": 1,
     "content": "string"
 }
 ```
 
 | Name | Type | Description |
 | - | - | - |
-| user_id | uuid | コメントを追加するユーザーのID |
+| user_id | int | コメントを追加するユーザーのID |
 | content | string | コメントの内容 |
 
 ## Response
@@ -102,7 +104,7 @@
 | comment_id | uuid | 作成されたコメントのID |
 | | | 以下、Request bodyと同じ |
 
-## GET /projects/{project_id}/tasks
+# GET /projects/{project_id}/tasks
 
 指定したprojectのtask一覧を取得する
 
@@ -139,7 +141,7 @@
 | tasks.comments.* | object | 以下、POST /projects/{project_id}/tasks/{task_id}/comments の201レスポンスと同じ |
 | tasks.* | object | 以下、POST /projects/{project_id}/tasks の201レスポンスと同じ |
 
-## GET /tasks/{task_id}/comments
+# GET /tasks/{task_id}/comments
 
 指定したtaskのコメント一覧を取得する
 

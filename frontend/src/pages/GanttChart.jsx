@@ -4,26 +4,33 @@ import "frappe-gantt-react/node_modules/frappe-gantt/src/gantt.scss";
 import "../styles/gantt-custom.css";
 import { CURRENT_PROJECT_ID } from "../constants";
 import { getTasks } from "../services/TaskService";
+import { useProject } from "../context/ProjectContext";
 
 export default function GanttChart() {
+  const { currentProject } = useProject();
   const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
   const [viewMode, setViewMode] = useState("Day");
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [animate, setAnimate] = useState(false);
+
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [currentProject?.project_id]);
+
+  useEffect(() => {
+    console.log(tasks)
+  }, [tasks])
 
   const fetchTasks = async () => {
     try {
       setLoading(true);
       setError(null);
+      setAnimate(false); // Reset animation while loading new tasks
 
-      // Replace with your actual API endpoint
       const response = await getTasks(currentProjectId);
-      // Transform API data to Frappe Gantt format
       const transformedTasks = transformTasksForGantt(response);
       setTasks(transformedTasks);
     } catch (err) {
@@ -31,6 +38,9 @@ export default function GanttChart() {
       console.error("Error fetching tasks:", err);
     } finally {
       setLoading(false);
+
+      // Trigger animation AFTER a small delay
+      setTimeout(() => setAnimate(true), 100);
     }
   };
 
@@ -48,8 +58,8 @@ export default function GanttChart() {
 
       // Use deadline as end date, calculate start date (7 days before as default)
       const endDate = new Date(task.deadline);
-      const startDate = new Date(endDate);
-      startDate.setDate(startDate.getDate() - 7); // Default 7-day duration
+      const startDate = new Date(task.start_date);
+      // startDate.setDate(startDate.getDate() - 7); // Default 7-day duration
 
       return {
         id: task.task_id,
@@ -70,12 +80,6 @@ export default function GanttChart() {
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-semibold">タイムライン</h1>
-        <button
-          onClick={handleRefresh}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-        >
-          更新
-        </button>
       </div>
 
       {/* 設定パネル */}
