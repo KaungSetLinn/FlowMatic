@@ -6,10 +6,13 @@ import {
   faCommentDots,
   faExclamationCircle,
   faListUl,
+  faMinusCircle,
   faPen,
   faPlayCircle,
   faPlusCircle,
   faTrash,
+  faUser,
+  faUserCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import { useProject } from "../context/ProjectContext";
 import { getTasks } from "../services/TaskService";
@@ -27,22 +30,27 @@ const Task = () => {
 
   const [loading, setLoading] = useState(true);
 
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("my_tasks");
 
   const [activeTaskId, setActiveTaskId] = useState(null);
-  const [newComment, setNewComment] = useState("");
+  const [newComments, setNewComments] = useState({});
 
   const [openCommentsTaskId, setOpenCommentsTaskId] = useState(null);
 
   const addComment = async (projectId, taskId) => {
-    if (!newComment.trim()) return;
+    const commentText = newComments[taskId] || "";
+
+    if (!commentText.trim()) {
+      alert("コメント内容を入力してください");
+      return;
+    }
 
     try {
       const user_id = user.id;
 
       const body = {
         user_id,
-        content: newComment,
+        content: commentText,
       };
 
       // Call API
@@ -60,7 +68,12 @@ const Task = () => {
         )
       );
 
-      setNewComment("");
+      // Clear only this task's comment
+      setNewComments((prev) => ({
+        ...prev,
+        [taskId]: "",
+      }));
+
       setActiveTaskId(null);
       alert("新しいコメントを追加しました。");
     } catch (err) {
@@ -69,8 +82,20 @@ const Task = () => {
     }
   };
 
-  const isActiveStatus = (status) => 
-  ["todo", "pending", "in_progress", "in_review", "testing"].includes(status);
+  const isActiveStatus = (status) =>
+    ["todo", "pending", "in_progress", "in_review", "testing"].includes(status);
+
+  useEffect(() => {
+    return () => {
+      // Clear the comment when the active task changes
+      if (activeTaskId) {
+        setNewComments((prev) => ({
+          ...prev,
+          [activeTaskId]: "",
+        }));
+      }
+    };
+  }, [activeTaskId]);
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -87,7 +112,7 @@ const Task = () => {
           dueDate: task.deadline,
           priority: task.priority,
           status: task.status,
-          assignedUsers: task.assigned_user_ids,
+          assignedUsers: task.users,
           parentTasks: task.parent_tasks,
           comments: task.comments || [], // default empty array
         }));
@@ -104,41 +129,50 @@ const Task = () => {
   }, [currentProjectId]);
 
   const isDeadlineNear = (dueDate) => {
-  if (!dueDate) return false;
+    if (!dueDate) return false;
 
-  const now = new Date();
-  const due = new Date(dueDate);
+    const now = new Date();
+    const due = new Date(dueDate);
 
-  const diffDays = (due - now) / (1000 * 60 * 60 * 24);
-  return diffDays >= 0 && diffDays <= 7; // ⬅ consistent rule
-};
+    const diffDays = (due - now) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7; // ⬅ consistent rule
+  };
 
+  // ✅ Check if task is assigned to current user
+  const isMyTask = (task) => {
+    if (!user || !user.id || !task.assignedUsers) return false;
+
+    return task.assignedUsers.some((assignedUser) => assignedUser.user_id === user.id);
+  };
 
   // ✅ Dynamic filter logic
   const filteredTasks = tasks.filter((task) => {
-  if (filter === "all") return true;
+    if (filter === "all") return true;
 
-  if (filter === "high") {
-    return isDeadlineNear(task.dueDate);
-  }
+    if (filter === "high") {
+      return isDeadlineNear(task.dueDate);
+    }
 
-  if (filter === "active") {
-    return [
-      "todo",
-      "pending",
-      "in_progress",
-      "in_review",
-      "testing",
-    ].includes(task.status);
-  }
+    if (filter === "active") {
+      return [
+        "todo",
+        "pending",
+        "in_progress",
+        "in_review",
+        "testing",
+      ].includes(task.status);
+    }
 
-  if (filter === "done") {
-    return task.status === "done";
-  }
+    if (filter === "done") {
+      return task.status === "done";
+    }
 
-  return false;
-});
+    if (filter === "my_tasks") {
+      return isMyTask(task);
+    }
 
+    return false;
+  });
 
   const toggleTaskStatus = (taskId) => {
     setTasks((tasks) =>
@@ -203,7 +237,12 @@ const Task = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <StatCard 
+          title="マイタスク" 
+          value={tasks.filter((t) => isMyTask(t)).length}
+          color="indigo" 
+        />
         <StatCard title="すべてのタスク" value={tasks.length} color="blue" />
         <StatCard
           title="進行中"
@@ -225,6 +264,7 @@ const Task = () => {
       {/* Filter Buttons */}
       <div className="flex flex-wrap gap-4">
         {[
+          { type: "my_tasks", label: "マイタスク", icon: faUserCheck, color: "indigo" },
           { type: "all", label: "すべて", icon: faListUl, color: "blue" },
           {
             type: "active",
@@ -248,6 +288,9 @@ const Task = () => {
           const isActive = filter === type;
 
           const colorClasses = {
+            indigo: isActive
+              ? "bg-indigo-600 text-white"
+              : "bg-white border border-indigo-300 text-indigo-600 hover:bg-indigo-50",
             blue: isActive
               ? "bg-blue-600 text-white"
               : "bg-white border border-blue-300 text-blue-600 hover:bg-blue-50",
@@ -281,9 +324,7 @@ const Task = () => {
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
         {filteredTasks.length === 0 ? (
           <div className="text-center py-16 font-bold">
-            <p className="text-gray-500 text-lg">
-              タスクがありません
-            </p>
+            <p className="text-gray-500 text-lg">タスクがありません</p>
             <p className="text-gray-400 mt-2">
               新しいタスクを作成してみましょう。
             </p>
@@ -321,7 +362,7 @@ const Task = () => {
                     )}
                   </button>
 
-                  <div className="flex-1 space-y-4">
+                  <div className="flex-1 space-y-5">
                     <div className="flex items-center gap-3">
                       <h3
                         className={`text-2xl font-bold ${
@@ -344,7 +385,6 @@ const Task = () => {
                           : "低"}
                       </span>
                     </div>
-                    <p className="font-bold text-3xl">{task.name}</p>
 
                     <p className="font-semibold text-gray-500 text-lg">
                       {task.description}
@@ -385,6 +425,23 @@ const Task = () => {
                       </span>
                     </div>
 
+                    {task.assignedUsers && task.assignedUsers.length > 0 && (
+                      <div className="flex items-center gap-2 text-lg font-bold">
+                        <span className="text-gray-600">担当者:</span>
+                        <div className="flex gap-2 flex-wrap">
+                          {task.assignedUsers.map((user) => (
+                            <span
+                              key={user.user_id}
+                              className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full flex items-center gap-1"
+                            >
+                              <FontAwesomeIcon icon={faUser} />
+                              {user.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Comments Section */}
                     <div className="flex flex-wrap items-center gap-4">
                       {task.comments && task.comments.length > 0 && (
@@ -397,55 +454,103 @@ const Task = () => {
                           className="flex items-center gap-2 text-blue-600 text-lg font-bold hover:text-blue-800 hover:underline hover:cursor-pointer transition-transform duration-200 hover:translate-x-1"
                         >
                           <FontAwesomeIcon icon={faCommentDots} />
-                          {task.comments.length} コメント ＞＞
+                          {openCommentsTaskId === task.id
+                            ? `${task.comments.length} コメント ▲`
+                            : `${task.comments.length} コメント ▼`}
                         </button>
                       )}
-
                       <button
                         onClick={() =>
                           setActiveTaskId(
                             activeTaskId === task.id ? null : task.id
                           )
                         }
-                        className="flex items-center gap-2 px-4 py-2 text-lg font-extrabold text-white hover:cursor-pointer
-                        bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-md hover:from-blue-600 
-                        hover:to-indigo-600 hover:shadow-lg transition-all duration-200"
+                        className={`flex items-center gap-2 px-4 py-2 text-lg font-extrabold rounded-xl shadow-md hover:cursor-pointer
+    ${
+      activeTaskId === task.id
+        ? "bg-gray-500 hover:bg-gray-600 text-white"
+        : "bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600"
+    }`}
                       >
                         <FontAwesomeIcon
-                          icon={faPlusCircle}
+                          icon={
+                            activeTaskId === task.id
+                              ? faMinusCircle
+                              : faPlusCircle
+                          }
                           className="text-white text-xl"
                         />
-                        コメント追加
+                        {activeTaskId === task.id
+                          ? "コメントを閉じる"
+                          : "コメント追加"}
                       </button>
                     </div>
 
-                    {openCommentsTaskId === task.id &&
-                      task.comments.length > 0 && (
-                        <div className="mt-4 bg-gray-100 p-4 rounded-xl space-y-3 border border-gray-200">
-                          {task.comments.map((comment) => (
-                            <div
-                              key={comment.id}
-                              className="bg-white px-3 py-2 rounded-lg shadow-sm text-lg"
-                            >
-                              💬 {comment.text}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    {openCommentsTaskId === task.id && (
+                      <div className="mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200 animate-in slide-in-from-top duration-200">
+                        {task.comments.length > 0 ? (
+                          <div className="space-y-3">
+                            {task.comments.map((comment) => (
+                              <div
+                                key={comment.comment_id}
+                                className="bg-white px-4 py-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
+                              >
+                                <div className="flex items-start gap-3">
+                                  {/* Avatar with initials */}
+                                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                                    {comment.name.charAt(0).toUpperCase()}
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    {/* Author and timestamp */}
+                                    <div className="flex items-baseline gap-4 mb-1">
+                                      <span className="font-semibold text-gray-900 text-lg">
+                                        {comment.name}
+                                      </span>
+                                      {comment.created_at && (
+                                        <span className="text-xs text-gray-700">
+                                          {formatDateTime(comment.created_at)}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Comment content */}
+                                    <p className="text-gray-700 text-lg leading-relaxed break-words">
+                                      {comment.content}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-gray-500">
+                            <p className="text-base">
+                              No comments yet. Be the first to comment!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Show input when active */}
                     {activeTaskId === task.id && (
                       <div className="flex items-center gap-2 mt-2">
                         <input
                           type="text"
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
+                          value={newComments[task.id] || ""}
+                          onChange={(e) =>
+                            setNewComments((prev) => ({
+                              ...prev,
+                              [task.id]: e.target.value,
+                            }))
+                          }
                           placeholder="コメントを入力..."
                           className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                         />
                         <button
                           onClick={() => addComment(currentProjectId, task.id)}
-                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-all"
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-all cursor-pointer"
                         >
                           投稿
                         </button>
@@ -483,6 +588,7 @@ const Task = () => {
 const StatCard = ({ title, value, color }) => {
   const colorClasses = {
     blue: "bg-blue-50 border-blue-200 text-blue-700",
+    indigo: "bg-indigo-50 border-indigo-200 text-indigo-700",
     yellow: "bg-yellow-50 border-yellow-200 text-yellow-700",
     green: "bg-green-50 border-green-200 text-green-700",
     red: "bg-red-50 border-red-200 text-red-700",
