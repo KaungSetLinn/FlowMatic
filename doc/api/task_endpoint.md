@@ -124,7 +124,11 @@
 {
     "tasks": [
         {
-            // 以下、POST /projects/{project_id}/tasks の201レスポンスと同じ
+            // 以下、users 以外 POST /projects/{project_id}/tasks の201レスポンスと同じ
+            "users": {
+                "user_id": "int",
+                "name": "string",
+            }
         }
     ]
 }
@@ -157,7 +161,11 @@
 {
     "comments": [
         {
-            // 以下、POST /projects/{project_id}/tasks/{task_id}/comments の201レスポンスと同じ
+            // 以下、users 以外 POST /projects/{project_id}/tasks/{task_id}/comments の201レスポンスと同じ
+            "user": {
+                "user_id": "int",
+                "name": "string",
+            }
         }
     ]
 }
