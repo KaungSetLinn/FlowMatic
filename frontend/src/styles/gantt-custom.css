@@ -1,0 +1,75 @@
+/* Target all text elements in the gantt chart */
+.gantt-container text {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+}
+
+/* Change task text inside bars (on the chart) */
+.gantt .bar-wrapper .bar-label,
+.gantt .bar-label {
+  font-size: 16px !important;
+  font-weight: bold !important;
+  fill: #ffffff !important;
+}
+
+/* Change left-side task labels - multiple selectors for better coverage */
+.gantt .grid-row text,
+.gantt .side-container text,
+.gantt-side-content text {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  fill: #111111 !important;
+}
+
+/* Date labels at the top */
+.gantt .upper-text,
+.gantt .lower-text {
+  font-size: 14px !important;
+  fill: #666666 !important;
+}
+
+/* Adjust row height for better spacing */
+.gantt .grid-row {
+  height: 50px !important;
+}
+
+.gantt .bar-wrapper {
+  height: 50px !important;
+}
+
+/* Style the task bars */
+.gantt .bar {
+  fill: #4285f4 !important;
+  rx: 4 !important;
+  ry: 4 !important;
+}
+
+/* Progress bar inside tasks */
+.gantt .bar-progress {
+  fill: #0f4a9d !important;
+  opacity: 0.8 !important;
+}
+
+/* Handle color for dragging */
+.gantt .handle {
+  fill: #ddd !important;
+  opacity: 0 !important;
+}
+
+.gantt .bar-wrapper:hover .handle {
+  opacity: 1 !important;
+}
+
+.popup-wrapper {
+  border: 2px solid #4285f4 !important;
+  width: 280px !important;
+}
+/* Specifically target subtitle inside popup-wrapper */
+.title, .subtitle {
+  padding: 8px !important;
+  font-size: 16px !important;
+  font-weight: bolder !important;
+  color: black !important;
+  background-color: white !important;
+}
+/* Style the popup wrapper (tooltip) */

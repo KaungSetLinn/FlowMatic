@@ -1,0 +1,153 @@
+@startuml er-diagram
+
+left to right direction
+title er-diagram
+
+package user_tables {
+    entity users <<master>>{
+        user_id : uuid <PK>
+        username : text
+        email : text <UQ>
+        profile_picture : text
+    }
+}
+
+package project_tables {
+
+    entity projects <<master>>{
+        project_id : uuid <PK>
+        title : text
+        description : text
+        progress : integer
+        status : project_status_enum
+        start_date : timestamp
+        deadline : timestamp
+    }
+
+    enum project_status_enum {
+        planning
+        in_progress
+        completed
+    }
+
+    entity project_assigned_users <<master>>{
+        user_id : uuid <PK, FK>
+        project_id : uuid <PK, FK>
+    }
+
+    entity tasks <<master>>{
+        task_id : uuid <PK>
+        project_id : uuid <FK>
+        ---
+        name : text
+        description : text
+        deadline : timestamp
+        status : task_status_enum
+        priority : task_priority_enum
+    }
+
+    enum task_status_enum {
+        to_do
+        pending
+        ready
+        in_progress
+        in_review
+        testing
+    }
+
+    enum task_priority_enum {
+        low
+        medium
+        high
+    }
+
+    entity task_assigned_users <<master>>{
+        user_id : uuid <PK, FK>
+        task_id : uuid <PK, FK>
+    }
+
+    entity task_relations <<master>>{
+        parent_task_id : uuid <PK, FK>
+        child_task_id  : uuid <PK, FK>
+        relation_type : task_relation_type_enum
+    }
+
+    enum task_relation_type_enum {
+        start_to_start
+        start_to_finish
+        finish_to_start
+        finish_to_finish
+    }
+
+    entity comments <<master>>{
+        comment_id : uuid <PK>
+        task_id : uuid <FK>
+        user_id : uuid <FK>
+        ---
+        content : text
+    }
+
+    entity events <<master>>{
+        event_id : uuid <PK>
+        project_id : uuid <FK>
+        ---
+        title : text
+        is_all_day : boolean
+        start_date : timestamp
+        end_date : timestamp
+        color : event_color_enum
+    }
+
+    enum event_color_enum {
+        red
+        blue
+        green
+        orange
+    }
+
+    entity chatrooms <<master>>{
+        chatroom_id : uuid <PK>
+        project_id : uuid <FK>
+    }
+
+    entity chatroom_users <<master>>{
+        chatroom_id : uuid <PK, FK>
+        user_id : uuid <PK, FK>
+    }
+
+    entity messages <<master>>{
+        message_id : uuid <PK>
+        chatroom_id : uuid <FK>
+        user_id : uuid <FK>
+        ---
+        content : text
+        timestamp : timestamp
+    }
+
+    projects ||--o{ project_assigned_users
+    users ||--o{ project_assigned_users
+
+    projects ||--o{ tasks
+    tasks .. task_status_enum
+    tasks .. task_priority_enum
+
+    tasks ||--o{ task_assigned_users
+    users ||--o{ task_assigned_users
+
+    tasks ||--o{ task_relations
+    task_relations .. task_relation_type_enum
+
+    tasks ||--o{ comments
+    users ||--o{ comments
+
+    projects ||--o{ events
+    events .. event_color_enum
+    projects ||--o{ chatrooms
+    chatrooms ||--o{ chatroom_users
+    users ||--o{ chatroom_users
+
+    chatrooms ||--o{ messages
+    users ||--o{ messages
+}
+
+@enduml
