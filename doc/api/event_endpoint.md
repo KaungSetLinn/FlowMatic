@@ -36,8 +36,12 @@
 
 ```json
 {
-    "event_id": "newly_created_event_id",
-    // 以下、Request bodyと同じ
+    "event_id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": "Sample Event",
+    "is_all_day": false,
+    "start_date": "2024-01-01T09:00:00Z",
+    "end_date": "2024-01-01T10:00:00Z",
+    "color": "blue"
 }
 ```
 
@@ -62,8 +66,8 @@
 
 | Name | Type | Description |
 | - | - | - |
-| start_date | string | 取得する期間の開始日時（ISO 8601形式、オプション） |
-| end_date | string | 取得する期間の終了日時（ISO 8601形式、オプション） |
+| p | int | 取得するページ番号（1始まり、デフォルト: 1） |
+| per_page | int | 1ページあたりのイベント数（デフォルト: 20） |
 
 ## Response
 
@@ -73,9 +77,16 @@
 {
     "events": [
         {
-            // 以下、POST /projects/{project_id}/events の201レスポンスと同じ
+            "event_id": "550e8400-e29b-41d4-a716-446655440000",
+            "title": "Sample Event",
+            "is_all_day": false,
+            "start_date": "2024-01-01T09:00:00Z",
+            "end_date": "2024-01-01T10:00:00Z",
+            "color": "blue"
         }
-    ]
+    ],
+    "page": 1,
+    "per_page": 20
 }
 ```
 
@@ -84,45 +95,7 @@
 | events | array of objects | eventの一覧 |
 | events.* | object | 以下、POST /projects/{project_id}/events の201レスポンスと同じ |
 
-# PUT /projects/{project_id}/events/{event_id}
 
-指定したeventを更新する
-
-## Request
-
-### Path Parameters
-
-| Name | Type | Description |
-| - | - | - |
-| project_id | uuid | プロジェクトID |
-| event_id | uuid | 更新するeventのID |
-
-### Request Body
-
-```json
-{
-    // POST /projects/{project_id}/events のRequest bodyと同じ
-}
-```
-
-| Name | Type | Description |
-| - | - | - |
-| | POST /projects/{project_id}/events のRequest bodyと同じ | 
-
-## Response
-
-### 200 OK
-
-```json
-{
-    // 以下、Request bodyと同じ
-}
-```
-
-| Name | Type | Description |
-| - | - | - |
-| event_id | uuid | 更新されたeventのID |
-| | | 以下、Request bodyと同じ |
 
 # DELETE /projects/{project_id}/events/{event_id}
 
