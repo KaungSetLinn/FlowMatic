@@ -2,6 +2,7 @@ import uuid
 from django.db import models
 from django.conf import settings
 from django.db.models import Q, CheckConstraint
+from django.utils import timezone
 
 
 class TaskStatus(models.TextChoices):
@@ -27,6 +28,7 @@ class Task(models.Model):
 
     name = models.TextField()
     description = models.TextField(blank=True)
+    start_date = models.DateTimeField(default=timezone.now)
     deadline = models.DateTimeField()
 
     status = models.CharField(
