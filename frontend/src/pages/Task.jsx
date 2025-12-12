@@ -102,7 +102,7 @@ const Task = () => {
       try {
         const response = await getTasks(currentProjectId);
 
-        console.log(response);
+        console.log("Response: ", response);
 
         // Normalize API → UI format
         const normalized = response.map((task) => ({
