@@ -13,7 +13,7 @@ export async function createProject(projectData) {
 export async function getProjects() {
   try {
     const response = await api.get('/api/projects/');
-    return response.data;
+    return response.data.projects;
   } catch (error) {
     console.error("API Error:", error);
     throw error;
