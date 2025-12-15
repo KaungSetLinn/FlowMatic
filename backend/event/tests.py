@@ -4,7 +4,8 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.contrib.auth import get_user_model
-from .models import Project, Event
+from projects.models import Project
+from .models import Event
 from datetime import datetime, timedelta
 from django.utils import timezone
 
@@ -248,13 +249,15 @@ class EventAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response = self.client.put(
-            url, {
-                "title": "Member Edited", 
+            url,
+            {
+                "title": "Member Edited",
                 "is_all_day": False,
                 "start_date": "2024-01-01T09:00:00Z",
                 "end_date": "2024-01-01T10:00:00Z",
-                "color": "orange"
-            }, format="json"
+                "color": "orange",
+            },
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
