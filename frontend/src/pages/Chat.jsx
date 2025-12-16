@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import EmojiPicker from "emoji-picker-react";
 
+
 // -----------------------------------------------
 // 初期データ
 // -----------------------------------------------
@@ -42,21 +43,16 @@ export default function Chat() {
   const [lastDeleted, setLastDeleted] = useState(null);
   const [isComposing, setIsComposing] = useState(false);
   const [reactionTarget, setReactionTarget] = useState(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [revokedMessages, setRevokedMessages] = useState({});
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState(null);
 
   const messagesEndRef = useRef(null);
   const currentMessages = allMessages[selectedChat] || [];
   const currentChat = chats.find(c => c.id === selectedChat);
-
-  // -----------------------------------------------
-  // 自動スクロール
-  // -----------------------------------------------
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentMessages]);
 
   // -----------------------------------------------
   // メッセージ送信
@@ -77,7 +73,7 @@ export default function Chat() {
       time,
       self: true,
       replyTo: replyTo || null,
-      reaction: null,
+      reactions: {},
     };
 
     setAllMessages(prev => ({
@@ -87,15 +83,67 @@ export default function Chat() {
 
     setMessageInput("");
     setReplyTo(null);
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 0);
   };
 
   // -----------------------------------------------
   // 編集開始 / 保存
   // -----------------------------------------------
   const startEditing = msg => {
+    if (msg.revoked) return;
     setEditingId(msg.id);
     setEditingText(msg.text);
     setOpenMenuId(null);
+  };
+
+  /* 👇 ここに貼る */
+  const toggleReaction = (msg, emoji) => {
+    if (msg.revoked) return;
+    setAllMessages(prev => ({
+      ...prev,
+      [selectedChat]: prev[selectedChat].map(m => {
+        if (m.id !== msg.id) return m;
+
+        const reactions = { ...(m.reactions || {}) };
+        const users = reactions[emoji] || [];
+
+        if (users.includes("自分")) {
+          reactions[emoji] = users.filter(u => u !== "自分");
+          if (reactions[emoji].length === 0) {
+            delete reactions[emoji];
+          }
+        } else {
+          reactions[emoji] = [...users, "自分"];
+        }
+
+        return { ...m, reactions };
+      })
+    }));
+  };
+
+  const revokeMessage = (msg) => {
+    const now = new Date();
+    const revokeTime = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+
+    setAllMessages(prev => ({
+      ...prev,
+      [selectedChat]: prev[selectedChat].map(m =>
+        m.id === msg.id
+          ? {
+              ...m,
+              revoked: true,
+              revokedAt: revokeTime,
+              text: "",
+              reactions: {},
+            }
+          : m
+      ),
+    }));
   };
 
   const saveEdit = () => {
@@ -148,6 +196,7 @@ export default function Chat() {
   // リプライ
   // -----------------------------------------------
   const handleReply = msg => {
+    if (msg.revoked) return;
     setReplyTo(msg);
     setOpenMenuId(null);
   };
@@ -199,21 +248,47 @@ export default function Chat() {
           <h2 className="text-3xl font-bold">{currentChat?.name}</h2>
         </div>
 
-        {/* Undo */}
         {lastDeleted && (
-          <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 flex justify-between items-center">
-            <p className="text-sm">メッセージを削除しました。</p>
-            <button onClick={undoDelete} className="px-3 py-1 bg-white border rounded">元に戻す</button>
+          <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 flex justify-between items-center gap-3">
+            <p className="text-sm truncate max-w-xs">
+              「{lastDeleted.msg.text}」を削除しました
+            </p>
+            <button
+              onClick={undoDelete}
+              className="px-3 py-1 bg-white border rounded hover:bg-gray-100"
+            >
+              元に戻す
+            </button>
           </div>
         )}
 
         {/* メッセージ一覧 */}
-        <div className="overflow-y-auto p-4 space-y-10 bg-white h-[350px] relative">
+        <div
+          className="overflow-y-auto p-10 space-y-10 bg-white h-[350px] relative"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            const isBottom =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+            setShowScrollBottom(!isBottom);
+          }}
+        >
           {currentMessages.map(msg => (
             <div
               key={msg.id}
               className={`flex ${msg.self ? "justify-end" : "justify-start"}`}
             >
+              {!msg.self && (
+                <div className="mr-3 flex-shrink-0 flex flex-col items-center">
+                  <img
+                    src={msg.avatar || "/default-avatar.png"}
+                    alt={`${msg.firstName} ${msg.lastName}`}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <span className="mt-1 text-xs text-gray-600 max-w-[100px] truncate">
+                    {msg.firstName && msg.lastName ? `${msg.firstName} ${msg.lastName}` : msg.user}
+                  </span>
+                </div>
+              )}
               <div
                 className={`relative max-w-lg group ${
                   msg.self ? "ml-auto" : ""
@@ -227,13 +302,17 @@ export default function Chat() {
                     opacity-0 group-hover:opacity-100 transition
                   `}
                 >
-                  {msg.self && <IconButton onClick={() => startEditing(msg)}>✏️</IconButton>}
-                  <IconButton onClick={() => handleReply(msg)}>💬</IconButton>
-                  <IconButton onClick={() => {
-                    setShowReactionPicker(true);
-                    setReactionPickerMessageId(msg.id);
-                  }}>😊</IconButton>
-                  {msg.self && <IconButton onClick={() => deleteMessage(msg.id)}>🗑</IconButton>}
+                  {msg.self && !msg.revoked && (
+                    <IconButton onClick={() => startEditing(msg)}>✏️</IconButton>
+                  )}
+
+                  {!msg.revoked && (
+                    <IconButton onClick={() => handleReply(msg)}>💬</IconButton>
+                  )}
+
+                  {msg.self && !msg.revoked && (
+                    <IconButton onClick={() => revokeMessage(msg)}>🗑️</IconButton>
+                  )}
                 </div>
 
                 {/* 吹き出し */}
@@ -267,39 +346,73 @@ export default function Chat() {
                       </div>
                     </div>
                   ) : (
-                    <div
-                      className={`px-4 py-2 rounded-2xl shadow ${
-                        msg.self
-                          ? "bg-blue-600 text-white rounded-br-none"
-                          : "bg-gray-100 rounded-bl-none"
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
+                    msg.revoked ? (
+                      <div className="px-4 py-2 rounded-2xl bg-gray-300 text-gray-600 text-sm italic">
+                        メッセージは送信取消されました（{msg.revokedAt}）
+                      </div>
+                    ) : (
+                      <div
+                        className={`px-4 py-2 rounded-2xl shadow ${
+                          msg.self
+                            ? "bg-blue-600 text-white rounded-br-none"
+                            : "bg-gray-100 rounded-bl-none"
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    )
                   )}
-                  {msg.reaction && (
-                  <div className="absolute -bottom-3 right-2 bg-white border rounded-full px-2 py-0.5 text-sm shadow">
-                    {msg.reaction}
-                  </div>
-                )}
 
                   {/* 時間と編集済み表示 */}
                   <div className="text-xs text-gray-500 mt-1">
                     {msg.time} {msg.edited && "(編集済み)"}
                   </div>
 
-                  {/* リアクション表示 */}
-                  <div className="flex gap-2 text-sm mt-1">
-                    {Object.entries(msg.reactions || {}).map(([e, users]) => (
-                      <span key={e}>{e} {users.length}</span>
-                    ))}
-                  </div>
+                  {!msg.revoked && (
+                    <div className="flex gap-2 text-sm mt-1">
+                      {Object.entries(msg.reactions || {}).map(([e, users]) => (
+                        <button
+                          key={e}
+                          onClick={(e2) => {
+                            e2.stopPropagation();
+                            toggleReaction(msg, e);
+                          }}
+                          className={`px-2 py-0.5 rounded-full border text-xs flex items-center gap-1`}
+                        >
+                          <span>{e}</span>
+                          <span>{users.length}</span>
+                        </button>
+                      ))}
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowReactionPicker(true);
+                          setReactionPickerMessageId(msg.id);
+                        }}
+                        className="px-2 py-0.5 rounded-full border text-xs hover:bg-gray-200"
+                      >
+                        ＋
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           ))}
           <div ref={messagesEndRef} />
         </div>
+
+        {showScrollBottom && (
+          <button
+            onClick={() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="absolute bottom-40 right-6 z-40 bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-blue-700 flex items-center justify-center"
+          >
+            ↓
+          </button>
+        )}
 
         {/* リアクションピッカー */}
         {showReactionPicker && reactionPickerMessageId && (
