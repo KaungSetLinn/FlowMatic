@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import EmojiPicker from "emoji-picker-react";
 
 // -----------------------------------------------
 // 初期データ
@@ -27,6 +28,14 @@ export default function Chat() {
     return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
   });
 
+    // 👇 ここに貼る
+    useEffect(() => {
+      document.body.style.overflow = "hidden";
+
+      return () => {
+        document.body.style.overflow = "auto";
+      };
+    }, []);
   const [selectedChat, setSelectedChat] = useState(1);
   const [messageInput, setMessageInput] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -34,8 +43,12 @@ export default function Chat() {
   const [replyTo, setReplyTo] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [lastDeleted, setLastDeleted] = useState(null);
+  const [isComposing, setIsComposing] = useState(false);
+  const [reactionTarget, setReactionTarget] = useState(null);
 
-  const [isComposing, setIsComposing] = useState(false); // ← IMEフラグ
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState(null);
 
   const messagesEndRef = useRef(null);
   const currentMessages = allMessages[selectedChat] || [];
@@ -74,7 +87,7 @@ export default function Chat() {
       time,
       self: true,
       replyTo: replyTo || null,
-      reactions: {},
+      reaction: null,
     };
 
     setAllMessages(prev => ({
@@ -87,7 +100,7 @@ export default function Chat() {
   };
 
   // -----------------------------------------------
-  // 編集開始
+  // 編集開始 / 保存
   // -----------------------------------------------
   const startEditing = msg => {
     setEditingId(msg.id);
@@ -95,14 +108,18 @@ export default function Chat() {
     setOpenMenuId(null);
   };
 
-  // 編集保存
   const saveEdit = () => {
     setAllMessages(prev => ({
       ...prev,
       [selectedChat]: prev[selectedChat].map(m =>
-        m.id === editingId ? { ...m, text: editingText } : m
+        m.id === editingId ? { ...m, text: editingText, edited: true } : m
       ),
     }));
+    setEditingId(null);
+    setEditingText("");
+  };
+
+  const cancelEdit = () => {
     setEditingId(null);
     setEditingText("");
   };
@@ -146,61 +163,25 @@ export default function Chat() {
   };
 
   // -----------------------------------------------
-  // リアクション
-  // -----------------------------------------------
-  const toggleReaction = (msg, emoji) => {
-    setAllMessages(prev => ({
-      ...prev,
-      [selectedChat]: prev[selectedChat].map(m => {
-        if (m.id !== msg.id) return m;
-
-        const reactions = { ...(m.reactions || {}) };
-        if (!reactions[emoji]) reactions[emoji] = [];
-
-        if (reactions[emoji].includes("自分")) {
-          reactions[emoji] = reactions[emoji].filter(u => u !== "自分");
-          if (reactions[emoji].length === 0) delete reactions[emoji];
-        } else {
-          reactions[emoji].push("自分");
-        }
-
-        return { ...m, reactions };
-      }),
-    }));
-
-    setOpenMenuId(null);
-  };
-
-  // -----------------------------------------------
   // メッセージリンクコピー
   // -----------------------------------------------
   const copyMessageLink = msg => {
     const link = `${window.location.origin}${window.location.pathname}#chat-${selectedChat}-msg-${msg.id}`;
-
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(link);
-    } else {
-      const ta = document.createElement("textarea");
-      ta.value = link;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
-
+    navigator.clipboard?.writeText(link);
     setOpenMenuId(null);
   };
 
-  // メニュー開閉
-  const toggleMenu = id => {
-    setOpenMenuId(openMenuId === id ? null : id);
+  const closeMenu = () => {
+    setOpenMenuId(null);
+    setShowReactionPicker(false);
+    setReactionPickerMessageId(null);
   };
 
   // -----------------------------------------------
   // 描画
   // -----------------------------------------------
   return (
-    <div className="flex w-full bg-white mb-4">
+    <div className="flex w-full bg-white mb-4" onClick={closeMenu}>
 
       {/* 左側（ルーム一覧） */}
       <div className="w-1/3 border-r h-full flex flex-col">
@@ -222,12 +203,12 @@ export default function Chat() {
       </div>
 
       {/* 右側（チャット画面） */}
-      <div className="w-2/3 h-full grid">
+      <div className="w-2/3 h-full grid relative">
         <div className="p-4 border-b bg-gray-100">
           <h2 className="text-3xl font-bold">{currentChat?.name}</h2>
         </div>
 
-        {/* Undo 表示 */}
+        {/* Undo */}
         {lastDeleted && (
           <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 flex justify-between items-center">
             <p className="text-sm">メッセージを削除しました。</p>
@@ -236,88 +217,92 @@ export default function Chat() {
         )}
 
         {/* メッセージ一覧 */}
-        <div className="overflow-y-auto p-4 space-y-4 bg-white h-[350px]">
+        <div className="overflow-y-auto p-4 space-y-10 bg-white h-[350px] relative">
           {currentMessages.map(msg => (
-            <div key={msg.id} className={`flex ${msg.self ? "justify-end" : "justify-start"}`}>
-              <div className="flex items-start gap-3">
+            <div
+              key={msg.id}
+              className={`flex ${msg.self ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`relative max-w-lg group ${
+                  msg.self ? "ml-auto" : ""
+                }`}
+              >
+                {/* 上に重ねるアイコン */}
+                <div
+                  className={`
+                    absolute -top-8 flex gap-1
+                    ${msg.self ? "right-0" : "left-0"}
+                    opacity-0 group-hover:opacity-100 transition
+                  `}
+                >
+                  {msg.self && <IconButton onClick={() => startEditing(msg)}>✏️</IconButton>}
+                  <IconButton onClick={() => handleReply(msg)}>💬</IconButton>
+                  <IconButton onClick={() => {
+                    setShowReactionPicker(true);
+                    setReactionPickerMessageId(msg.id);
+                  }}>😊</IconButton>
+                  {msg.self && <IconButton onClick={() => deleteMessage(msg.id)}>🗑</IconButton>}
+                </div>
 
-                {/* アバター */}
-                {!msg.self && (
-                  <div className="w-10 h-10 mr-2 rounded-full bg-gray-300 flex items-center justify-center font-bold">
-                    {msg.user[0]}
-                  </div>
-                )}
-
-                {/* 吹き出し全体 */}
-                <div className="relative max-w-lg group">
-
-                  {/* ３点メニュー 左上（常に hover で表示） */}
-                  <div className="absolute -left-6 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => toggleMenu(msg.id)} className="px-2 py-1 rounded hover:bg-gray-200">⋮</button>
-
-                    {openMenuId === msg.id && (
-                      <div className="absolute left-0 mt-6 w-40 bg-white border rounded shadow-md z-10">
-                        <button onClick={() => startEditing(msg)} className="block w-full text-left px-4 py-2 hover:bg-gray-100">編集</button>
-                        <button onClick={() => deleteMessage(msg.id)} className="block w-full text-left px-4 py-2 hover:bg-gray-100">削除</button>
-                        <button onClick={() => handleReply(msg)} className="block w-full text-left px-4 py-2 hover:bg-gray-100">リプライ</button>
-                        <button onClick={() => toggleReaction(msg, "👍")} className="block w-full text-left px-4 py-2 hover:bg-gray-100">👍 リアクション</button>
-                        <button onClick={() => toggleReaction(msg, "❤️")} className="block w-full text-left px-4 py-2 hover:bg-gray-100">❤️ リアクション</button>
-                        <button onClick={() => copyMessageLink(msg)} className="block w-full text-left px-4 py-2 hover:bg-gray-100">リンクをコピー</button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* リプライ引用表示 */}
+                {/* 吹き出し */}
+                <div className="flex flex-col">
                   {msg.replyTo && (
-                    <div className="text-sm text-gray-500 bg-gray-100 border-l-4 border-blue-400 p-2 rounded mb-1">
-                      引用: {msg.replyTo.text.slice(0, 30)}{msg.replyTo.text.length > 30 ? "..." : ""}
+                    <div className="mb-2 p-2 bg-gray-200 border-l-4 border-gray-400 rounded text-xs text-gray-600">
+                      引用: {msg.replyTo.text.slice(0, 50)}
                     </div>
                   )}
-
-                  {/* 編集モード */}
                   {editingId === msg.id ? (
-                    <div className="space-y-2">
+                    <div className="bg-white border rounded-xl p-3 shadow space-y-2">
                       <textarea
                         value={editingText}
                         onChange={e => setEditingText(e.target.value)}
-                        className="w-full p-2 rounded bg-white border text-black"
+                        className="w-full border p-2 rounded resize-none"
                         rows={3}
                       />
-                      <div className="flex gap-3">
-                        <button onClick={saveEdit} className="px-3 py-1 bg-blue-600 text-white rounded">保存</button>
-                        <button onClick={() => setEditingId(null)} className="px-3 py-1 bg-gray-300 rounded">キャンセル</button>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={cancelEdit}
+                          className="px-3 py-1 rounded border hover:bg-gray-100"
+                        >
+                          キャンセル
+                        </button>
+                        <button
+                          onClick={saveEdit}
+                          className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          保存
+                        </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="pl-6">
-                      {!msg.self && <p className="text-xl font-semibold text-gray-700 mb-1">{msg.user}</p>}
-
-                      <div
-                        className={`px-4 py-2 rounded-2xl shadow text-base whitespace-pre-wrap ${
-                          msg.self
-                            ? "bg-blue-600 text-white rounded-br-none"
-                            : "bg-gray-100 text-gray-900 rounded-bl-none"
-                        }`}
-                      >
-                        {msg.text}
-                      </div>
-
-                      {/* リアクション */}
-                      {Object.keys(msg.reactions || {}).length > 0 && (
-                        <div className="flex gap-2 mt-1">
-                          {Object.entries(msg.reactions).map(([emoji, users]) => (
-                            <div key={emoji} className="px-2 py-1 bg-gray-200 rounded-full text-sm">
-                              {emoji} {users.length}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <p className={`text-sm text-gray-400 mt-1 ${msg.self ? "text-right" : "text-left"}`}>
-                        {msg.time}
-                      </p>
+                    <div
+                      className={`px-4 py-2 rounded-2xl shadow ${
+                        msg.self
+                          ? "bg-blue-600 text-white rounded-br-none"
+                          : "bg-gray-100 rounded-bl-none"
+                      }`}
+                    >
+                      {msg.text}
                     </div>
                   )}
+                  {msg.reaction && (
+                  <div className="absolute -bottom-3 right-2 bg-white border rounded-full px-2 py-0.5 text-sm shadow">
+                    {msg.reaction}
+                  </div>
+                )}
+
+                  {/* 時間と編集済み表示 */}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {msg.time} {msg.edited && "(編集済み)"}
+                  </div>
+
+                  {/* リアクション表示 */}
+                  <div className="flex gap-2 text-sm mt-1">
+                    {Object.entries(msg.reactions || {}).map(([e, users]) => (
+                      <span key={e}>{e} {users.length}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -325,15 +310,60 @@ export default function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* 入力欄 */}
-        <div className="p-4 border-t bg-white flex items-center gap-3">
-          {replyTo && (
-            <div className="p-2 bg-gray-100 border-l-4 border-blue-400 rounded text-sm w-full">
-              引用返信: {replyTo.text.slice(0, 50)}
-              <button onClick={() => setReplyTo(null)} className="ml-3 text-red-500">×</button>
+        {/* リアクションピッカー */}
+        {showReactionPicker && reactionPickerMessageId && (
+          <div className="absolute bottom-20 left-4 z-50" onClick={(e) => e.stopPropagation()}>
+            <EmojiPicker
+              onEmojiClick={(emoji) => {
+                const msg = currentMessages.find(m => m.id === reactionPickerMessageId);
+                if (msg) toggleReaction(msg, emoji.emoji);
+                setShowReactionPicker(false);
+                setReactionPickerMessageId(null);
+              }}
+            />
+          </div>
+        )}
+
+        {replyTo && (
+          <div className="mx-4 mb-2 px-3 py-2 bg-gray-100 border-l-4 border-blue-400 rounded-lg shadow-sm flex items-center gap-2">
+            
+            {/* 引用テキスト */}
+            <div className="flex-1 text-sm text-gray-700 truncate">
+              <strong>引用:</strong> {replyTo.text}
+            </div>
+
+            {/* × ボタン（右端固定） */}
+            <button
+              onClick={() => setReplyTo(null)}
+              className="flex-shrink-0 text-red-500 hover:text-red-700 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* 入力欄（絵文字対応） */}
+        <div className="p-4 border-t bg-white flex items-center gap-3 relative">
+
+          {/* 絵文字ボタン */}
+          <button
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className="text-2xl"
+          >
+            😊
+          </button>
+
+          {showEmojiPicker && (
+            <div className="absolute bottom-16 left-4 z-50" onClick={(e) => e.stopPropagation()}>
+              <EmojiPicker
+                onEmojiClick={(emoji) => {
+                  setMessageInput(prev => prev + emoji.emoji);
+                }}
+              />
             </div>
           )}
 
+          {/* メッセージ入力 */}
           <textarea
             rows={2}
             className="flex-grow p-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-blue-500 resize-none"
@@ -343,7 +373,7 @@ export default function Chat() {
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={() => setIsComposing(false)}
             onKeyDown={e => {
-              if (isComposing) return; // ← 変換中は送信しない
+              if (isComposing) return;
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
@@ -351,6 +381,7 @@ export default function Chat() {
             }}
           />
 
+          {/* 送信 */}
           <button
             onClick={handleSendMessage}
             className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -360,5 +391,15 @@ export default function Chat() {
         </div>
       </div>
     </div>
+  );
+}
+function IconButton({ children, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200"
+    >
+      {children}
+    </button>
   );
 }
