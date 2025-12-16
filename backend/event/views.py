@@ -127,19 +127,14 @@ class EventDetailView(APIView):
     def put(self, request, project_id: str, event_id: str) -> Response:
         event = self._get_event(project_id, event_id)
         serializer = EventCreateSerializer(
-            data=request.data, context={"project": event.project, "request": request}
+            instance=event,
+            data=request.data,
+            context={"project": event.project, "request": request},
         )
         serializer.is_valid(raise_exception=True)
 
-        # Update the event with validated data
-        for field, value in serializer.validated_data.items():
-            setattr(event, field, value)
-        event.save()
-
-        # Create notifications for project members (except updater)
-        for member in event.project.members.all():
-            if member != request.user:
-                create_event_notification(member, event, "updated")
+        # Update the event using the serializer's update method
+        updated_event = serializer.save()
 
         response_serializer = EventResponseSerializer(event)
         return Response(response_serializer.data)
