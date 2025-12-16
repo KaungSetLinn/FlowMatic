@@ -223,8 +223,8 @@ const Task = () => {
   return (
     <div className="mx-auto md:p-6 space-y-10">
       {/* Header */}
-      <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-6 rounded-2xl shadow-lg">
-        <h1 className="text-3xl font-bold tracking-wide">タスク管理</h1>
+      <div className="flex justify-between items-center bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white px-8 py-6 rounded-2xl shadow-lg">
+        <h1 className="text-4xl font-bold tracking-wide">タスク管理</h1>
         <Link to="/task/new">
           <button
             className="flex items-center bg-white text-blue-700 font-semibold text-xl px-4 py-3 hover:cursor-pointer

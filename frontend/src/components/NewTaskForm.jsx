@@ -137,6 +137,8 @@ export default function NewTaskForm() {
 
     alert(`${taskName} を作成しました！`);
     resetForm();
+
+    navigate("/project");
   };
 
   const showMessage = (text, type) => {

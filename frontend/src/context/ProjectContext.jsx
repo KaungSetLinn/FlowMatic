@@ -57,7 +57,7 @@ export const ProjectProvider = ({ children }) => {
     };
 
     fetchProjects();
-  }, [isAuthorized, projects]);
+  }, [isAuthorized]);
 
   const handleProjectChange = (projectId) => {
     const selected = projects.find((p) => p.project_id === projectId);
@@ -74,6 +74,7 @@ export const ProjectProvider = ({ children }) => {
         projects,
         setProjects,
         currentProject,
+        setCurrentProject,
         handleProjectChange,
         loading,
         error,

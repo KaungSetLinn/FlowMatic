@@ -71,7 +71,7 @@ class ChatRoomCreateSerializer(serializers.Serializer):
 
 class MessageSerializer(serializers.ModelSerializer):
     chatroom_id = serializers.UUIDField(source='chatroom.chatroom_id', read_only=True)
-    user_id = serializers.UUIDField(source='user.pk', read_only=True)
+    user_id = serializers.IntegerField(source='user.pk', read_only=True)
 
     class Meta:
         model = Message
@@ -79,7 +79,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
 
 class MessageCreateSerializer(serializers.Serializer):
-    user_id = serializers.UUIDField()
+    user_id = serializers.IntegerField()
     content = serializers.CharField()
 
     default_error_messages = {
