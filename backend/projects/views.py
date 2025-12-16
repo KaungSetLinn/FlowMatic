@@ -60,7 +60,7 @@ class ProjectListCreateView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         project = serializer.save()
-        response_serializer = ProjectListSerializer(project)
+        response_serializer = ProjectResponseSerializer(project)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -86,29 +86,29 @@ class ProjectDetailView(APIView):
     def get(self, request, project_id: str) -> Response:
         project = self._get_project(project_id)
         self._assert_assigned_or_staff(project)
-        serializer = ProjectListSerializer(project)
+        serializer = ProjectResponseSerializer(project)
         return Response(serializer.data)
 
     def put(self, request, project_id: str) -> Response:
         project = self._get_project(project_id)
         self._assert_assigned_or_staff(project)
-        serializer = ProjectResponseSerializer(
-            project, data=request.data, context={'request': request}
+        serializer = ProjectCreateSerializer(
+            instance=project, data=request.data, context={'request': request}
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        response_serializer = ProjectListSerializer(project)
+        response_serializer = ProjectResponseSerializer(project)
         return Response(response_serializer.data)
 
     def patch(self, request, project_id: str) -> Response:
         project = self._get_project(project_id)
         self._assert_assigned_or_staff(project)
-        serializer = ProjectResponseSerializer(
-            project, data=request.data, partial=True, context={'request': request}
+        serializer = ProjectCreateSerializer(
+            instance=project, data=request.data, partial=True, context={'request': request}
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        response_serializer = ProjectListSerializer(project)
+        response_serializer = ProjectResponseSerializer(project)
         return Response(response_serializer.data)
 
     def delete(self, request, project_id: str) -> Response:

@@ -263,3 +263,74 @@ class EventAPITest(APITestCase):
 
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_event_update_integration(self):
+        """イベント更新の統合テスト"""
+        project = self.create_project_helper()
+        event = self.create_event_helper(project, title="Original Event")
+        
+        # GETで現在の状態を確認
+        url = reverse("event-detail", args=[project.project_id, event.event_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "Original Event")
+        
+        # PUTで全フィールド更新
+        update_data = {
+            "title": "Updated Event",
+            "is_all_day": True,
+            "start_date": "2024-01-01T00:00:00Z",
+            "end_date": "2024-01-02T00:00:00Z",
+            "color": "blue"
+        }
+        response = self.client.put(url, update_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # データベースで更新を確認
+        event.refresh_from_db()
+        self.assertEqual(event.title, "Updated Event")
+        self.assertEqual(event.is_all_day, True)
+        self.assertEqual(event.color, "blue")
+        
+        # レスポンスデータも確認
+        for key, value in update_data.items():
+            self.assertEqual(response.data[key], value)
+
+    def test_event_validation_on_update(self):
+        """イベント更新時のバリデーションテスト"""
+        project = self.create_project_helper()
+        event = self.create_event_helper(project)
+        url = reverse("event-detail", args=[project.project_id, event.event_id])
+        
+        # 無効な色での更新
+        invalid_data = {
+            "title": "Invalid Color Event",
+            "is_all_day": False,
+            "start_date": "2024-01-01T09:00:00Z",
+            "end_date": "2024-01-01T10:00:00Z",
+            "color": "purple"
+        }
+        response = self.client.put(url, invalid_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # 無効な日付範囲での更新
+        invalid_date_data = {
+            "title": "Invalid Date Event",
+            "is_all_day": False,
+            "start_date": "2024-01-01T11:00:00Z",
+            "end_date": "2024-01-01T10:00:00Z",
+            "color": "red"
+        }
+        response = self.client.put(url, invalid_date_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # 空タイトルでの更新
+        empty_title_data = {
+            "title": "",
+            "is_all_day": False,
+            "start_date": "2024-01-01T09:00:00Z",
+            "end_date": "2024-01-01T10:00:00Z",
+            "color": "red"
+        }
+        response = self.client.put(url, empty_title_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
