@@ -12,10 +12,10 @@ const INITIAL_CHATS = [
 
 const INITIAL_MESSAGES = {
   1: [
-    { id: 101, user: "山田太郎", text: "おはようございます！今日の進捗確認MTGは何時からでしたか？", time: "09:00", self: false },
-    { id: 102, user: "自分", text: "おはよう！11時からだよ。その前にタスク終わらせておくね。", time: "09:05", self: true },
-    { id: 103, user: "田中次郎", text: "山田さん、タスクは全て完了しました！", time: "10:20", self: false },
-    { id: 104, user: "自分", text: "ありがとう！資料は共有済み。確認よろしく！", time: "10:30", self: true },
+    { id: 101, user: "山田太郎", text: "おはようございます!今日の進捗確認MTGは何時からでしたか?", time: "09:00", self: false },
+    { id: 102, user: "自分", text: "おはよう!11時からだよ。その前にタスク終わらせておくね。", time: "09:05", self: true },
+    { id: 103, user: "田中次郎", text: "山田さん、タスクは全て完了しました!", time: "10:20", self: false },
+    { id: 104, user: "自分", text: "ありがとう!資料は共有済み。確認よろしく!", time: "10:30", self: true },
   ],
   2: [],
   3: [],
@@ -23,19 +23,16 @@ const INITIAL_MESSAGES = {
 
 export default function Chat() {
   const [chats] = useState(INITIAL_CHATS);
-  const [allMessages, setAllMessages] = useState(() => {
-    const saved = localStorage.getItem("chatMessages");
-    return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
-  });
+  const [allMessages, setAllMessages] = useState(INITIAL_MESSAGES);
 
-    // 👇 ここに貼る
-    useEffect(() => {
-      document.body.style.overflow = "hidden";
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
 
-      return () => {
-        document.body.style.overflow = "auto";
-      };
-    }, []);
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
+
   const [selectedChat, setSelectedChat] = useState(1);
   const [messageInput, setMessageInput] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -60,13 +57,6 @@ export default function Chat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentMessages]);
-
-  // -----------------------------------------------
-  // LocalStorage 保存
-  // -----------------------------------------------
-  useEffect(() => {
-    localStorage.setItem("chatMessages", JSON.stringify(allMessages));
-  }, [allMessages]);
 
   // -----------------------------------------------
   // メッセージ送信
@@ -125,7 +115,7 @@ export default function Chat() {
   };
 
   // -----------------------------------------------
-  // メッセージ削除（Undo対応）
+  // メッセージ削除(Undo対応)
   // -----------------------------------------------
   const deleteMessage = id => {
     const msg = currentMessages.find(m => m.id === id);
@@ -175,6 +165,7 @@ export default function Chat() {
     setOpenMenuId(null);
     setShowReactionPicker(false);
     setReactionPickerMessageId(null);
+    setShowEmojiPicker(false);
   };
 
   // -----------------------------------------------
@@ -183,7 +174,7 @@ export default function Chat() {
   return (
     <div className="flex w-full bg-white mb-4" onClick={closeMenu}>
 
-      {/* 左側（ルーム一覧） */}
+      {/* 左側(ルーム一覧) */}
       <div className="w-1/3 border-r h-full flex flex-col">
         <div className="p-4 border-b bg-gray-50">
           <h2 className="text-3xl font-bold">ルーム一覧</h2>
@@ -202,7 +193,7 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* 右側（チャット画面） */}
+      {/* 右側(チャット画面) */}
       <div className="w-2/3 h-full grid relative">
         <div className="p-4 border-b bg-gray-100">
           <h2 className="text-3xl font-bold">{currentChat?.name}</h2>
@@ -332,7 +323,7 @@ export default function Chat() {
               <strong>引用:</strong> {replyTo.text}
             </div>
 
-            {/* × ボタン（右端固定） */}
+            {/* × ボタン(右端固定) */}
             <button
               onClick={() => setReplyTo(null)}
               className="flex-shrink-0 text-red-500 hover:text-red-700 text-lg leading-none"
@@ -342,12 +333,15 @@ export default function Chat() {
           </div>
         )}
 
-        {/* 入力欄（絵文字対応） */}
+        {/* 入力欄(絵文字対応) */}
         <div className="p-4 border-t bg-white flex items-center gap-3 relative">
 
           {/* 絵文字ボタン */}
           <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowEmojiPicker(!showEmojiPicker);
+            }}
             className="text-2xl"
           >
             😊
@@ -393,6 +387,7 @@ export default function Chat() {
     </div>
   );
 }
+
 function IconButton({ children, onClick }) {
   return (
     <button
@@ -402,4 +397,4 @@ function IconButton({ children, onClick }) {
       {children}
     </button>
   );
-}
+} 
