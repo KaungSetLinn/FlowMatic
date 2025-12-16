@@ -22,8 +22,9 @@ class ProjectListCreateView(APIView):
     def _get_queryset_for_user(self):
         user = self.request.user
         if user.is_staff:
-            return Project.objects.all().order_by('-start_date')
-        return Project.objects.filter(members=user).order_by('-start_date')
+            
+            return Project.objects.prefetch_related('tasks').all().order_by('-start_date')
+        return Project.objects.prefetch_related('tasks').filter(members=user).order_by('-start_date')
 
     def get(self, request, *args, **kwargs):
         try:
@@ -72,7 +73,7 @@ class ProjectDetailView(APIView):
 
     def _get_project(self, project_id: str) -> Project:
         project = get_object_or_404(
-            Project.objects.prefetch_related('members'), project_id=project_id
+            Project.objects.prefetch_related('members','tasks'), project_id=project_id
         )
         return project
 
