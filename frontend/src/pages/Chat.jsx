@@ -357,6 +357,7 @@ export default function Chat() {
                             ? "bg-blue-600 text-white rounded-br-none"
                             : "bg-gray-100 rounded-bl-none"
                         }`}
+                        style={{ whiteSpace: "pre-wrap" }}
                       >
                         {msg.text}
                       </div>
