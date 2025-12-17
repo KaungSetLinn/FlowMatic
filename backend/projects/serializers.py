@@ -3,6 +3,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Project
 
+TASK_STATUS_DONE = 'done'
 User = get_user_model()
 
 
@@ -18,6 +19,7 @@ class MemberSerializer(serializers.ModelSerializer):
 class ProjectListSerializer(serializers.ModelSerializer):
     members = MemberSerializer(many=True, read_only=True)
 
+    progress = serializers.SerializerMethodField()
     class Meta:
         model = Project
         fields = [
@@ -32,8 +34,23 @@ class ProjectListSerializer(serializers.ModelSerializer):
         ]
 
 
+
+    def get_progress(self, obj):
+        
+        tasks = obj.tasks.all()
+        total_tasks = tasks.count()
+
+        if total_tasks == 0:
+            return 0
+        
+        completed_tasks = tasks.filter(status=TASK_STATUS_DONE).count()
+
+        return int((completed_tasks / total_tasks) * 100)
+
+
 class ProjectResponseSerializer(serializers.ModelSerializer):
-    members = MemberSerializer(many=True, read_only=True)
+    members = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+    progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -49,6 +66,16 @@ class ProjectResponseSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["project_id"]
 
+    def get_progress(self, obj):
+        
+        tasks = obj.tasks.all()
+        total_tasks = tasks.count()
+
+        if total_tasks == 0:
+            return 0
+
+        completed_tasks = tasks.filter(status=TASK_STATUS_DONE).count()
+        return int((completed_tasks / total_tasks) * 100)
 
 class ProjectCreateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)

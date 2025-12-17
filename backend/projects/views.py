@@ -28,22 +28,18 @@ class ProjectListCreateView(APIView):
     def _get_queryset_for_user(self):
         user = self.request.user
         if user.is_staff:
-            return Project.objects.all().order_by("-start_date")
-        return Project.objects.filter(members=user).order_by("-start_date")
-            return Project.objects.all().order_by("-start_date")
-        return Project.objects.filter(members=user).order_by("-start_date")
+            
+            return Project.objects.prefetch_related('tasks').all().order_by('-start_date')
+        return Project.objects.prefetch_related('tasks').filter(members=user).order_by('-start_date')
 
     def get(self, request, *args, **kwargs):
         try:
             page = int(
                 request.query_params.get("p", request.query_params.get("page", "1"))
-                request.query_params.get("p", request.query_params.get("page", "1"))
             )
-            per_page = int(request.query_params.get("per_page", "20"))
             per_page = int(request.query_params.get("per_page", "20"))
         except ValueError:
             return Response(
-                {"detail": "p and per_page must be integers."},
                 {"detail": "p and per_page must be integers."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -51,11 +47,9 @@ class ProjectListCreateView(APIView):
         if page < 1 or per_page < 1:
             return Response(
                 {"detail": "p and per_page must be greater than zero."},
-                {"detail": "p and per_page must be greater than zero."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        queryset = self._get_queryset_for_user().order_by("-start_date")
         queryset = self._get_queryset_for_user().order_by("-start_date")
         start = (page - 1) * per_page
         end = start + per_page
@@ -64,12 +58,10 @@ class ProjectListCreateView(APIView):
         serializer = ProjectListSerializer(projects, many=True)
         return Response(
             {"projects": serializer.data, "page": page, "per_page": per_page}
-            {"projects": serializer.data, "page": page, "per_page": per_page}
         )
 
     def post(self, request, *args, **kwargs):
         serializer = ProjectCreateSerializer(
-            data=request.data, context={"request": request}
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
@@ -95,8 +87,7 @@ class ProjectDetailView(APIView):
 
     def _get_project(self, project_id: str) -> Project:
         project = get_object_or_404(
-            Project.objects.prefetch_related("members"), project_id=project_id
-            Project.objects.prefetch_related("members"), project_id=project_id
+            Project.objects.prefetch_related('members','tasks'), project_id=project_id
         )
         return project
 
