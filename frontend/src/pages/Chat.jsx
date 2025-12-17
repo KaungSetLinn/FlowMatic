@@ -54,6 +54,10 @@ export default function Chat() {
   const currentMessages = allMessages[selectedChat] || [];
   const currentChat = chats.find(c => c.id === selectedChat);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [selectedChat]);
+
   // -----------------------------------------------
   // メッセージ送信
   // -----------------------------------------------
@@ -221,7 +225,7 @@ export default function Chat() {
   // 描画
   // -----------------------------------------------
   return (
-    <div className="flex w-full bg-white mb-4" onClick={closeMenu}>
+    <div className="flex w-full bg-white" onClick={closeMenu}>
 
       {/* 左側(ルーム一覧) */}
       <div className="w-1/3 border-r h-full flex flex-col">
