@@ -125,22 +125,16 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
 
 class TaskCommentCreateSerializer(serializers.ModelSerializer):
-    user_id = serializers.IntegerField(write_only=True)
-
     class Meta:
         model = TaskComment
-        fields = ["user_id", "content"]
-
-    def validate_user_id(self, value):
-        if not User.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("User with this ID does not exist.")
-        return value
+        fields = ["content"]
 
     def create(self, validated_data):
         task = self.context["task"]
-        user_id = validated_data.pop("user_id")
-        user = User.objects.get(pk=user_id)
-        comment = TaskComment.objects.create(task=task, user=user, **validated_data)
+        request = self.context["request"]
+        comment = TaskComment.objects.create(
+            task=task, user=request.user, **validated_data
+        )
         return comment
 
 
@@ -163,6 +157,80 @@ class TaskCommentListSerializer(serializers.ModelSerializer):
 
     def get_user(self, obj):
         return {"user_id": obj.user.pk, "name": obj.user.username}
+
+
+class TaskUpdateSerializer(serializers.ModelSerializer):
+    assigned_user_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
+
+    class Meta:
+        model = Task
+        fields = [
+            "name",
+            "description",
+            "start_date",
+            "deadline",
+            "priority",
+            "status",
+            "assigned_user_ids",
+        ]
+        extra_kwargs = {
+            "name": {"required": False},
+            "deadline": {"required": False},
+            "start_date": {"required": False},
+        }
+
+    def validate_assigned_user_ids(self, value):
+        if value is None:
+            return []
+        return value
+
+    def validate(self, attrs):
+        project = self.context["project"]
+        assigned_user_ids = attrs.get("assigned_user_ids", [])
+
+        # If no assigned_user_ids provided, skip validation
+        if not assigned_user_ids:
+            attrs["member_objects"] = []
+            return attrs
+
+        # Ensure assigned_user_ids are unique
+        seen = set()
+        unique_user_ids = []
+        for uid in assigned_user_ids:
+            if uid in seen:
+                raise serializers.ValidationError(
+                    {"assigned_user_ids": "Duplicate IDs are not allowed."}
+                )
+            seen.add(uid)
+            unique_user_ids.append(uid)
+
+        users = (
+            list(User.objects.filter(pk__in=unique_user_ids)) if unique_user_ids else []
+        )
+        if len(users) != len(unique_user_ids):
+            raise serializers.ValidationError(
+                {"assigned_user_ids": "Some assigned_user_ids are invalid."}
+            )
+
+        # Ensure assigned users are all in the project
+        if users:
+            assigned_user_pks = set(
+                project.members.filter(pk__in=unique_user_ids).values_list(
+                    "pk", flat=True
+                )
+            )
+            if assigned_user_pks != set(unique_user_ids):
+                raise serializers.ValidationError(
+                    {
+                        "assigned_user_ids": "All assigned users must be assigned to the project."
+                    }
+                )
+
+        # Attach resolved objects to attrs so update() can use them
+        attrs["member_objects"] = users
+        return attrs
 
 
 class TaskResponseSerializer(serializers.ModelSerializer):
