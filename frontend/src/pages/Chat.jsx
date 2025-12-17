@@ -311,7 +311,16 @@ export default function Chat() {
                   )}
 
                   {msg.self && !msg.revoked && (
-                    <IconButton onClick={() => revokeMessage(msg)}>🗑️</IconButton>
+                    <IconButton
+                      onClick={() => {
+                        const ok = window.confirm("このメッセージを削除しますか？");
+                        if (ok) {
+                          deleteMessage(msg.id);
+                        }
+                      }}
+                    >
+                      🗑️
+                    </IconButton>
                   )}
                 </div>
 
