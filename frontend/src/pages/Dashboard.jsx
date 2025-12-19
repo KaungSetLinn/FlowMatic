@@ -93,10 +93,6 @@ const Dashboard = () => {
                 今日も一緒に頑張りましょう!
               </p>
             </div>
-            <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-4 rounded-2xl shadow-lg">
-              <p className="text-sm opacity-90 mb-1">あなたの達成率</p>
-              <p className="text-4xl font-bold">{completionRate}%</p>
-            </div>
           </div>
         </div>
 
@@ -288,7 +284,7 @@ const Dashboard = () => {
         </div>
 
         {/* Motivational Footer */}
-        <div className="bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 rounded-3xl shadow-lg p-6 md:p-8 text-white text-center">
+        <div className="bg-white rounded-3xl shadow-sm p-6 md:p-8 border-2 border-purple-100">
           <h2 className="text-2xl md:text-3xl font-bold mb-2">
             今日もお疲れ様でした! 🎉
           </h2>

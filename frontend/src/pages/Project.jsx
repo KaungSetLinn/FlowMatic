@@ -15,7 +15,10 @@ import {
   faUsers,
   faCalendar,
   faTasks,
-  faChartLine
+  faChartLine,
+  faPause,
+  faClipboardCheck,
+  faVial
 } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
 import { useProject } from "../context/ProjectContext";
@@ -24,14 +27,40 @@ import { formatUTC } from "../utils/dateUtils";
 const Project = () => {
   const { projects } = useProject();
 
+  console.log(projects)
+
+  // Status mapping from English to Japanese
+  const statusMap = {
+    planning: "計画中",
+    in_progress: "進行中",
+    completed: "完了",
+  };
+
+  // Get Japanese label for status
+  const getStatusLabel = (status) => {
+    return statusMap[status] || status;
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
+      case "in_progress":
       case "進行中":
         return "text-blue-700 bg-blue-50 border-blue-200";
+      case "done":
       case "完了":
         return "text-green-700 bg-green-50 border-green-200";
-      case "計画中":
+      case "todo":
+      case "未着手":
         return "text-amber-700 bg-amber-50 border-amber-200";
+      case "pending":
+      case "保留":
+        return "text-orange-700 bg-orange-50 border-orange-200";
+      case "in_review":
+      case "レビュー待ち":
+        return "text-purple-700 bg-purple-50 border-purple-200";
+      case "testing":
+      case "テスト中":
+        return "text-cyan-700 bg-cyan-50 border-cyan-200";
       default:
         return "text-gray-700 bg-gray-50 border-gray-200";
     }
@@ -39,12 +68,24 @@ const Project = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
+      case "in_progress":
       case "進行中":
         return faPlayCircle;
+      case "done":
       case "完了":
         return faCheckCircle;
-      case "計画中":
+      case "todo":
+      case "未着手":
         return faListUl;
+      case "pending":
+      case "保留":
+        return faPause;
+      case "in_review":
+      case "レビュー待ち":
+        return faClipboardCheck;
+      case "testing":
+      case "テスト中":
+        return faVial;
       default:
         return faExclamationCircle;
     }
@@ -56,14 +97,14 @@ const Project = () => {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-5xl font-bold text-gray-900 mb-6">
+            <h1 className="text-4xl font-bold text-gray-900 mb-6">
               プロジェクト一覧
             </h1>
             <p className="text-xl text-gray-600">チーム全体のプロジェクトを管理</p>
           </div>
 
           <Link to="/project/new">
-            <button className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-2xl font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-3 group">
+            <button className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-2xl font-bold rounded-xl cursor-pointer shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-3 group">
               <FontAwesomeIcon icon={faCirclePlus} className="group-hover:rotate-90 transition-transform duration-200" />
               新規プロジェクト
             </button>
@@ -91,7 +132,7 @@ const Project = () => {
               <div>
                 <p className="text-gray-500 font-bold text-2xl mb-1">進行中</p>
                 <h2 className="text-5xl font-bold text-blue-700 mt-2">
-                  {projects.filter((p) => p.status === "進行中").length}
+                  {projects.filter((p) => p.status === "in_progress" || p.status === "進行中").length}
                 </h2>
               </div>
               <div className="bg-blue-50 p-4 rounded-xl group-hover:bg-blue-100 transition-colors">
@@ -105,7 +146,7 @@ const Project = () => {
               <div>
                 <p className="text-gray-500 font-bold text-2xl mb-1">完了済み</p>
                 <h2 className="text-5xl font-bold text-green-600 mt-2">
-                  {projects.filter((p) => p.status === "完了").length}
+                  {projects.filter((p) => p.status === "done" || p.status === "完了").length}
                 </h2>
               </div>
               <div className="bg-green-50 p-4 rounded-xl group-hover:bg-green-100 transition-colors">
@@ -173,9 +214,9 @@ const Project = () => {
                     </td>
 
                     <td className="p-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-lg font-semibold border ${getStatusColor(project.status)}`}>
+                      <span className={`inline-flex items-center gap-1 w-24 px-1.5 py-2 rounded-2xl text-lg font-semibold border ${getStatusColor(project.status)}`}>
                         <FontAwesomeIcon icon={getStatusIcon(project.status)} className="text-lg" />
-                        {project.status}
+                        {getStatusLabel(project.status)}
                       </span>
                     </td>
 
@@ -199,13 +240,15 @@ const Project = () => {
 
                     <td className="p-4">
                       <div className="flex justify-center gap-2">
-                        <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        {/* <button className="p-2 text-blue-600 hover:bg-blue-50 cursor-pointer rounded-lg transition-colors">
                           <FontAwesomeIcon icon={faEye} />
-                        </button>
-                        <button className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
-                          <FontAwesomeIcon icon={faPenToSquare} />
-                        </button>
-                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        </button> */}
+                        <Link to={`/project/${project.project_id}/edit`}>
+                          <button className="p-2 text-amber-600 hover:bg-amber-50 cursor-pointer rounded-lg transition-colors">
+                            <FontAwesomeIcon icon={faPenToSquare} />
+                          </button>
+                        </Link>
+                        <button className="p-2 text-red-600 hover:bg-red-50 cursor-pointer rounded-lg transition-colors">
                           <FontAwesomeIcon icon={faTrash} />
                         </button>
                       </div>
@@ -230,7 +273,7 @@ const Project = () => {
                   </h3>
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border shrink-0 ${getStatusColor(project.status)}`}>
                     <FontAwesomeIcon icon={getStatusIcon(project.status)} className="text-sm" />
-                    {project.status}
+                    {getStatusLabel(project.status)}
                   </span>
                 </div>
 
@@ -281,15 +324,17 @@ const Project = () => {
 
                 {/* Actions */}
                 <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
-                  <button className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
+                  {/* <button className="px-4 py-2 text-blue-600 cursor-pointer hover:bg-blue-50 rounded-lg transition-colors text-sm font-bold flex items-center gap-2">
                     <FontAwesomeIcon icon={faEye} />
                     表示
-                  </button>
-                  <button className="px-4 py-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
-                    <FontAwesomeIcon icon={faPenToSquare} />
-                    編集
-                  </button>
-                  <button className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
+                  </button> */}
+                  <Link to={`/project/${project.project_id}/edit`}>
+                    <button className="px-4 py-2 text-amber-600 cursor-pointer hover:bg-amber-50 rounded-lg transition-colors text-sm font-bold flex items-center gap-2">
+                      <FontAwesomeIcon icon={faPenToSquare} />
+                      編集
+                    </button>
+                  </Link>
+                  <button className="px-4 py-2 text-red-600 cursor-pointer hover:bg-red-50 rounded-lg transition-colors text-sm font-bold flex items-center gap-2">
                     <FontAwesomeIcon icon={faTrash} />
                     削除
                   </button>

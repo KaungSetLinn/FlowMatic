@@ -103,7 +103,7 @@ const Files = () => {
           <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
             <button
               onClick={() => setViewMode("list")}
-              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md font-bold text-base sm:text-xl transition-all flex items-center justify-center gap-2
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md cursor-pointer font-bold text-base sm:text-xl transition-all flex items-center justify-center gap-2
                 ${
                   viewMode === "list"
                     ? "bg-white text-blue-600 shadow-sm"
@@ -117,7 +117,7 @@ const Files = () => {
 
             <button
               onClick={() => setViewMode("card")}
-              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md font-bold text-base sm:text-xl transition-all flex items-center justify-center gap-2
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md cursor-pointer font-bold text-base sm:text-xl transition-all flex items-center justify-center gap-2
                 ${
                   viewMode === "card"
                     ? "bg-white text-blue-600 shadow-sm"
@@ -287,7 +287,7 @@ const Files = () => {
               {/* 下:操作 */}
               <div className="flex justify-end gap-2 mt-auto">
                 <button 
-                  className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 sm:bg-transparent hover:underline cursor-pointer rounded-lg sm:rounded-md transition-colors flex items-center justify-center gap-1.5 text-sm sm:text-xl font-bold"
+                  className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 sm:bg-transparent underline cursor-pointer rounded-lg sm:rounded-md transition-colors flex items-center justify-center gap-1.5 text-sm sm:text-xl font-bold"
                   title="ダウンロード"
                 >
                   <FontAwesomeIcon icon={faDownload} />

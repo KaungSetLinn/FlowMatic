@@ -59,6 +59,20 @@ export const ProjectProvider = ({ children }) => {
     fetchProjects();
   }, [isAuthorized]);
 
+  const updateProjectInContext = (updatedProject) => {
+    setProjects((prevProjects) =>
+      prevProjects.map((p) =>
+        p.project_id === updatedProject.project_id ? updatedProject : p
+      )
+    );
+
+    setCurrentProject((prev) =>
+      prev?.project_id === updatedProject.project_id
+        ? updatedProject
+        : prev
+    );
+  };
+
   const handleProjectChange = (projectId) => {
     const selected = projects.find((p) => p.project_id === projectId);
 
@@ -75,6 +89,7 @@ export const ProjectProvider = ({ children }) => {
         setProjects,
         currentProject,
         setCurrentProject,
+        updateProjectInContext,
         handleProjectChange,
         loading,
         error,

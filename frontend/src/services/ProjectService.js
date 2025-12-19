@@ -29,3 +29,16 @@ export async function getProjectById(projectId) {
     throw error;
   } 
 }
+
+export async function updateProject(projectId, projectData) {
+  try {
+    const response = await api.put(
+      `/api/projects/${projectId}/`,
+      projectData
+    );
+    return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+}
