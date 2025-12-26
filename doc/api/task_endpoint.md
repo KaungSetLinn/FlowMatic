@@ -1,4 +1,4 @@
-# POST projects/{project_id}/tasks
+# POST /api/projects/{project_id}/tasks/
 
 新しいtaskを作成する
 
@@ -59,7 +59,7 @@
 | task_id | uuid | 作成されたtaskのID |
 | | | 以下、Request bodyと同じ |
 
-# POST projects/{project_id}/tasks/{task_id}/comments
+# POST /api/projects/{project_id}/tasks/{task_id}/comments/
 
 新しいコメントをtaskに追加する
 
@@ -104,7 +104,7 @@
 | comment_id | uuid | 作成されたコメントのID |
 | | | 以下、Request bodyと同じ |
 
-# GET /projects/{project_id}/tasks
+# GET /api/projects/{project_id}/tasks/
 
 指定したprojectのtask一覧を取得する
 
@@ -172,10 +172,95 @@
 | - | - | - |
 | tasks | array of objects | taskのリスト |
 | tasks.comments | array of objects | taskに関連するコメントのリスト |
-| tasks.comments.* | object | 以下、POST /projects/{project_id}/tasks/{task_id}/comments の201レスポンスと同じ |
-| tasks.* | object | 以下、POST /projects/{project_id}/tasks の201レスポンスと同じ |
+| tasks.comments.* | object | 以下、POST /api/projects/{project_id}/tasks/{task_id}/comments/ の201レスポンスと同じ |
+| tasks.* | object | 以下、POST /api/projects/{project_id}/tasks/ の201レスポンスと同じ |
 
-# GET /tasks/{task_id}/comments
+# GET /api/projects/{project_id}/tasks/{task_id}/
+
+指定したtaskを取得する
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| project_id | uuid | 取得するtaskの所属するprojectのID |
+| task_id | uuid | 取得するtaskのID |
+
+## Response
+
+### 200 OK
+
+```json
+{
+    // 以下、users 以外 POST /api/projects/{project_id}/tasks/ の201レスポンスと同じ
+    "users": {
+        "user_id": "int",
+        "name": "string",
+    }
+}
+```
+
+# PUT /api/projects/{project_id}/tasks/{task_id}/
+
+指定したtaskを更新する
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| project_id | uuid | 更新するtaskの所属するprojectのID |
+| task_id | uuid | 更新するtaskのID |
+
+### Request Body
+
+```json
+{
+    "name": "string",
+    "description": "string",
+    "start_date": "2024-01-01T00:00:00Z",
+    "deadline": "2024-01-15T00:00:00Z",
+    "priority": "low | medium | high",
+    "status": "todo | pending | in_progress | in_review | testing | done",
+    "assigned_user_ids": [1]
+}
+```
+
+## Response
+
+### 200 OK
+
+```json
+{
+    // 以下、users 以外 POST /api/projects/{project_id}/tasks/ の201レスポンスと同じ
+    "users": {
+        "user_id": "int",
+        "name": "string",
+    }
+}
+```
+
+# DELETE /api/projects/{project_id}/tasks/{task_id}/
+
+指定したtaskを削除する
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| project_id | uuid | 削除するtaskの所属するprojectのID |
+| task_id | uuid | 削除するtaskのID |
+
+## Response
+
+### 204 No Content
+
+# GET /api/tasks/{task_id}/comments/
 
 指定したtaskのコメント一覧を取得する
 

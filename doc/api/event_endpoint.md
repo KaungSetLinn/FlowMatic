@@ -1,4 +1,4 @@
-# POST projects/{project_id}/events
+# POST /api/projects/{project_id}/events/
 
 新しいeventを作成する
 
@@ -50,7 +50,7 @@
 | event_id | uuid | 作成されたeventのID |
 | | | 以下、Request bodyと同じ |
 
-# GET /projects/{project_id}/events
+# GET /api/projects/{project_id}/events/
 
 指定したプロジェクトのevent一覧を取得する
 
@@ -93,11 +93,35 @@
 | Name | Type | Description |
 | - | - | - |
 | events | array of objects | eventの一覧 |
-| events.* | object | 以下、POST /projects/{project_id}/events の201レスポンスと同じ |
+| events.* | object | 以下、POST /api/projects/{project_id}/events/ の201レスポンスと同じ |
+
+# GET /api/projects/{project_id}/events/{event_id}/
+
+指定したeventを取得する
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Description |
+| - | - | - |
+| project_id | uuid | プロジェクトID |
+| event_id | uuid | 取得するeventのID |
+
+## Response
+
+### 200 OK
+
+```json
+{
+    // 以下、POST /api/projects/{project_id}/events/ の201レスポンスと同じ
+}
+```
+
+# PUT /api/projects/{project_id}/events/{event_id}/
 
 
-
-# DELETE /projects/{project_id}/events/{event_id}
+# DELETE /api/projects/{project_id}/events/{event_id}/
 
 指定されたeventを削除する
 

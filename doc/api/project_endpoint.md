@@ -1,4 +1,4 @@
-# POST /projects
+# POST /api/projects/
 
 新しいprojectを作成する
 
@@ -50,7 +50,7 @@
 | project_id | uuid | 作成されたprojectのID |
 | | | 以下、Request bodyと同じ |
 
-# GET /projects
+# GET /api/projects/
 
 プロジェクト一覧を取得する
 
@@ -100,7 +100,7 @@
 | page      | integer | 現在のページ番号                  |
 | per_page  | integer | 1ページあたりの件数                |
 
-# GET /projects/{project_id}
+# GET /api/projects/{project_id}/
 
 指定したprojectを取得する
 
@@ -138,7 +138,7 @@
 }
 ```
 
-# PUT /projects/{project_id}
+# PUT /api/projects/{project_id}/
 
 指定したprojectを更新する（全体更新）
 
@@ -177,7 +177,7 @@
 }
 ```
 
-# DELETE /projects/{project_id}
+# DELETE /api/projects/{project_id}/
 
 指定したprojectを削除する
 

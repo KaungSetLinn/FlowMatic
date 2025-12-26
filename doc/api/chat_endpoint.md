@@ -1,4 +1,4 @@
-# POST /projects/{project_id}/chatrooms
+# POST /api/projects/{project_id}/chatrooms/
 
 新しいチャットルームを作成する
 
@@ -14,13 +14,14 @@
 
 ```json
 {
+    "name": "チャットルーム名",
     "members": [1, 2]
 }
 ```
 
 | Name | Type | Description |
 | - | - | - |
-| members | uuid array | チャットルーム参加ユーザーID |
+| members | int array | チャットルーム参加ユーザーID |
 
 ## Response
 
@@ -40,7 +41,7 @@
 | project_id | uuid | プロジェクトID |
 | members | uuid array | チャットルーム参加ユーザーID |
 
-# GET /projects/{project_id}/chatrooms
+# GET /api/projects/{project_id}/chatrooms/
 
 指定したプロジェクトのチャットルーム一覧を取得する
 
@@ -82,7 +83,7 @@
 | chatrooms | array of objects | チャットルームの一覧 |
 | chatrooms.* | object | 以下、POST /projects/{project_id}/chatrooms の201レスポンスと同じ |
 
-# POST /projects/{project_id}/chatrooms/{chatroom_id}/messages
+# POST /api/projects/{project_id}/chatrooms/{chatroom_id}/messages/
 
 チャットルームにメッセージを投稿する
 
@@ -105,7 +106,7 @@
 
 | Name | Type | Description |
 | - | - | - |
-| user_id | uuid | 投稿ユーザーID |
+| user_id | int | 投稿ユーザーID（オプション。指定しない場合は認証ユーザー） |
 | content | string | メッセージ内容 |
 
 ## Response
@@ -130,7 +131,7 @@
 | content | string | メッセージ内容 |
 | timestamp | string | 投稿日時（ISO 8601） |
 
-# GET /projects/{project_id}/chatrooms/{chatroom_id}/messages/?page={page}&per_page={per_page}
+# GET /api/projects/{project_id}/chatrooms/{chatroom_id}/messages/?p={page}&per_page={per_page}
 
 チャットルームのメッセージ一覧を取得する
 
@@ -174,7 +175,7 @@
 | messages | array of objects | メッセージの一覧 |
 | messages.* | object | 以下、POST /projects/{project_id}/chatrooms/{chatroom_id}/messages の201レスポンスと同じ |
 
-# DELETE /projects/{project_id}/chatrooms/{chatroom_id}
+# DELETE /api/projects/{project_id}/chatrooms/{chatroom_id}/
 
 指定したチャットルームを削除する
 
