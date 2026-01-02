@@ -22,9 +22,9 @@ class ChatRoomResponseSerializer(serializers.ModelSerializer):
 
 class ChatRoomCreateSerializer(serializers.Serializer):
     members = serializers.ListField(
-        child=serializers.UUIDField(),
+        child=serializers.IntegerField(),
         allow_empty=False,
-        help_text='List of user UUIDs to include in the chat room.',
+        help_text='List of user IDs to include in the chat room.',
     )
 
     default_error_messages = {
