@@ -11,6 +11,8 @@ urlpatterns = [
     # App-level routes
     path("api/", include("api.urls")),
 
+    path("api/", include("event.urls")),
+
     # JWT authentication
     path("api/token/", EmailLoginView.as_view(), name="get_token"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="refresh"),
