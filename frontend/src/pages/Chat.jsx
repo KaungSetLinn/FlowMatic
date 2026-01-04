@@ -1,55 +1,71 @@
 import { useState, useRef, useEffect } from "react";
+import EmojiPicker from "emoji-picker-react";
 
-  const INITIAL_CHATS = [
-    { id: 1, name: "FlowMatic開発チーム", lastMessage: "最新のデモ動画を共有しました。", timestamp: "10:30" },
-    { id: 2, name: "UI/UXデザイン", lastMessage: "ボタンの色について投票が必要です。", timestamp: "昨日" },
-    { id: 3, name: "クライアントBリニューアル", lastMessage: "佐藤: 承認が完了しました。", timestamp: "10/30" },
-  ];
+// -----------------------------------------------
+// 初期データ
+// -----------------------------------------------
+const INITIAL_CHATS = [
+  { id: 1, name: "FlowMatic開発チーム", lastMessage: "最新のデモ動画を共有しました。", timestamp: "10:30" },
+  { id: 2, name: "UI/UXデザイン", lastMessage: "ボタンの色について投票が必要です。", timestamp: "昨日" },
+  { id: 3, name: "クライアントBリニューアル", lastMessage: "佐藤: 承認が完了しました。", timestamp: "10/30" },
+];
 
 const INITIAL_MESSAGES = {
   1: [
-    { id: 101, user: "山田太郎", text: "おはようございます！今日の進捗確認MTGは何時からでしたか？", time: "09:00", self: false },
-    { id: 102, user: "自分", text: "おはよう！11時からだよ。その前にタスク終わらせておくね。", time: "09:05", self: true },
-    { id: 103, user: "田中次郎", text: "山田さん、タスクは全て完了しました！", time: "10:20", self: false },
-    { id: 104, user: "自分", text: "ありがとう！資料は共有済み。確認よろしく！", time: "10:30", self: true },
+    { id: 101, user: "山田太郎", text: "おはようございます!今日の進捗確認MTGは何時からでしたか?", time: "09:00", self: false },
+    { id: 102, user: "自分", text: "おはよう!11時からだよ。その前にタスク終わらせておくね。", time: "09:05", self: true },
+    { id: 103, user: "田中次郎", text: "山田さん、タスクは全て完了しました!", time: "10:20", self: false },
+    { id: 104, user: "自分", text: "ありがとう!資料は共有済み。確認よろしく!", time: "10:30", self: true },
   ],
   2: [],
   3: [],
 };
 
-const Chat = () => {
+export default function Chat() {
   const [chats] = useState(INITIAL_CHATS);
+  const [allMessages, setAllMessages] = useState(INITIAL_MESSAGES);
 
-  // ✅ localStorage から復元
-  const [allMessages, setAllMessages] = useState(() => {
-    const saved = localStorage.getItem("chatMessages");
-    return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
-  });
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
 
   const [selectedChat, setSelectedChat] = useState(1);
   const [messageInput, setMessageInput] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [replyTo, setReplyTo] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [lastDeleted, setLastDeleted] = useState(null);
+  const [isComposing, setIsComposing] = useState(false);
+  const [reactionTarget, setReactionTarget] = useState(null);
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState(null);
 
   const messagesEndRef = useRef(null);
-
   const currentMessages = allMessages[selectedChat] || [];
   const currentChat = chats.find(c => c.id === selectedChat);
 
-  // ✅ スクロール自動追従
+  // -----------------------------------------------
+  // 自動スクロール
+  // -----------------------------------------------
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentMessages]);
 
-  // ✅ メッセージ変更時に localStorage 保存
-  useEffect(() => {
-    localStorage.setItem("chatMessages", JSON.stringify(allMessages));
-  }, [allMessages]);
-
-  // ✅ 送信処理（入力リセットなし）
+  // -----------------------------------------------
+  // メッセージ送信
+  // -----------------------------------------------
   const handleSendMessage = () => {
     if (!messageInput.trim()) return;
 
     const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
+    const time = `${now.getHours().toString().padStart(2, "0")}:${now
       .getMinutes()
       .toString()
       .padStart(2, "0")}`;
@@ -58,35 +74,117 @@ const Chat = () => {
       id: Date.now(),
       user: "自分",
       text: messageInput,
-      time: currentTime,
+      time,
       self: true,
+      replyTo: replyTo || null,
+      reaction: null,
     };
 
     setAllMessages(prev => ({
       ...prev,
-      [selectedChat]: [...prev[selectedChat], newMessage],
+      [selectedChat]: [...(prev[selectedChat] || []), newMessage],
     }));
-      setMessageInput("");
+
+    setMessageInput("");
+    setReplyTo(null);
   };
 
+  // -----------------------------------------------
+  // 編集開始 / 保存
+  // -----------------------------------------------
+  const startEditing = msg => {
+    setEditingId(msg.id);
+    setEditingText(msg.text);
+    setOpenMenuId(null);
+  };
+
+  const saveEdit = () => {
+    setAllMessages(prev => ({
+      ...prev,
+      [selectedChat]: prev[selectedChat].map(m =>
+        m.id === editingId ? { ...m, text: editingText, edited: true } : m
+      ),
+    }));
+    setEditingId(null);
+    setEditingText("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingText("");
+  };
+
+  // -----------------------------------------------
+  // メッセージ削除(Undo対応)
+  // -----------------------------------------------
+  const deleteMessage = id => {
+    const msg = currentMessages.find(m => m.id === id);
+    if (!msg) return;
+
+    setLastDeleted({ chatId: selectedChat, msg });
+
+    setAllMessages(prev => ({
+      ...prev,
+      [selectedChat]: prev[selectedChat].filter(m => m.id !== id),
+    }));
+
+    setOpenMenuId(null);
+    setTimeout(() => setLastDeleted(null), 5000);
+  };
+
+  const undoDelete = () => {
+    if (!lastDeleted) return;
+    const { chatId, msg } = lastDeleted;
+
+    setAllMessages(prev => ({
+      ...prev,
+      [chatId]: [...prev[chatId], msg].sort((a, b) => a.id - b.id),
+    }));
+
+    setLastDeleted(null);
+  };
+
+  // -----------------------------------------------
+  // リプライ
+  // -----------------------------------------------
+  const handleReply = msg => {
+    setReplyTo(msg);
+    setOpenMenuId(null);
+  };
+
+  // -----------------------------------------------
+  // メッセージリンクコピー
+  // -----------------------------------------------
+  const copyMessageLink = msg => {
+    const link = `${window.location.origin}${window.location.pathname}#chat-${selectedChat}-msg-${msg.id}`;
+    navigator.clipboard?.writeText(link);
+    setOpenMenuId(null);
+  };
+
+  const closeMenu = () => {
+    setOpenMenuId(null);
+    setShowReactionPicker(false);
+    setReactionPickerMessageId(null);
+    setShowEmojiPicker(false);
+  };
+
+  // -----------------------------------------------
+  // 描画
+  // -----------------------------------------------
   return (
-    <div className="flex w-full bg-white mb-4">
+    <div className="flex w-full bg-white mb-4" onClick={closeMenu}>
 
-      {/* 左側（ルーム一覧） */}
+      {/* 左側(ルーム一覧) */}
       <div className="w-1/3 border-r h-full flex flex-col">
-
         <div className="p-4 border-b bg-gray-50">
           <h2 className="text-3xl font-bold">ルーム一覧</h2>
         </div>
-
         <div className="flex-grow overflow-y-auto">
           {chats.map(chat => (
             <div
               key={chat.id}
               onClick={() => setSelectedChat(chat.id)}
-              className={`p-4 cursor-pointer border-b ${
-                selectedChat === chat.id ? "bg-blue-100" : "hover:bg-gray-50"
-              }`}
+              className={`p-4 cursor-pointer border-b ${selectedChat === chat.id ? "bg-blue-100" : "hover:bg-gray-50"}`}
             >
               <p className="font-medium text-2xl">{chat.name}</p>
               <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
@@ -95,76 +193,189 @@ const Chat = () => {
         </div>
       </div>
 
-      {/* 右側（チャット画面） */}
-      <div className="w-2/3 h-full grid">
-
-        {/* タイトルバー */}
+      {/* 右側(チャット画面) */}
+      <div className="w-2/3 h-full grid relative">
         <div className="p-4 border-b bg-gray-100">
           <h2 className="text-3xl font-bold">{currentChat?.name}</h2>
         </div>
 
+        {/* Undo */}
+        {lastDeleted && (
+          <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 flex justify-between items-center">
+            <p className="text-sm">メッセージを削除しました。</p>
+            <button onClick={undoDelete} className="px-3 py-1 bg-white border rounded">元に戻す</button>
+          </div>
+        )}
+
         {/* メッセージ一覧 */}
-        <div className="overflow-y-auto p-4 space-y-4 bg-white h-[350px]">
+        <div className="overflow-y-auto p-4 space-y-10 bg-white h-[350px] relative">
           {currentMessages.map(msg => (
             <div
               key={msg.id}
               className={`flex ${msg.self ? "justify-end" : "justify-start"}`}
             >
-              {!msg.self && (
-                <div className="w-10 h-10 mr-2 rounded-full bg-gray-300 flex items-center justify-center font-bold">
-                  {msg.user[0]}
+              <div
+                className={`relative max-w-lg group ${
+                  msg.self ? "ml-auto" : ""
+                }`}
+              >
+                {/* 上に重ねるアイコン */}
+                <div
+                  className={`
+                    absolute -top-8 flex gap-1
+                    ${msg.self ? "right-0" : "left-0"}
+                    opacity-0 group-hover:opacity-100 transition
+                  `}
+                >
+                  {msg.self && <IconButton onClick={() => startEditing(msg)}>✏️</IconButton>}
+                  <IconButton onClick={() => handleReply(msg)}>💬</IconButton>
+                  <IconButton onClick={() => {
+                    setShowReactionPicker(true);
+                    setReactionPickerMessageId(msg.id);
+                  }}>😊</IconButton>
+                  {msg.self && <IconButton onClick={() => deleteMessage(msg.id)}>🗑</IconButton>}
                 </div>
-              )}
 
-              <div className="max-w-lg">
-                {!msg.self && (
-                  <p className="text-xl font-semibold text-gray-700 mb-1">
-                    {msg.user}
-                  </p>
+                {/* 吹き出し */}
+                <div className="flex flex-col">
+                  {msg.replyTo && (
+                    <div className="mb-2 p-2 bg-gray-200 border-l-4 border-gray-400 rounded text-xs text-gray-600">
+                      引用: {msg.replyTo.text.slice(0, 50)}
+                    </div>
+                  )}
+                  {editingId === msg.id ? (
+                    <div className="bg-white border rounded-xl p-3 shadow space-y-2">
+                      <textarea
+                        value={editingText}
+                        onChange={e => setEditingText(e.target.value)}
+                        className="w-full border p-2 rounded resize-none"
+                        rows={3}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={cancelEdit}
+                          className="px-3 py-1 rounded border hover:bg-gray-100"
+                        >
+                          キャンセル
+                        </button>
+                        <button
+                          onClick={saveEdit}
+                          className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          保存
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={`px-4 py-2 rounded-2xl shadow ${
+                        msg.self
+                          ? "bg-blue-600 text-white rounded-br-none"
+                          : "bg-gray-100 rounded-bl-none"
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  )}
+                  {msg.reaction && (
+                  <div className="absolute -bottom-3 right-2 bg-white border rounded-full px-2 py-0.5 text-sm shadow">
+                    {msg.reaction}
+                  </div>
                 )}
 
-                {/* ✅ 吹き出し */}
-                <div
-                  className={`px-4 py-2 rounded-2xl shadow text-base whitespace-pre-wrap ${
-                    msg.self
-                      ? "bg-blue-600 text-white rounded-br-none"
-                      : "bg-gray-100 text-gray-900 rounded-bl-none"
-                  }`}
-                >
-                  {msg.text}
-                </div>
+                  {/* 時間と編集済み表示 */}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {msg.time} {msg.edited && "(編集済み)"}
+                  </div>
 
-                <p
-                  className={`text-sm text-gray-400 mt-1 ${
-                    msg.self ? "text-right" : "text-left"
-                  }`}
-                >
-                  {msg.time}
-                </p>
+                  {/* リアクション表示 */}
+                  <div className="flex gap-2 text-sm mt-1">
+                    {Object.entries(msg.reactions || {}).map(([e, users]) => (
+                      <span key={e}>{e} {users.length}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
-
           <div ref={messagesEndRef} />
         </div>
 
-        {/* 入力フォーム */}
-        <div className="p-4 border-t bg-white flex items-center gap-3">
+        {/* リアクションピッカー */}
+        {showReactionPicker && reactionPickerMessageId && (
+          <div className="absolute bottom-20 left-4 z-50" onClick={(e) => e.stopPropagation()}>
+            <EmojiPicker
+              onEmojiClick={(emoji) => {
+                const msg = currentMessages.find(m => m.id === reactionPickerMessageId);
+                if (msg) toggleReaction(msg, emoji.emoji);
+                setShowReactionPicker(false);
+                setReactionPickerMessageId(null);
+              }}
+            />
+          </div>
+        )}
+
+        {replyTo && (
+          <div className="mx-4 mb-2 px-3 py-2 bg-gray-100 border-l-4 border-blue-400 rounded-lg shadow-sm flex items-center gap-2">
+            
+            {/* 引用テキスト */}
+            <div className="flex-1 text-sm text-gray-700 truncate">
+              <strong>引用:</strong> {replyTo.text}
+            </div>
+
+            {/* × ボタン(右端固定) */}
+            <button
+              onClick={() => setReplyTo(null)}
+              className="flex-shrink-0 text-red-500 hover:text-red-700 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* 入力欄(絵文字対応) */}
+        <div className="p-4 border-t bg-white flex items-center gap-3 relative">
+
+          {/* 絵文字ボタン */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowEmojiPicker(!showEmojiPicker);
+            }}
+            className="text-2xl"
+          >
+            😊
+          </button>
+
+          {showEmojiPicker && (
+            <div className="absolute bottom-16 left-4 z-50" onClick={(e) => e.stopPropagation()}>
+              <EmojiPicker
+                onEmojiClick={(emoji) => {
+                  setMessageInput(prev => prev + emoji.emoji);
+                }}
+              />
+            </div>
+          )}
+
+          {/* メッセージ入力 */}
           <textarea
             rows={2}
-            className="flex-grow p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+            className="flex-grow p-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-blue-500 resize-none"
             placeholder="メッセージを入力..."
             value={messageInput}
             onChange={e => setMessageInput(e.target.value)}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
             onKeyDown={e => {
-              // ✅ Enterだけで送信
+              if (isComposing) return;
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
               }
-              // ✅ Shift + Enter は改行
             }}
           />
+
+          {/* 送信 */}
           <button
             onClick={handleSendMessage}
             className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -172,10 +383,18 @@ const Chat = () => {
             送信
           </button>
         </div>
-
       </div>
     </div>
   );
-};
+}
 
-export default Chat;
+function IconButton({ children, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200"
+    >
+      {children}
+    </button>
+  );
+} 

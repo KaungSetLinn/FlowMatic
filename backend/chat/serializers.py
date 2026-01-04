@@ -31,7 +31,7 @@ class ChatRoomCreateSerializer(serializers.Serializer):
     members = serializers.ListField(
         child=serializers.IntegerField(),
         allow_empty=False,
-        help_text="List of user IDs to include in chat room.",
+        help_text='List of user IDs to include in the chat room.',
     )
 
     default_error_messages = {
