@@ -14,9 +14,9 @@ export async function createChatroom(projectId, chatroomData) {
   }
 }
 
-export async function getChatrooms() {
+export async function getChatrooms(projectId) {
   try {
-    const response = await api.get('/api/chatrooms/');
+    const response = await api.get(`/api/projects/${projectId}/chatrooms/`);
     return response.data.chatrooms;
   } catch (error) {
     console.error("API Error:", error);
@@ -50,6 +50,54 @@ export async function updateChatroom(chatroomId, chatroomData) {
 export async function deleteChatroom(chatroomId) {
   try {
     const response = await api.delete(`/api/chatrooms/${chatroomId}/`);
+    return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get messages from a chatroom with pagination
+ * @param {string} projectId - The project ID
+ * @param {string} chatroomId - The chatroom ID
+ * @param {number} page - Page number (starts from 1)
+ * @param {number} perPage - Number of messages per page
+ * @returns {Promise<Object>} Messages data with pagination info
+ */
+export async function getMessages(projectId, chatroomId, page = 1, perPage = 20) {
+  try {
+    const response = await api.get(
+      `/api/projects/${projectId}/chatrooms/${chatroomId}/messages/`,
+      {
+        params: {
+          p: page,
+          per_page: perPage
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Post a message to a chatroom
+ * @param {string} projectId - The project ID
+ * @param {string} chatroomId - The chatroom ID
+ * @param {Object} messageData - Message data
+ * @param {string} messageData.content - Message content
+ * @param {string} [messageData.user_id] - Optional user ID (uses authenticated user if not provided)
+ * @returns {Promise<Object>} Created message data
+ */
+export async function postMessage(projectId, chatroomId, messageData) {
+  try {
+    const response = await api.post(
+      `/api/projects/${projectId}/chatrooms/${chatroomId}/messages/`,
+      messageData
+    );
     return response.data;
   } catch (error) {
     console.error("API Error:", error);

@@ -1,39 +1,19 @@
 import { useState, useRef, useEffect } from "react";
 import EmojiPicker from "emoji-picker-react";
+import { CURRENT_PROJECT_ID } from "../constants";
+import { getChatrooms, getMessages } from "../services/ChatService";
+import api from "../api";
+import { useProject } from "../context/ProjectContext";
+import { useAuth } from "../context/AuthContext";
 
-// -----------------------------------------------
-// 初期データ
-// -----------------------------------------------
-const INITIAL_CHATS = [
-  { id: 1, name: "FlowMatic開発チーム", lastMessage: "最新のデモ動画を共有しました。", timestamp: "10:30" },
-  { id: 2, name: "UI/UXデザイン", lastMessage: "ボタンの色について投票が必要です。", timestamp: "昨日" },
-  { id: 3, name: "クライアントBリニューアル", lastMessage: "佐藤: 承認が完了しました。", timestamp: "10/30" },
-];
+const Chat = () => {
+  const { user } = useAuth();
+  const { currentProject } = useProject();
+  const currentProjectId = currentProject.project_id;
 
-const INITIAL_MESSAGES = {
-  1: [
-    { id: 101, user: "山田太郎", text: "おはようございます!今日の進捗確認MTGは何時からでしたか?", time: "09:00", self: false },
-    { id: 102, user: "自分", text: "おはよう!11時からだよ。その前にタスク終わらせておくね。", time: "09:05", self: true },
-    { id: 103, user: "田中次郎", text: "山田さん、タスクは全て完了しました!", time: "10:20", self: false },
-    { id: 104, user: "自分", text: "ありがとう!資料は共有済み。確認よろしく!", time: "10:30", self: true },
-  ],
-  2: [],
-  3: [],
-};
-
-export default function Chat() {
-  const [chats] = useState(INITIAL_CHATS);
-  const [allMessages, setAllMessages] = useState(INITIAL_MESSAGES);
-
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, []);
-
-  const [selectedChat, setSelectedChat] = useState(1);
+  const [chats, setChats] = useState([]);
+  const [allMessages, setAllMessages] = useState({});
+  const [selectedChat, setSelectedChat] = useState(null);
   const [messageInput, setMessageInput] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editingText, setEditingText] = useState("");
@@ -42,66 +22,203 @@ export default function Chat() {
   const [lastDeleted, setLastDeleted] = useState(null);
   const [isComposing, setIsComposing] = useState(false);
   const [reactionTarget, setReactionTarget] = useState(null);
-
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   const messagesEndRef = useRef(null);
   const currentMessages = allMessages[selectedChat] || [];
-  const currentChat = chats.find(c => c.id === selectedChat);
+  const currentChat = chats.find((c) => c.chatroom_id === selectedChat);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
+
+  // -----------------------------------------------
+  // チャットルーム一覧を読み込む
+  // -----------------------------------------------
+  useEffect(() => {
+    const loadChatrooms = async () => {
+      if (!currentProjectId) return;
+
+      try {
+        setIsLoading(true);
+        const chatrooms = await getChatrooms(currentProjectId);
+
+        console.log(chatrooms);
+
+        // APIレスポンスをUIに合わせて変換
+        const formattedChats = chatrooms.map((room) => ({
+          ...room,
+          id: room.chatroom_id,
+          name: currentProject.title,
+          lastMessage: "", // 初期値
+          timestamp: new Date(room.created_at).toLocaleDateString(),
+        }));
+
+        setChats(formattedChats);
+
+        // 最初のチャットルームを自動選択
+        if (formattedChats.length > 0) {
+          setSelectedChat(formattedChats[0].chatroom_id);
+        }
+      } catch (error) {
+        console.error("チャットルームの読み込みに失敗しました:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadChatrooms();
+  }, [currentProjectId]);
+
+  // -----------------------------------------------
+  // 選択されたチャットルームのメッセージを読み込む + ポーリング
+  // -----------------------------------------------
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!currentProjectId || !selectedChat) return;
+
+      try {
+        setIsLoading(true);
+        const response = await getMessages(currentProjectId, selectedChat);
+
+        console.log(response);
+
+        // In your loadMessages function, modify the formatting:
+        const formattedMessages = response.messages.map((msg) => ({
+          id: msg.message_id,
+          userId: msg.user_id,
+          userName: msg.user_name || `User ${msg.user_id}`, // From API
+          userIcon:
+            msg.user_icon ||
+            `https://ui-avatars.com/api/?name=${msg.user_name}&background=random`, // From API or default
+          text: msg.content,
+          time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          self: msg.user_id === user.id ? true : false,
+          replyTo: null,
+          reaction: null,
+          reactions: {},
+        }));
+
+        setAllMessages((prev) => ({
+          ...prev,
+          [selectedChat]: formattedMessages,
+        }));
+
+        setCurrentPage(1);
+        setHasMore(response.messages.length === 50);
+      } catch (error) {
+        console.error("メッセージの読み込みに失敗しました:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Initial load
+    loadMessages();
+
+    // Start polling - fetch messages every 5 seconds
+    const pollInterval = setInterval(loadMessages, 5000);
+
+    // Cleanup: stop polling when component unmounts or dependencies change
+    return () => clearInterval(pollInterval);
+  }, [currentProjectId, selectedChat]);
 
   // -----------------------------------------------
   // 自動スクロール
   // -----------------------------------------------
-  useEffect(() => {
+  /* useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentMessages]);
+  }, [currentMessages]); */
 
   // -----------------------------------------------
   // メッセージ送信
   // -----------------------------------------------
-  const handleSendMessage = () => {
-    if (!messageInput.trim()) return;
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !currentProjectId || !selectedChat) return;
 
-    const now = new Date();
-    const time = `${now.getHours().toString().padStart(2, "0")}:${now
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
+    try {
+      const user_id = user.id;
 
-    const newMessage = {
-      id: Date.now(),
-      user: "自分",
-      text: messageInput,
-      time,
-      self: true,
-      replyTo: replyTo || null,
-      reaction: null,
-    };
+      const messageData = {
+        user_id: user_id,
+        content: messageInput,
+      };
 
-    setAllMessages(prev => ({
-      ...prev,
-      [selectedChat]: [...(prev[selectedChat] || []), newMessage],
-    }));
+      // Use the correct endpoint WITH project_id to match urls.py
+      const response = await api.post(
+        `/api/projects/${currentProjectId}/chatrooms/${selectedChat}/messages/`,
+        messageData
+      );
 
-    setMessageInput("");
-    setReplyTo(null);
+      const newMessage = response.data;
+
+      // ローカルステートを更新
+      const formattedMessage = {
+        id: newMessage.message_id,
+        user: "自分",
+        text: newMessage.content,
+        time: new Date(newMessage.timestamp).toLocaleTimeString("ja-JP", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        self: true,
+        replyTo: replyTo || null,
+        reaction: null,
+        reactions: {},
+      };
+
+      setAllMessages((prev) => ({
+        ...prev,
+        [selectedChat]: [...(prev[selectedChat] || []), formattedMessage],
+      }));
+
+      setMessageInput("");
+      setReplyTo(null);
+
+      // Scroll to bottom ONLY when you send a message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+
+      // チャットルーム一覧の最終メッセージを更新
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.chatroom_id === selectedChat
+            ? { ...chat, lastMessage: messageData.content, timestamp: "今" }
+            : chat
+        )
+      );
+    } catch (error) {
+      console.error("メッセージの送信に失敗しました:", error);
+      alert("メッセージの送信に失敗しました。もう一度お試しください。");
+    }
   };
 
   // -----------------------------------------------
   // 編集開始 / 保存
   // -----------------------------------------------
-  const startEditing = msg => {
+  const startEditing = (msg) => {
     setEditingId(msg.id);
     setEditingText(msg.text);
     setOpenMenuId(null);
   };
 
   const saveEdit = () => {
-    setAllMessages(prev => ({
+    // TODO: API呼び出しを追加
+    setAllMessages((prev) => ({
       ...prev,
-      [selectedChat]: prev[selectedChat].map(m =>
+      [selectedChat]: prev[selectedChat].map((m) =>
         m.id === editingId ? { ...m, text: editingText, edited: true } : m
       ),
     }));
@@ -117,15 +234,16 @@ export default function Chat() {
   // -----------------------------------------------
   // メッセージ削除(Undo対応)
   // -----------------------------------------------
-  const deleteMessage = id => {
-    const msg = currentMessages.find(m => m.id === id);
+  const deleteMessage = (id) => {
+    // TODO: API呼び出しを追加
+    const msg = currentMessages.find((m) => m.id === id);
     if (!msg) return;
 
     setLastDeleted({ chatId: selectedChat, msg });
 
-    setAllMessages(prev => ({
+    setAllMessages((prev) => ({
       ...prev,
-      [selectedChat]: prev[selectedChat].filter(m => m.id !== id),
+      [selectedChat]: prev[selectedChat].filter((m) => m.id !== id),
     }));
 
     setOpenMenuId(null);
@@ -136,7 +254,7 @@ export default function Chat() {
     if (!lastDeleted) return;
     const { chatId, msg } = lastDeleted;
 
-    setAllMessages(prev => ({
+    setAllMessages((prev) => ({
       ...prev,
       [chatId]: [...prev[chatId], msg].sort((a, b) => a.id - b.id),
     }));
@@ -147,7 +265,7 @@ export default function Chat() {
   // -----------------------------------------------
   // リプライ
   // -----------------------------------------------
-  const handleReply = msg => {
+  const handleReply = (msg) => {
     setReplyTo(msg);
     setOpenMenuId(null);
   };
@@ -155,7 +273,7 @@ export default function Chat() {
   // -----------------------------------------------
   // メッセージリンクコピー
   // -----------------------------------------------
-  const copyMessageLink = msg => {
+  const copyMessageLink = (msg) => {
     const link = `${window.location.origin}${window.location.pathname}#chat-${selectedChat}-msg-${msg.id}`;
     navigator.clipboard?.writeText(link);
     setOpenMenuId(null);
@@ -169,145 +287,321 @@ export default function Chat() {
   };
 
   // -----------------------------------------------
+  // 追加のメッセージを読み込む(ページネーション)
+  // -----------------------------------------------
+  const loadMoreMessages = async () => {
+    if (!currentProjectId || !selectedChat || !hasMore || isLoading) return;
+
+    try {
+      setIsLoading(true);
+      const nextPage = currentPage + 1;
+
+      // Use the correct endpoint WITH project_id to match urls.py
+      const response = await api.get(
+        `/api/projects/${currentProjectId}/chatrooms/${selectedChat}/messages/`,
+        {
+          params: {
+            page: nextPage,
+            per_page: 50,
+          },
+        }
+      );
+
+      const formattedMessages = response.data.messages.map((msg) => ({
+        id: msg.message_id,
+        user: msg.user_id,
+        text: msg.content,
+        time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        self: false,
+        replyTo: null,
+        reaction: null,
+        reactions: {},
+      }));
+
+      setAllMessages((prev) => ({
+        ...prev,
+        [selectedChat]: [...formattedMessages, ...(prev[selectedChat] || [])],
+      }));
+
+      setCurrentPage(nextPage);
+      setHasMore(response.data.messages.length === 50);
+    } catch (error) {
+      console.error("メッセージの読み込みに失敗しました:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // -----------------------------------------------
   // 描画
   // -----------------------------------------------
+  if (!currentProjectId) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-xl text-gray-500">プロジェクトを選択してください</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full bg-white mb-4" onClick={closeMenu}>
-
       {/* 左側(ルーム一覧) */}
       <div className="w-1/3 border-r h-full flex flex-col">
         <div className="p-4 border-b bg-gray-50">
           <h2 className="text-3xl font-bold">ルーム一覧</h2>
         </div>
         <div className="flex-grow overflow-y-auto">
-          {chats.map(chat => (
-            <div
-              key={chat.id}
-              onClick={() => setSelectedChat(chat.id)}
-              className={`p-4 cursor-pointer border-b ${selectedChat === chat.id ? "bg-blue-100" : "hover:bg-gray-50"}`}
-            >
-              <p className="font-medium text-2xl">{chat.name}</p>
-              <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
+          {isLoading && chats.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">読み込み中...</div>
+          ) : chats.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              チャットルームがありません
             </div>
-          ))}
+          ) : (
+            chats.map((chat) => (
+              <div
+                key={chat.chatroom_id}
+                onClick={() => setSelectedChat(chat.chatroom_id)}
+                className={`p-4 cursor-pointer border-b ${
+                  selectedChat === chat.chatroom_id
+                    ? "bg-blue-100"
+                    : "hover:bg-gray-50"
+                }`}
+              >
+                <p className="font-medium text-2xl">{chat.name}</p>
+                <p className="text-sm text-gray-500 truncate">
+                  {chat.lastMessage}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
       {/* 右側(チャット画面) */}
       <div className="w-2/3 h-full grid relative">
         <div className="p-4 border-b bg-gray-100">
-          <h2 className="text-3xl font-bold">{currentChat?.name}</h2>
+          <h2 className="text-3xl font-bold">
+            {currentChat?.name || "チャットを選択"}
+          </h2>
         </div>
 
         {/* Undo */}
         {lastDeleted && (
           <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 flex justify-between items-center">
             <p className="text-sm">メッセージを削除しました。</p>
-            <button onClick={undoDelete} className="px-3 py-1 bg-white border rounded">元に戻す</button>
+            <button
+              onClick={undoDelete}
+              className="px-3 py-1 bg-white border rounded"
+            >
+              元に戻す
+            </button>
           </div>
         )}
 
         {/* メッセージ一覧 */}
         <div className="overflow-y-auto p-4 space-y-10 bg-white h-[350px] relative">
-          {currentMessages.map(msg => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.self ? "justify-end" : "justify-start"}`}
-            >
+          {hasMore && (
+            <div className="text-center">
+              <button
+                onClick={loadMoreMessages}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+              >
+                {isLoading ? "読み込み中..." : "過去のメッセージを読み込む"}
+              </button>
+            </div>
+          )}
+
+          {currentMessages.length === 0 && !isLoading ? (
+            <div className="text-center text-gray-500 mt-8">
+              メッセージがありません。最初のメッセージを送信しましょう!
+            </div>
+          ) : (
+            currentMessages.map((msg) => (
               <div
-                className={`relative max-w-lg group ${
-                  msg.self ? "ml-auto" : ""
+                key={msg.id}
+                className={`flex gap-3 ${
+                  msg.self ? "justify-end" : "justify-start"
                 }`}
               >
-                {/* 上に重ねるアイコン */}
-                <div
-                  className={`
-                    absolute -top-8 flex gap-1
-                    ${msg.self ? "right-0" : "left-0"}
-                    opacity-0 group-hover:opacity-100 transition
-                  `}
-                >
-                  {msg.self && <IconButton onClick={() => startEditing(msg)}>✏️</IconButton>}
-                  <IconButton onClick={() => handleReply(msg)}>💬</IconButton>
-                  <IconButton onClick={() => {
-                    setShowReactionPicker(true);
-                    setReactionPickerMessageId(msg.id);
-                  }}>😊</IconButton>
-                  {msg.self && <IconButton onClick={() => deleteMessage(msg.id)}>🗑</IconButton>}
-                </div>
-
-                {/* 吹き出し */}
-                <div className="flex flex-col">
-                  {msg.replyTo && (
-                    <div className="mb-2 p-2 bg-gray-200 border-l-4 border-gray-400 rounded text-xs text-gray-600">
-                      引用: {msg.replyTo.text.slice(0, 50)}
-                    </div>
-                  )}
-                  {editingId === msg.id ? (
-                    <div className="bg-white border rounded-xl p-3 shadow space-y-2">
-                      <textarea
-                        value={editingText}
-                        onChange={e => setEditingText(e.target.value)}
-                        className="w-full border p-2 rounded resize-none"
-                        rows={3}
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={cancelEdit}
-                          className="px-3 py-1 rounded border hover:bg-gray-100"
-                        >
-                          キャンセル
-                        </button>
-                        <button
-                          onClick={saveEdit}
-                          className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
-                        >
-                          保存
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      className={`px-4 py-2 rounded-2xl shadow ${
-                        msg.self
-                          ? "bg-blue-600 text-white rounded-br-none"
-                          : "bg-gray-100 rounded-bl-none"
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
-                  )}
-                  {msg.reaction && (
-                  <div className="absolute -bottom-3 right-2 bg-white border rounded-full px-2 py-0.5 text-sm shadow">
-                    {msg.reaction}
+                {/* User icon - show on left for others */}
+                {!msg.self && (
+                  <div className="flex-shrink-0">
+                    <img
+                      src={
+                        msg.userIcon ||
+                        `https://ui-avatars.com/api/?name=${
+                          msg.userName || "User"
+                        }&background=random`
+                      }
+                      alt={msg.userName}
+                      className="w-10 h-10 rounded-full"
+                    />
                   </div>
                 )}
 
-                  {/* 時間と編集済み表示 */}
-                  <div className="text-xs text-gray-500 mt-1">
-                    {msg.time} {msg.edited && "(編集済み)"}
+                <div
+                  className={`relative max-w-lg group ${
+                    msg.self ? "ml-auto" : ""
+                  }`}
+                >
+                  {/* User name - show above message for others */}
+                  {!msg.self && (
+                    <div className="text-sm font-medium text-gray-700 mb-1 px-1">
+                      {msg.userName || `User ${msg.user}`}
+                    </div>
+                  )}
+
+                  {/* 上に重ねるアイコン */}
+                  <div
+                    className={`
+            absolute -top-8 flex gap-1
+            ${msg.self ? "right-0" : "left-0"}
+            opacity-0 group-hover:opacity-100 transition
+          `}
+                  >
+                    {msg.self && (
+                      <IconButton onClick={() => startEditing(msg)}>
+                        ✏️
+                      </IconButton>
+                    )}
+                    <IconButton onClick={() => handleReply(msg)}>💬</IconButton>
+                    <IconButton
+                      onClick={() => {
+                        setShowReactionPicker(true);
+                        setReactionPickerMessageId(msg.id);
+                      }}
+                    >
+                      😊
+                    </IconButton>
+                    {msg.self && (
+                      <IconButton onClick={() => deleteMessage(msg.id)}>
+                        🗑
+                      </IconButton>
+                    )}
                   </div>
 
-                  {/* リアクション表示 */}
-                  <div className="flex gap-2 text-sm mt-1">
-                    {Object.entries(msg.reactions || {}).map(([e, users]) => (
-                      <span key={e}>{e} {users.length}</span>
-                    ))}
+                  {/* 吹き出し */}
+                  <div className="flex flex-col">
+                    {msg.replyTo && (
+                      <div className="mb-2 p-2 bg-gray-200 border-l-4 border-gray-400 rounded text-xs text-gray-600">
+                        引用: {msg.replyTo.text.slice(0, 50)}
+                      </div>
+                    )}
+                    {editingId === msg.id ? (
+                      <div className="bg-white border rounded-xl p-3 shadow space-y-2">
+                        <textarea
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                          className="w-full border p-2 rounded resize-none"
+                          rows={3}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={cancelEdit}
+                            className="px-3 py-1 rounded border hover:bg-gray-100"
+                          >
+                            キャンセル
+                          </button>
+                          <button
+                            onClick={saveEdit}
+                            className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                          >
+                            保存
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`px-4 py-2 rounded-2xl shadow ${
+                          msg.self
+                            ? "bg-blue-600 text-white rounded-br-none"
+                            : "bg-gray-100 rounded-bl-none"
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    )}
+                    {msg.reaction && (
+                      <div className="absolute -bottom-3 right-2 bg-white border rounded-full px-2 py-0.5 text-sm shadow">
+                        {msg.reaction}
+                      </div>
+                    )}
+
+                    {/* 時間と編集済み表示 */}
+                    <div className="text-xs text-gray-500 mt-1">
+                      {msg.time} {msg.edited && "(編集済み)"}
+                    </div>
+
+                    {/* リアクション表示 */}
+                    <div className="flex gap-2 text-sm mt-1">
+                      {Object.entries(msg.reactions || {}).map(([e, users]) => (
+                        <span key={e}>
+                          {e} {users.length}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
+
+                {/* User icon on right for self messages */}
+                {msg.self && (
+                  <div className="flex-shrink-0">
+                    <img
+                      src={
+                        user.icon ||
+                        `https://ui-avatars.com/api/?name=${
+                          user.name || "You"
+                        }&background=random`
+                      }
+                      alt="You"
+                      className="w-10 h-10 rounded-full"
+                    />
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            ))
+          )}
           <div ref={messagesEndRef} />
         </div>
 
         {/* リアクションピッカー */}
         {showReactionPicker && reactionPickerMessageId && (
-          <div className="absolute bottom-20 left-4 z-50" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="absolute bottom-20 left-4 z-50"
+            onClick={(e) => e.stopPropagation()}
+          >
             <EmojiPicker
               onEmojiClick={(emoji) => {
-                const msg = currentMessages.find(m => m.id === reactionPickerMessageId);
-                if (msg) toggleReaction(msg, emoji.emoji);
+                // Add reaction to the message
+                setAllMessages((prev) => ({
+                  ...prev,
+                  [selectedChat]: prev[selectedChat].map((m) =>
+                    m.id === reactionPickerMessageId
+                      ? {
+                          ...m,
+                          reactions: {
+                            ...m.reactions,
+                            [emoji.emoji]: [
+                              ...(m.reactions[emoji.emoji] || []),
+                              user.id, // Add current user to this reaction
+                            ],
+                          },
+                        }
+                      : m
+                  ),
+                }));
+
+                // TODO: Send reaction to backend
+                // await api.post(`/api/messages/${reactionPickerMessageId}/reactions/`, {
+                //   emoji: emoji.emoji,
+                //   user_id: user.id
+                // });
+
                 setShowReactionPicker(false);
                 setReactionPickerMessageId(null);
               }}
@@ -317,13 +611,9 @@ export default function Chat() {
 
         {replyTo && (
           <div className="mx-4 mb-2 px-3 py-2 bg-gray-100 border-l-4 border-blue-400 rounded-lg shadow-sm flex items-center gap-2">
-            
-            {/* 引用テキスト */}
             <div className="flex-1 text-sm text-gray-700 truncate">
               <strong>引用:</strong> {replyTo.text}
             </div>
-
-            {/* × ボタン(右端固定) */}
             <button
               onClick={() => setReplyTo(null)}
               className="flex-shrink-0 text-red-500 hover:text-red-700 text-lg leading-none"
@@ -335,8 +625,6 @@ export default function Chat() {
 
         {/* 入力欄(絵文字対応) */}
         <div className="p-4 border-t bg-white flex items-center gap-3 relative">
-
-          {/* 絵文字ボタン */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -348,25 +636,27 @@ export default function Chat() {
           </button>
 
           {showEmojiPicker && (
-            <div className="absolute bottom-16 left-4 z-50" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="absolute bottom-16 left-4 z-50"
+              onClick={(e) => e.stopPropagation()}
+            >
               <EmojiPicker
                 onEmojiClick={(emoji) => {
-                  setMessageInput(prev => prev + emoji.emoji);
+                  setMessageInput((prev) => prev + emoji.emoji);
                 }}
               />
             </div>
           )}
 
-          {/* メッセージ入力 */}
           <textarea
             rows={2}
             className="flex-grow p-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-blue-500 resize-none"
             placeholder="メッセージを入力..."
             value={messageInput}
-            onChange={e => setMessageInput(e.target.value)}
+            onChange={(e) => setMessageInput(e.target.value)}
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={() => setIsComposing(false)}
-            onKeyDown={e => {
+            onKeyDown={(e) => {
               if (isComposing) return;
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -375,10 +665,10 @@ export default function Chat() {
             }}
           />
 
-          {/* 送信 */}
           <button
             onClick={handleSendMessage}
-            className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            disabled={isLoading || !messageInput.trim()}
+            className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             送信
           </button>
@@ -386,15 +676,20 @@ export default function Chat() {
       </div>
     </div>
   );
-}
+};
 
 function IconButton({ children, onClick }) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation(); // Add this
+        onClick(e); // Pass the event to the handler
+      }}
       className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200"
     >
       {children}
     </button>
   );
-} 
+}
+
+export default Chat;
