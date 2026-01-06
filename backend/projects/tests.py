@@ -110,6 +110,32 @@ class ProjectAPITest(APITestCase):
         self.assertEqual(response.data["title"], project.title)
         self.assertEqual(response.data["description"], project.description)
 
+    def test_project_list_includes_member_email_and_profile_picture(self):
+        """プロジェクト一覧でメンバーのemailとprofile_pictureが含まれるテスト"""
+        self.create_project_helper()
+        response = self.client.get(self.url_list + "?page=1&per_page=20")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        project = response.data["projects"][0]
+        self.assertIn("members", project)
+        self.assertGreater(len(project["members"]), 0)
+        member = project["members"][0]
+        self.assertIn("email", member)
+        self.assertIn("profile_picture", member)
+        self.assertEqual(member["email"], self.user.email)
+
+    def test_project_detail_includes_member_email_and_profile_picture(self):
+        """プロジェクト詳細でメンバーのemailとprofile_pictureが含まれるテスト"""
+        project = self.create_project_helper()
+        url_detail = reverse("project-detail", args=[project.project_id])
+        response = self.client.get(url_detail)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("members", response.data)
+        self.assertGreater(len(response.data["members"]), 0)
+        member = response.data["members"][0]
+        self.assertIn("email", member)
+        self.assertIn("profile_picture", member)
+        self.assertEqual(member["email"], self.user.email)
+
     def test_update_project(self):
         """プロジェクト更新テスト：PATCHでprogressを送ってもタスク状況から計算されることを確認"""
         project = self.create_project_helper()
@@ -253,11 +279,10 @@ class ProjectAPITest(APITestCase):
         response = self.client.patch(url_detail, empty_title_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # 無効な日付範囲での更新（データベース制約によりエラー）
+        # 無効な日付範囲での更新（バリデーションエラー）
         invalid_date_data = {
             "start_date": "2024-02-01T00:00:00Z",
             "deadline": "2024-01-01T00:00:00Z",
         }
-        # データベース制約違反によりIntegrityErrorが発生
-        with self.assertRaises(django_db.IntegrityError):
-            response = self.client.patch(url_detail, invalid_date_data, format="json")
+        response = self.client.patch(url_detail, invalid_date_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
