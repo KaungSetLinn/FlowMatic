@@ -19,6 +19,7 @@ import { getTasks } from "../services/TaskService";
 import { CURRENT_PROJECT_ID } from "../constants";
 import { useAuth } from "../context/AuthContext";
 import { createComment } from "../services/CommentService";
+import { resolveImageUrl } from "../utils/resolveImageUrl";
 
 const Task = () => {
   const { user } = useAuth();
@@ -112,7 +113,7 @@ const Task = () => {
           dueDate: task.deadline,
           priority: task.priority,
           status: task.status,
-          assignedUsers: task.users,
+          users: task.users,
           parentTasks: task.parent_tasks,
           comments: task.comments || [], // default empty array
         }));
@@ -140,9 +141,9 @@ const Task = () => {
 
   // ✅ Check if task is assigned to current user
   const isMyTask = (task) => {
-    if (!user || !user.id || !task.assignedUsers) return false;
+    if (!user || !user.id || !task.users) return false;
 
-    return task.assignedUsers.some((assignedUser) => assignedUser.user_id === user.id);
+    return task.users.some((assignedUser) => assignedUser.user_id === user.id);
   };
 
   // ✅ Dynamic filter logic
@@ -238,10 +239,10 @@ const Task = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <StatCard 
-          title="マイタスク" 
+        <StatCard
+          title="マイタスク"
           value={tasks.filter((t) => isMyTask(t)).length}
-          color="indigo" 
+          color="indigo"
         />
         <StatCard title="すべてのタスク" value={tasks.length} color="blue" />
         <StatCard
@@ -264,7 +265,12 @@ const Task = () => {
       {/* Filter Buttons */}
       <div className="flex flex-wrap gap-4">
         {[
-          { type: "my_tasks", label: "マイタスク", icon: faUserCheck, color: "indigo" },
+          {
+            type: "my_tasks",
+            label: "マイタスク",
+            icon: faUserCheck,
+            color: "indigo",
+          },
           { type: "all", label: "すべて", icon: faListUl, color: "blue" },
           {
             type: "active",
@@ -337,30 +343,33 @@ const Task = () => {
                 className="p-6 hover:bg-gray-50 transition-all duration-200 flex items-start justify-between group"
               >
                 <div className="flex items-start gap-4 flex-1">
-                  <button
-                    onClick={() => toggleTaskStatus(task.id)}
-                    className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center hover:cursor-pointer transition-all ${
-                      task.status === "done"
-                        ? "bg-green-500 border-green-500"
-                        : "border-gray-300 hover:border-green-500"
-                    }`}
-                  >
-                    {task.status === "done" && (
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    )}
-                  </button>
+                  {/* user.id is the ID of current user */}
+                  {task.users.some((u) => u.user_id === user.id) && (
+                    <button
+                      onClick={() => toggleTaskStatus(task.id)}
+                      className={`mt-1 w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center hover:cursor-pointer transition-all ${
+                        task.status === "done"
+                          ? "bg-green-500 border-green-500"
+                          : "border-gray-300 hover:border-green-500"
+                      }`}
+                    >
+                      {task.status === "done" && (
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  )}
 
                   <div className="flex-1 space-y-5">
                     <div className="flex items-center gap-3">
@@ -425,16 +434,26 @@ const Task = () => {
                       </span>
                     </div>
 
-                    {task.assignedUsers && task.assignedUsers.length > 0 && (
+                    {task.users && task.users.length > 0 && (
                       <div className="flex items-center gap-2 text-lg font-bold">
                         <span className="text-gray-600">担当者:</span>
                         <div className="flex gap-2 flex-wrap">
-                          {task.assignedUsers.map((user) => (
+                          {task.users.map((user) => (
                             <span
                               key={user.user_id}
-                              className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full flex items-center gap-1"
+                              className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full flex items-center gap-3"
                             >
-                              <FontAwesomeIcon icon={faUser} />
+                              {user.profile_picture ? (
+                                <img
+                                  src={resolveImageUrl(user.profile_picture)}
+                                  className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center"
+                                />
+                              ) : (
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                                  {user.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+
                               {user.name}
                             </span>
                           ))}
@@ -497,9 +516,18 @@ const Task = () => {
                               >
                                 <div className="flex items-start gap-3">
                                   {/* Avatar with initials */}
-                                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
-                                    {comment.name.charAt(0).toUpperCase()}
-                                  </div>
+                                  {comment.profile_picture ? (
+                                    <img
+                                      src={resolveImageUrl(
+                                        comment.profile_picture
+                                      )}
+                                      className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center"
+                                    />
+                                  ) : (
+                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                                      {comment.name.charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
 
                                   <div className="flex-1 min-w-0">
                                     {/* Author and timestamp */}
