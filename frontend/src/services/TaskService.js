@@ -21,3 +21,16 @@ export async function getTasks(projectId) {
     throw error;
   }
 }
+
+export async function updateTask(projectId, taskId, taskData) {
+  try {
+    // Update a specific task within a project
+    const response = await api.put(`/api/projects/${projectId}/tasks/${taskId}/`, taskData);
+
+    console.log(response.data)
+    return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+}
