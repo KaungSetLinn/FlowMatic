@@ -3,12 +3,13 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Project
 
+TASK_STATUS_DONE = 'done'
 User = get_user_model()
 
 
 class MemberSerializer(serializers.ModelSerializer):
-    user_id = serializers.UUIDField(source="id")
-    name = serializers.CharField(source="username")
+    user_id = serializers.UUIDField(source='id')
+    name = serializers.CharField(source='username')
 
     class Meta:
         model = User
@@ -18,6 +19,7 @@ class MemberSerializer(serializers.ModelSerializer):
 class ProjectListSerializer(serializers.ModelSerializer):
     members = MemberSerializer(many=True, read_only=True)
 
+    progress = serializers.SerializerMethodField()
     class Meta:
         model = Project
         fields = [
@@ -32,8 +34,23 @@ class ProjectListSerializer(serializers.ModelSerializer):
         ]
 
 
+
+    def get_progress(self, obj):
+        
+        tasks = obj.tasks.all()
+        total_tasks = tasks.count()
+
+        if total_tasks == 0:
+            return 0
+        
+        completed_tasks = tasks.filter(status=TASK_STATUS_DONE).count()
+
+        return int((completed_tasks / total_tasks) * 100)
+
+
 class ProjectResponseSerializer(serializers.ModelSerializer):
-    members = MemberSerializer(many=True, read_only=True)
+    members = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+    progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -49,6 +66,16 @@ class ProjectResponseSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["project_id"]
 
+    def get_progress(self, obj):
+        
+        tasks = obj.tasks.all()
+        total_tasks = tasks.count()
+
+        if total_tasks == 0:
+            return 0
+
+        completed_tasks = tasks.filter(status=TASK_STATUS_DONE).count()
+        return int((completed_tasks / total_tasks) * 100)
 
 class ProjectCreateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
@@ -71,31 +98,24 @@ class ProjectCreateSerializer(serializers.Serializer):
     }
 
     def validate(self, attrs):
-        # Title validation - only if title is being updated
-        if "title" in attrs:
-            title = attrs["title"].strip()
-            if not title:
-                self.fail("blank_title")
-            attrs["title"] = title
+        title = attrs.get('title', '').strip()
+        if not title:
+            self.fail('blank_title')
+        attrs['title'] = title
 
-        # Date range validation - only if both dates are provided
-        start_date = attrs.get("start_date")
-        deadline = attrs.get("deadline")
+        start_date = attrs.get('start_date')
+        deadline = attrs.get('deadline')
         if start_date and deadline and deadline < start_date:
             self.fail("invalid_date_range")
 
-        # Progress validation - only if progress is provided
-        if "progress" in attrs:
-            progress = attrs["progress"]
-            if progress < 0 or progress > 100:
-                self.fail("invalid_progress")
+        progress = attrs.get('progress', 0)
+        if progress < 0 or progress > 100:
+            self.fail('invalid_progress')
 
-        # Status validation - only if status is provided
-        if "status" in attrs:
-            status = attrs["status"]
-            valid_statuses = [c[0] for c in Project.status_choices]
-            if status not in valid_statuses:
-                self.fail("invalid_status")
+        status = attrs.get('status')
+        valid_statuses = [c[0] for c in Project.status_choices]
+        if status not in valid_statuses:
+            self.fail('invalid_status')
 
         return attrs
 
