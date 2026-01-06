@@ -16,8 +16,18 @@ class ChatRoomResponseSerializer(serializers.ModelSerializer):
         model = ChatRoom
         fields = ("chatroom_id", "project_id", "name", "members")
 
-    def get_members(self, obj: ChatRoom) -> list[str]:
-        return [str(member.pk) for member in obj.members.all()]
+    def get_members(self, obj: ChatRoom) -> list[dict]:
+        return [
+            {
+                "user_id": member.pk,
+                "name": member.username,
+                "email": member.email,
+                "profile_picture": member.profile_picture.url
+                if member.profile_picture
+                else None,
+            }
+            for member in obj.members.all()
+        ]
 
 
 class ChatRoomCreateSerializer(serializers.Serializer):
@@ -31,7 +41,7 @@ class ChatRoomCreateSerializer(serializers.Serializer):
     members = serializers.ListField(
         child=serializers.IntegerField(),
         allow_empty=False,
-        help_text="List of user IDs to include in chat room.",
+        help_text="List of user IDs to include in the chat room.",
     )
 
     default_error_messages = {
@@ -82,10 +92,25 @@ class ChatRoomCreateSerializer(serializers.Serializer):
 class MessageSerializer(serializers.ModelSerializer):
     chatroom_id = serializers.UUIDField(source="chatroom.chatroom_id", read_only=True)
     user_id = serializers.IntegerField(source="user.pk", read_only=True)
+    name = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    profile_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
-        fields = ("message_id", "chatroom_id", "user_id", "content", "timestamp")
+        fields = (
+            "message_id",
+            "chatroom_id",
+            "user_id",
+            "name",
+            "email",
+            "profile_picture",
+            "content",
+            "timestamp",
+        )
+
+    def get_profile_picture(self, obj):
+        return obj.user.profile_picture.url if obj.user.profile_picture else None
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):

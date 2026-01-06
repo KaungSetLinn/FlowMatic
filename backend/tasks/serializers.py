@@ -8,10 +8,15 @@ User = get_user_model()
 class AssignedUserSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source="pk")
     name = serializers.CharField(source="username")
+    email = serializers.EmailField()
+    profile_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["user_id", "name"]
+        fields = ["user_id", "name", "email", "profile_picture"]
+
+    def get_profile_picture(self, obj):
+        return obj.profile_picture.url if obj.profile_picture else None
 
 
 class TaskRelationInputSerializer(serializers.Serializer):
@@ -142,10 +147,24 @@ class TaskCommentResponseSerializer(serializers.ModelSerializer):
     task_id = serializers.UUIDField(source="task.task_id", read_only=True)
     user_id = serializers.IntegerField(source="user.pk", read_only=True)
     name = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    profile_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = TaskComment
-        fields = ["comment_id", "task_id", "user_id", "name", "content", "created_at"]
+        fields = [
+            "comment_id",
+            "task_id",
+            "user_id",
+            "name",
+            "email",
+            "profile_picture",
+            "content",
+            "created_at",
+        ]
+
+    def get_profile_picture(self, obj):
+        return obj.user.profile_picture.url if obj.user.profile_picture else None
 
 
 class TaskCommentListSerializer(serializers.ModelSerializer):
@@ -156,7 +175,14 @@ class TaskCommentListSerializer(serializers.ModelSerializer):
         fields = ["comment_id", "user_id", "content", "created_at", "user"]
 
     def get_user(self, obj):
-        return {"user_id": obj.user.pk, "name": obj.user.username}
+        return {
+            "user_id": obj.user.pk,
+            "name": obj.user.username,
+            "email": obj.user.email,
+            "profile_picture": obj.user.profile_picture.url
+            if obj.user.profile_picture
+            else None,
+        }
 
 
 class TaskUpdateSerializer(serializers.ModelSerializer):

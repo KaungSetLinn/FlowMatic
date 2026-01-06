@@ -16,6 +16,7 @@ import { ProjectProvider } from "./context/ProjectContext";
 import NewTaskForm from "./components/NewTaskForm";
 import NewProjectForm from "./components/NewProjectForm";
 import GanttChart from "./pages/GanttChart";
+import ProjectDetail from "./pages/ProjectDetail";
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
               <Route path="/chat" element={<Chat />} />
               <Route path="/files" element={<Files />} />
               <Route path="/gantt-chart" element={<GanttChart />} />
+              <Route path="/project/:projectId/edit" element={<ProjectDetail />} />
             </Route>
           </Route>
 

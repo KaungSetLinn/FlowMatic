@@ -11,6 +11,7 @@ from .serializers import (
     ProjectResponseSerializer,
     ProjectListSerializer,
     ProjectCreateSerializer,
+    MemberSerializer,
 )
 from notifications.utils import create_project_notification
 
@@ -22,15 +23,19 @@ class ProjectListCreateView(APIView):
     POST /api/projects/ - 新しいプロジェクトを作成する
     """
 
-
     permission_classes = [IsAuthenticated]
 
     def _get_queryset_for_user(self):
         user = self.request.user
         if user.is_staff:
-            
-            return Project.objects.prefetch_related('tasks').all().order_by('-start_date')
-        return Project.objects.prefetch_related('tasks').filter(members=user).order_by('-start_date')
+            return (
+                Project.objects.prefetch_related("tasks").all().order_by("-start_date")
+            )
+        return (
+            Project.objects.prefetch_related("tasks")
+            .filter(members=user)
+            .order_by("-start_date")
+        )
 
     def get(self, request, *args, **kwargs):
         try:
@@ -82,12 +87,11 @@ class ProjectDetailView(APIView):
     DELETE /api/projects/{project_id} - プロジェクト削除
     """
 
-
     permission_classes = [IsAuthenticated]
 
     def _get_project(self, project_id: str) -> Project:
         project = get_object_or_404(
-            Project.objects.prefetch_related('members','tasks'), project_id=project_id
+            Project.objects.prefetch_related("members", "tasks"), project_id=project_id
         )
         return project
 
@@ -106,62 +110,66 @@ class ProjectDetailView(APIView):
     def put(self, request, project_id: str) -> Response:
         project = self._get_project(project_id)
         self._assert_assigned_or_staff(project)
-        
+
         # Get current members before update
-        old_member_ids = set(project.members.values_list('pk', flat=True))
-        
-        serializer = ProjectResponseSerializer(
+        old_member_ids = set(project.members.values_list("pk", flat=True))
+
+        serializer = ProjectCreateSerializer(
             project, data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
         # Get new members after update
-        new_member_ids = set(project.members.values_list('pk', flat=True))
+        new_member_ids = set(project.members.values_list("pk", flat=True))
         new_members = new_member_ids - old_member_ids
-        
+
         # Create notifications for new members
         for member_id in new_members:
             member = User.objects.get(pk=member_id)
             if member != request.user:
                 create_project_notification(member, project, "member_added")
-        
+
         # Create general update notifications for existing members (except updater)
         for member in project.members.all():
             if member != request.user and member.pk not in new_members:
                 create_project_notification(member, project, "updated")
 
-        return Response(serializer.data)
+        # Return response with MemberSerializer for members
+        response_serializer = ProjectResponseSerializer(project)
+        return Response(response_serializer.data)
 
     def patch(self, request, project_id: str) -> Response:
         project = self._get_project(project_id)
         self._assert_assigned_or_staff(project)
-        
+
         # Get current members before update
-        old_member_ids = set(project.members.values_list('pk', flat=True))
-        
-        serializer = ProjectResponseSerializer(
+        old_member_ids = set(project.members.values_list("pk", flat=True))
+
+        serializer = ProjectCreateSerializer(
             project, data=request.data, partial=True, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
         # Get new members after update
-        new_member_ids = set(project.members.values_list('pk', flat=True))
+        new_member_ids = set(project.members.values_list("pk", flat=True))
         new_members = new_member_ids - old_member_ids
-        
+
         # Create notifications for new members
         for member_id in new_members:
             member = User.objects.get(pk=member_id)
             if member != request.user:
                 create_project_notification(member, project, "member_added")
-        
+
         # Create general update notifications for existing members (except updater)
         for member in project.members.all():
             if member != request.user and member.pk not in new_members:
                 create_project_notification(member, project, "updated")
 
-        return Response(serializer.data)
+        # Return response with MemberSerializer for members
+        response_serializer = ProjectResponseSerializer(project)
+        return Response(response_serializer.data)
 
     def delete(self, request, project_id: str) -> Response:
         project = self._get_project(project_id)
