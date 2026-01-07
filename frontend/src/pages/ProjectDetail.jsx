@@ -39,7 +39,6 @@ const ProjectDetail = () => {
     description: "",
     start_date: "",
     deadline: "",
-    progress: 0,
     status: "planning",
     members: [],
     project_id: "",
@@ -123,7 +122,6 @@ const ProjectDetail = () => {
     description: projectData.description,
     start_date: projectData.start_date || null,
     deadline: projectData.deadline || null,
-    progress: projectData.progress,
     status: projectData.status,
     members: projectData.members.map((m) => m.user_id), // ✅ only IDs
   });
@@ -283,33 +281,6 @@ const ProjectDetail = () => {
                       "w-full px-3 py-2 border border-gray-300 text-xl rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
                   },
                 }}
-              />
-            </div>
-          </div>
-
-          {/* Progress */}
-          <div>
-            <label className="block text-lg font-semibold text-gray-700 mb-2">
-              進捗状況: {projectData.progress || 0}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={projectData.progress || 0}
-              onChange={(e) =>
-                handleInputChange("progress", parseInt(e.target.value))
-              }
-              className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
-            <div className="w-full bg-gray-200 rounded-full h-3 mt-3 overflow-hidden">
-              <div
-                className={`h-3 rounded-full transition-all duration-300 ${
-                  projectData.progress === 100
-                    ? "bg-gradient-to-r from-green-500 to-green-600"
-                    : "bg-gradient-to-r from-blue-500 to-blue-600"
-                }`}
-                style={{ width: `${projectData.progress || 0}%` }}
               />
             </div>
           </div>
