@@ -46,7 +46,7 @@ const Project = () => {
       case "in_progress":
       case "進行中":
         return "text-blue-700 bg-blue-50 border-blue-200";
-      case "done":
+      case "completed":
       case "完了":
         return "text-green-700 bg-green-50 border-green-200";
       case "todo":
@@ -71,7 +71,7 @@ const Project = () => {
       case "in_progress":
       case "進行中":
         return faPlayCircle;
-      case "done":
+      case "completed":
       case "完了":
         return faCheckCircle;
       case "todo":
@@ -146,7 +146,7 @@ const Project = () => {
               <div>
                 <p className="text-gray-500 font-bold text-2xl mb-1">完了済み</p>
                 <h2 className="text-5xl font-bold text-green-600 mt-2">
-                  {projects.filter((p) => p.status === "done" || p.status === "完了").length}
+                  {projects.filter((p) => p.status === "completed" || p.status === "完了").length}
                 </h2>
               </div>
               <div className="bg-green-50 p-4 rounded-xl group-hover:bg-green-100 transition-colors">

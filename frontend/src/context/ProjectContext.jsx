@@ -1,3 +1,4 @@
+// ProjectContext.js
 import { createContext, useContext, useEffect, useState } from "react";
 import { getProjects } from "../services/ProjectService";
 import { CURRENT_PROJECT_ID } from "../constants";
@@ -14,50 +15,68 @@ export const ProjectProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isAuthorized === null) return; // wait for auth check
+    if (isAuthorized === null) return;
     if (!isAuthorized) {
       setLoading(false);
       return;
     }
 
-    const fetchProjects = async () => {
-      try {
-        const fetchedProjects = await getProjects();
-        setProjects(fetchedProjects);
-
-        const savedProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
-
-        // Try to restore previously selected project
-        if (savedProjectId) {
-          const restored = fetchedProjects.find(
-            (p) => p.project_id === savedProjectId
-          );
-
-          if (restored) {
-            setCurrentProject(restored);
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Fallback: use first project
-        if (fetchedProjects.length > 0) {
-          setCurrentProject(fetchedProjects[0]);
-          localStorage.setItem(
-            CURRENT_PROJECT_ID,
-            fetchedProjects[0].project_id
-          );
-        }
-
-        setLoading(false);
-      } catch (err) {
-        setError(err);
-        setLoading(false);
-      }
-    };
-
     fetchProjects();
   }, [isAuthorized]);
+
+  const fetchProjects = async () => {
+    try {
+      const fetchedProjects = await getProjects();
+      setProjects(fetchedProjects);
+
+      const savedProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
+
+      // Try to restore previously selected project
+      if (savedProjectId) {
+        const restored = fetchedProjects.find(
+          (p) => p.project_id === savedProjectId
+        );
+
+        if (restored) {
+          setCurrentProject(restored);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Fallback: use first project
+      if (fetchedProjects.length > 0) {
+        setCurrentProject(fetchedProjects[0]);
+        localStorage.setItem(CURRENT_PROJECT_ID, fetchedProjects[0].project_id);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      setError(err);
+      setLoading(false);
+    }
+  };
+
+  const refreshProjects = async () => {
+    try {
+      const fetchedProjects = await getProjects();
+      setProjects(fetchedProjects);
+
+      // Update current project if it exists in the refreshed list
+      if (currentProject) {
+        const updatedCurrentProject = fetchedProjects.find(
+          (p) => p.project_id === currentProject.project_id
+        );
+
+        if (updatedCurrentProject) {
+          setCurrentProject(updatedCurrentProject);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to refresh projects:", err);
+      setError(err);
+    }
+  };
 
   const updateProjectInContext = (updatedProject) => {
     setProjects((prevProjects) =>
@@ -67,9 +86,7 @@ export const ProjectProvider = ({ children }) => {
     );
 
     setCurrentProject((prev) =>
-      prev?.project_id === updatedProject.project_id
-        ? updatedProject
-        : prev
+      prev?.project_id === updatedProject.project_id ? updatedProject : prev
     );
   };
 
@@ -91,6 +108,7 @@ export const ProjectProvider = ({ children }) => {
         setCurrentProject,
         updateProjectInContext,
         handleProjectChange,
+        refreshProjects, // ✅ Expose refreshProjects
         loading,
         error,
       }}

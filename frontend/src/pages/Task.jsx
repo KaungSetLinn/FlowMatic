@@ -15,7 +15,7 @@ import {
   faUserCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import { useProject } from "../context/ProjectContext";
-import { getTasks } from "../services/TaskService";
+import { getTasks, updateTask } from "../services/TaskService";
 import { CURRENT_PROJECT_ID } from "../constants";
 import { useAuth } from "../context/AuthContext";
 import { createComment } from "../services/CommentService";
@@ -23,7 +23,7 @@ import { resolveImageUrl } from "../utils/resolveImageUrl";
 
 const Task = () => {
   const { user } = useAuth();
-  const { currentProject } = useProject();
+  const { currentProject, refreshProjects } = useProject();
   const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
 
   // For testing
@@ -37,6 +37,9 @@ const Task = () => {
   const [newComments, setNewComments] = useState({});
 
   const [openCommentsTaskId, setOpenCommentsTaskId] = useState(null);
+
+  // loading state for updating tasks
+  const [updatingTasks, setUpdatingTasks] = useState({});
 
   const addComment = async (projectId, taskId) => {
     const commentText = newComments[taskId] || "";
@@ -175,17 +178,53 @@ const Task = () => {
     return false;
   });
 
-  const toggleTaskStatus = (taskId) => {
-    setTasks((tasks) =>
-      tasks.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              status: task.status === "done" ? "in_progress" : "done",
-            }
-          : task
-      )
-    );
+  const toggleTaskStatus = async (taskId) => {
+    try {
+      const currentTask = tasks.find((task) => task.id === taskId);
+      if (!currentTask) return;
+
+      const newStatus = currentTask.status === "done" ? "in_progress" : "done";
+
+      // OPTIMISTIC UPDATE: Update UI immediately
+      setTasks((tasks) =>
+        tasks.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                status: newStatus,
+              }
+            : task
+        )
+      );
+
+      // Then update database
+      const taskData = {
+        status: newStatus,
+      };
+
+      await updateTask(currentProjectId, taskId, taskData);
+
+      await refreshProjects();
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+
+      // REVERT ON ERROR: Only revert if currentTask was found
+      const currentTask = tasks.find((task) => task.id === taskId);
+      if (currentTask) {
+        setTasks((tasks) =>
+          tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  status: currentTask.status, // Revert to original status
+                }
+              : task
+          )
+        );
+      }
+
+      alert("⚠ タスクのステータス更新に失敗しました。");
+    }
   };
 
   const deleteTask = (taskId) => {
@@ -347,13 +386,20 @@ const Task = () => {
                   {task.users.some((u) => u.user_id === user.id) && (
                     <button
                       onClick={() => toggleTaskStatus(task.id)}
+                      disabled={updatingTasks[task.id]}
                       className={`mt-1 w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center hover:cursor-pointer transition-all ${
                         task.status === "done"
                           ? "bg-green-500 border-green-500"
                           : "border-gray-300 hover:border-green-500"
+                      } ${
+                        updatingTasks[task.id]
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
                       }`}
                     >
-                      {task.status === "done" && (
+                      {updatingTasks[task.id] ? (
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : task.status === "done" ? (
                         <svg
                           className="w-3 h-3 text-white"
                           fill="none"
@@ -367,7 +413,7 @@ const Task = () => {
                             d="M5 13l4 4L19 7"
                           />
                         </svg>
-                      )}
+                      ) : null}
                     </button>
                   )}
 
