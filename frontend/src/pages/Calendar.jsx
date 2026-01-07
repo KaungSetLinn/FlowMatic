@@ -707,6 +707,29 @@ const Calendar = () => {
               />
             </div>
 
+            <div className="col-span-2">
+              <div className="p-3 rounded-lg border bg-gray-50">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="scale-125"
+                    checked={modal.event.linkTask || false}
+                    onChange={(e) =>
+                      updateEvent("linkTask", e.target.checked)
+                    }
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-800">
+                      タスクと連携する
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      タスクの期限・完了状態と同期されます
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="text-sm text-gray-600 block mb-1">
