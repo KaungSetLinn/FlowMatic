@@ -52,3 +52,40 @@ export async function deleteProjectFile(projectId, fileId) {
     throw err;
   }
 }
+
+
+/**
+ * Download a file
+ */
+export async function downloadProjectFile(fileUrl, fileName) {
+  try {
+    // Get the base URL from your api instance or define it
+    const baseURL = 'http://localhost:8000'; // Adjust based on your setup
+    
+    // If fileUrl doesn't start with http, prepend the base URL
+    const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${baseURL}/${fileUrl}`;
+    
+    const response = await api.get(fullUrl, {
+      responseType: 'blob',
+    });
+    
+    // Create a blob with proper content type
+    const blob = new Blob([response.data], { 
+      type: response.headers['content-type'] || 'application/octet-stream'
+    });
+    
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Download File Error:", err);
+    throw err;
+  }
+}

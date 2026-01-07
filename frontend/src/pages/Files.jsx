@@ -15,10 +15,17 @@ import {
   faSortDown,
 } from "@fortawesome/free-solid-svg-icons";
 import { useProject } from "../context/ProjectContext";
-import { getProjectFiles, uploadProjectFile } from "../services/FileService";
+import {
+  deleteProjectFile,
+  downloadProjectFile,
+  getProjectFiles,
+  uploadProjectFile,
+} from "../services/FileService";
 import { resolveImageUrl } from "../utils/resolveImageUrl";
+import { useAuth } from "../context/AuthContext";
 
 const Files = () => {
+  const { user } = useAuth();
   // ✅ 表示モード切り替え
   const [viewMode, setViewMode] = useState("list");
 
@@ -34,6 +41,8 @@ const Files = () => {
 
   const loadFiles = async () => {
     const files = await getProjectFiles(currentProject.project_id);
+
+    console.log(files);
     setFiles(files);
   };
 
@@ -51,10 +60,27 @@ const Files = () => {
     loadFiles();
   };
 
+  const handleDownload = async (file) => {
+    try {
+      await downloadProjectFile(file.url, file.name);
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("ファイルのダウンロードに失敗しました");
+    }
+  };
+
   // ✅ 削除処理
-  const handleDelete = (id) => {
-    if (!window.confirm("このファイルを削除してもいい?")) return;
-    setFiles((prev) => prev.filter((file) => file.id !== id));
+  const handleDelete = async (file) => {
+    if (!window.confirm(`${file.name} を削除してもいいですか?`)) return;
+
+    try {
+      await deleteProjectFile(currentProject.project_id, file.id);
+      // Refresh file list
+      await loadFiles();
+    } catch (error) {
+      console.error("Delete failed:", error);
+      alert("ファイルの削除に失敗しました");
+    }
   };
 
   const isImageFile = (name) => {
@@ -258,14 +284,33 @@ const Files = () => {
                             icon={fileIconData.icon}
                             className={`${fileIconData.color} text-xl lg:text-2xl`}
                           />
-                          <span className="font-bold text-gray-800 text-base lg:text-xl">
+                          <span
+                            onClick={() => handleDownload(file)}
+                            className="font-bold text-blue-800 underline cursor-pointer text-base lg:text-xl"
+                          >
                             {file.name}
                           </span>
                         </div>
                       </td>
                       <td className="p-4 font-bold text-gray-700 text-base lg:text-xl">
-                        {file.uploader}
+                        <div className="flex items-center gap-2">
+                          {file.uploader?.profile_picture ? (
+                            <img
+                              src={resolveImageUrl(
+                                file.uploader.profile_picture
+                              )}
+                              alt="profile"
+                              className="w-8 h-8 rounded-full object-cover border"
+                            />
+                          ) : (
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                              {file.uploader.username.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span>{file.uploader?.username}</span>
+                        </div>
                       </td>
+
                       <td className="p-4 font-bold text-gray-700 text-base lg:text-xl">
                         {file.date}
                       </td>
@@ -275,6 +320,7 @@ const Files = () => {
                       <td className="p-4">
                         <div className="flex justify-center gap-2">
                           <button
+                            onClick={() => handleDownload(file)}
                             className="px-2 lg:px-3 py-1.5 text-blue-600 hover:text-blue-800 underline rounded-md transition-colors flex items-center gap-1.5 text-base lg:text-xl font-bold cursor-pointer"
                             title="ダウンロード"
                           >
@@ -283,14 +329,16 @@ const Files = () => {
                               ダウンロード
                             </span>
                           </button>
-                          <button
-                            onClick={() => handleDelete(file.id)}
-                            className="px-2 lg:px-3 py-1.5 text-red-600 hover:text-red-700 rounded-md transition-colors flex items-center gap-1.5 text-base lg:text-xl font-bold cursor-pointer"
-                            title="削除"
-                          >
-                            <FontAwesomeIcon icon={faTrash} />
-                            <span className="hidden lg:inline">削除</span>
-                          </button>
+                          {file.uploader?.id === user.id && (
+                            <button
+                              onClick={() => handleDelete(file)}
+                              className="px-2 lg:px-3 py-1.5 text-red-600 hover:text-red-700 rounded-md transition-colors flex items-center gap-1.5 text-base lg:text-xl font-bold cursor-pointer"
+                              title="削除"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                              <span className="hidden lg:inline">削除</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -350,7 +398,10 @@ const Files = () => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-base sm:text-xl text-gray-800 break-words">
+                    <p
+                      onClick={() => handleDownload(file)}
+                      className="font-bold text-base sm:text-xl text-blue-800 underline cursor-pointer break-words"
+                    >
                       {file.name}
                     </p>
                     <p className="text-sm sm:text-lg text-gray-500">
@@ -360,28 +411,45 @@ const Files = () => {
                 </div>
 
                 {/* Middle: Uploader & Date */}
-                <div className="flex justify-between text-sm sm:text-xl text-gray-600 mb-3 sm:mb-4">
-                  <span>👤 {file.uploader}</span>
+                <div className="flex justify-between text-sm sm:text-xl font-bold text-gray-700 mb-3 sm:mb-4">
+                  <span className="flex items-center gap-2">
+                    {file.uploader?.profile_picture ? (
+                      <img
+                        src={resolveImageUrl(file.uploader.profile_picture)}
+                        className="w-8 h-8 rounded-full object-cover border"
+                        alt="profile"
+                      />
+                    ) : (
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                        {file.uploader.username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    {file.uploader?.username}
+                  </span>
+
                   <span>📅 {file.date}</span>
                 </div>
 
                 {/* Bottom: Actions */}
                 <div className="flex justify-end gap-2 mt-auto">
                   <button
+                    onClick={() => handleDownload(file)}
                     className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 sm:bg-transparent underline cursor-pointer rounded-lg sm:rounded-md transition-colors flex items-center justify-center gap-1.5 text-sm sm:text-xl font-bold"
                     title="ダウンロード"
                   >
                     <FontAwesomeIcon icon={faDownload} />
                     <span>ダウンロード</span>
                   </button>
-                  <button
-                    onClick={() => handleDelete(file.id)}
-                    className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-red-600 hover:text-red-700 bg-red-50 sm:bg-transparent cursor-pointer rounded-lg sm:rounded-md transition-colors flex items-center justify-center gap-1.5 text-sm sm:text-xl font-bold"
-                    title="削除"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                    <span>削除</span>
-                  </button>
+                  {file.uploader?.id === user.id && (
+                    <button
+                      onClick={() => handleDelete(file)}
+                      className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-red-600 hover:text-red-700 bg-red-50 sm:bg-transparent cursor-pointer rounded-lg sm:rounded-md transition-colors flex items-center justify-center gap-1.5 text-sm sm:text-xl font-bold"
+                      title="削除"
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                      <span>削除</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

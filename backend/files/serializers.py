@@ -1,10 +1,18 @@
 # files/serializers.py
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from .models import ProjectFile
 
+User = get_user_model()
+
+class PublicUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "profile_picture"]
+
 class ProjectFileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(source='file_id', read_only=True)
-    uploader = serializers.ReadOnlyField(source='uploader.username')
+    uploader = PublicUserSerializer(read_only=True)
     date = serializers.SerializerMethodField()
     size = serializers.SerializerMethodField()
     url = serializers.FileField(source='file', read_only=True)
