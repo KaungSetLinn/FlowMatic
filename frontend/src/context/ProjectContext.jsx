@@ -1,50 +1,53 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { getProjects } from "../services/ProjectService";
 import { CURRENT_PROJECT_ID } from "../constants";
+import { useAuth } from "./AuthContext";
 
 const ProjectContext = createContext();
 
 export const ProjectProvider = ({ children }) => {
-  const [projects, setProjects] = useState([]);
-  const [currentProject, setCurrentProject] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error] = useState(null);
+  const { isAuthorized } = useAuth();
 
-  // 🔹 Dummy data for now
-  const dummyProjects = [
-    { id: 1, name: "Project Alpha", description: "Main website redesign" },
-    { id: 2, name: "Project Beta", description: "Mobile app launch" },
-    { id: 3, name: "Project Gamma", description: "Internal tools update" },
-  ];
+  const [projects, setProjects] = useState([]);
+  const [currentProject, setCurrentProject] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (isAuthorized === null) return; // wait for auth check
+    if (!isAuthorized) {
+      setLoading(false);
+      return;
+    }
+
     const fetchProjects = async () => {
       try {
-        const data = await getProjects(); // fetch projects from API
+        const fetchedProjects = await getProjects();
+        setProjects(fetchedProjects);
 
-        // ✅ Extract the projects array from the response object
-        const projectsArray = Array.isArray(data.projects) ? data.projects : [];
-        setProjects(projectsArray);
-
-        // Try to restore previously selected project from localStorage
         const savedProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
 
+        // Try to restore previously selected project
         if (savedProjectId) {
-          const previouslySelectedProject = projectsArray.find(
-            (project) => project.project_id === savedProjectId
+          const restored = fetchedProjects.find(
+            (p) => p.project_id === savedProjectId
           );
 
-          if (previouslySelectedProject) {
-            setCurrentProject(previouslySelectedProject);
+          if (restored) {
+            setCurrentProject(restored);
             setLoading(false);
-            return; // Stop here — no need to select a fallback
+            return;
           }
         }
 
-        // Fallback: select first project only if no saved project found
-      if (projectsArray.length > 0) {
-        setCurrentProject(projectsArray[0]);
-      }
+        // Fallback: use first project
+        if (fetchedProjects.length > 0) {
+          setCurrentProject(fetchedProjects[0]);
+          localStorage.setItem(
+            CURRENT_PROJECT_ID,
+            fetchedProjects[0].project_id
+          );
+        }
 
         setLoading(false);
       } catch (err) {
@@ -54,13 +57,27 @@ export const ProjectProvider = ({ children }) => {
     };
 
     fetchProjects();
-  }, []);
+  }, [isAuthorized]);
+
+  const updateProjectInContext = (updatedProject) => {
+    setProjects((prevProjects) =>
+      prevProjects.map((p) =>
+        p.project_id === updatedProject.project_id ? updatedProject : p
+      )
+    );
+
+    setCurrentProject((prev) =>
+      prev?.project_id === updatedProject.project_id
+        ? updatedProject
+        : prev
+    );
+  };
 
   const handleProjectChange = (projectId) => {
-    const selectedProject = projects.find((p) => p.project_id === projectId);
+    const selected = projects.find((p) => p.project_id === projectId);
 
-    if (selectedProject) {
-      setCurrentProject(selectedProject);
+    if (selected) {
+      setCurrentProject(selected);
       localStorage.setItem(CURRENT_PROJECT_ID, projectId);
     }
   };
@@ -72,6 +89,7 @@ export const ProjectProvider = ({ children }) => {
         setProjects,
         currentProject,
         setCurrentProject,
+        updateProjectInContext,
         handleProjectChange,
         loading,
         error,

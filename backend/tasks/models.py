@@ -2,14 +2,16 @@ import uuid
 from django.db import models
 from django.conf import settings
 from django.db.models import Q, CheckConstraint
+from django.utils import timezone
+
 
 class TaskStatus(models.TextChoices):
-    TO_DO = "to_do", "To Do"
+    TODO = "todo", "Todo"
     PENDING = "pending", "Pending"
-    READY = "ready", "Ready"
     IN_PROGRESS = "in_progress", "In Progress"
     IN_REVIEW = "in_review", "In Review"
     TESTING = "testing", "Testing"
+    DONE = "done", "Done"
 
 
 class TaskPriority(models.TextChoices):
@@ -20,27 +22,24 @@ class TaskPriority(models.TextChoices):
 
 class Task(models.Model):
     task_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='tasks')
+    project = models.ForeignKey(
+        "projects.Project", on_delete=models.CASCADE, related_name="tasks"
+    )
 
     name = models.TextField()
     description = models.TextField(blank=True)
+    start_date = models.DateTimeField(default=timezone.now)
     deadline = models.DateTimeField()
 
     status = models.CharField(
-        max_length=20,
-        choices=TaskStatus.choices,
-        default=TaskStatus.TO_DO
+        max_length=20, choices=TaskStatus.choices, default=TaskStatus.TODO
     )
     priority = models.CharField(
-        max_length=10,
-        choices=TaskPriority.choices,
-        default=TaskPriority.MEDIUM
+        max_length=10, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
 
     assigned_users = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        through='TaskAssignedUser',
-        related_name='tasks'
+        settings.AUTH_USER_MODEL, through="TaskAssignedUser", related_name="tasks"
     )
 
     def __str__(self):
@@ -49,55 +48,78 @@ class Task(models.Model):
     class Meta:
         constraints = [
             CheckConstraint(
-                check=Q(status__in=[choice.value for choice in TaskStatus]),
-                name='valid_task_status'
+                condition=Q(
+                    status__in=[
+                        TaskStatus.TODO,
+                        TaskStatus.PENDING,
+                        TaskStatus.IN_PROGRESS,
+                        TaskStatus.IN_REVIEW,
+                        TaskStatus.TESTING,
+                        TaskStatus.DONE,
+                    ]
+                ),
+                name="valid_task_status",
             ),
             CheckConstraint(
-                check=Q(priority__in=[choice.value for choice in TaskPriority]),
-                name='valid_task_priority'
+                condition=Q(
+                    priority__in=[
+                        TaskPriority.LOW,
+                        TaskPriority.MEDIUM,
+                        TaskPriority.HIGH,
+                    ]
+                ),
+                name="valid_task_priority",
             ),
         ]
 
 
 class TaskRelationType(models.TextChoices):
-    START_TO_START = "start_to_start", "Start to Start"
-    START_TO_FINISH = "start_to_finish", "Start to Finish"
-    FINISH_TO_START = "finish_to_start", "Finish to Start"
-    FINISH_TO_FINISH = "finish_to_finish", "Finish to Finish"
+    FINISH_TO_START = "FtS", "Finish to Start"
+    FINISH_TO_FINISH = "FtF", "Finish to Finish"
+    START_TO_START = "StS", "Start to Start"
+    START_TO_FINISH = "StF", "Start to Finish"
 
 
 class TaskRelation(models.Model):
     parent_task = models.ForeignKey(
-        Task,
-        on_delete=models.CASCADE,
-        related_name='children',
-        null=True,
-        blank=True
+        Task, on_delete=models.CASCADE, related_name="children", null=True, blank=True
     )
     child_task = models.ForeignKey(
-        Task,
-        on_delete=models.CASCADE,
-        related_name='parents',
-        null=True,
-        blank=True
+        Task, on_delete=models.CASCADE, related_name="parents", null=True, blank=True
     )
-    relation_type = models.CharField(
-        max_length=20,
-        choices=TaskRelationType.choices
-    )
+    relation_type = models.CharField(max_length=20, choices=TaskRelationType.choices)
 
     class Meta:
-        unique_together = ('parent_task', 'child_task')
+        unique_together = ("parent_task", "child_task")
         constraints = [
             CheckConstraint(
-                check=Q(relation_type__in=[choice.value for choice in TaskRelationType]),
-                name='valid_relation_type'
+                check=Q(
+                    relation_type__in=[
+                        TaskRelationType.FINISH_TO_START,
+                        TaskRelationType.FINISH_TO_FINISH,
+                        TaskRelationType.START_TO_START,
+                        TaskRelationType.START_TO_FINISH,
+                    ]
+                ),
+                name="valid_relation_type",
             ),
         ]
+
 
 class TaskAssignedUser(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ('user', 'task')
+        unique_together = ("user", "task")
+
+
+class TaskComment(models.Model):
+    comment_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="comments")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comment by {self.user.username} on {self.task.name}"

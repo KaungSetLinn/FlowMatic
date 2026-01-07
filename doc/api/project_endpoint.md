@@ -55,7 +55,13 @@
 {
     "projects": [
         {
-            // 以下、POST /projects の201レスポンスと同じ
+            // 以下、members 以外 POST /projects の201レスポンスと同じ
+            "members": [
+                {
+                    "user_id": "int",
+                    "name": "string",
+                }
+            ]
         }
     ],
     "page": 1,
@@ -87,7 +93,13 @@
 
 ```json
 {
-    // 以下、POST /projects の201レスポンスと同じ
+    // 以下、members 以外 POST /projects の201レスポンスと同じ
+            "members": [
+                {
+                    "user_id": 1,
+                    "name": "string",
+                }
+            ]
 }
 ```
 

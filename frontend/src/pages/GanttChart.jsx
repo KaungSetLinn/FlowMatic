@@ -1,97 +1,86 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FrappeGantt } from "frappe-gantt-react";
 import "frappe-gantt-react/node_modules/frappe-gantt/src/gantt.scss";
 import "../styles/gantt-custom.css";
+import { CURRENT_PROJECT_ID } from "../constants";
+import { getTasks } from "../services/TaskService";
+import { useProject } from "../context/ProjectContext";
 
 export default function GanttChart() {
+  const { currentProject } = useProject();
+  const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
   const [viewMode, setViewMode] = useState("Day");
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const tasks = [
-    {
-      id: "Task 1",
-      name: "プロジェクト計画",
-      start: "2025-11-18",
-      end: "2025-11-22",
-      progress: 100,
-      custom_class: "bar-milestone",
-    },
-    {
-      id: "Task 2",
-      name: "要件定義・分析",
-      start: "2025-11-20",
-      end: "2025-11-29",
-      progress: 100,
-    },
-    {
-      id: "Task 3",
-      name: "デザイン設計",
-      start: "2025-11-25",
-      end: "2025-12-08",
-      progress: 60,
-    },
-    {
-      id: "Task 4",
-      name: "UIモックアップ作成",
-      start: "2025-11-28",
-      end: "2025-12-10",
-      progress: 40,
-    },
-    {
-      id: "Task 5",
-      name: "デザインレビュー",
-      start: "2025-12-10",
-      end: "2025-12-12",
-      progress: 0,
-      custom_class: "bar-milestone",
-    },
-    {
-      id: "Task 6",
-      name: "フロントエンド開発",
-      start: "2025-12-05",
-      end: "2025-12-25",
-      progress: 20,
-    },
-    {
-      id: "Task 7",
-      name: "バックエンド開発",
-      start: "2025-12-08",
-      end: "2026-01-05",
-      progress: 15,
-    },
-    {
-      id: "Task 8",
-      name: "API統合",
-      start: "2025-12-20",
-      end: "2026-01-08",
-      progress: 0,
-    },
-    {
-      id: "Task 9",
-      name: "テスト・QA",
-      start: "2025-12-28",
-      end: "2026-01-10",
-      progress: 0,
-    },
-    {
-      id: "Task 10",
-      name: "最終レビュー",
-      start: "2026-01-08",
-      end: "2026-01-12",
-      progress: 0,
-      custom_class: "bar-milestone",
-    },
-    {
-      id: "Task 11",
-      name: "リリース",
-      start: "2026-01-12",
-      end: "2026-01-16",
-      progress: 0,
-    },
-  ];
+  const [animate, setAnimate] = useState(false);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [currentProject?.project_id]);
+
+  useEffect(() => {
+    console.log(tasks)
+  }, [tasks])
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setAnimate(false); // Reset animation while loading new tasks
+
+      const response = await getTasks(currentProjectId);
+      const transformedTasks = transformTasksForGantt(response);
+      setTasks(transformedTasks);
+    } catch (err) {
+      setError(err.message);
+      console.error("Error fetching tasks:", err);
+    } finally {
+      setLoading(false);
+
+      // Trigger animation AFTER a small delay
+      setTimeout(() => setAnimate(true), 100);
+    }
+  };
+
+  const transformTasksForGantt = (apiTasks) => {
+    // Handle both single task object and array of tasks
+    const taskArray = Array.isArray(apiTasks) ? apiTasks : [apiTasks];
+
+    return taskArray.map((task) => {
+      // Calculate progress based on status
+      const progressMap = {
+        completed: 100,
+        in_progress: 50,
+        todo: 0,
+      };
+
+      // Use deadline as end date, calculate start date (7 days before as default)
+      const endDate = new Date(task.deadline);
+      const startDate = new Date(task.start_date);
+      // startDate.setDate(startDate.getDate() - 7); // Default 7-day duration
+
+      return {
+        id: task.task_id,
+        name: task.name,
+        start: startDate.toISOString().split("T")[0],
+        end: endDate.toISOString().split("T")[0],
+        progress: progressMap[task.status] || 0,
+        custom_class: task.priority === "high" ? "bar-milestone" : "",
+      };
+    });
+  };
+
+  const handleRefresh = () => {
+    fetchTasks();
+  };
 
   return (
-    <div className="p-6">
-      <h1 className="text-4xl font-semibold mb-6">タイムライン</h1>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-4xl font-semibold">タイムライン</h1>
+      </div>
 
       {/* 設定パネル */}
       <div className="bg-white w-xs p-6 rounded-lg shadow-md">
@@ -112,7 +101,7 @@ export default function GanttChart() {
       </div>
 
       {/* カラー凡例 */}
-      <div className="pt-6 flex flex-col items-center">
+      <div className="pb-6 flex flex-col items-center">
         <div className="flex gap-10 font-bold">
           <div className="flex items-center gap-3">
             <div className="w-8 h-4 bg-[#4285f4] rounded"></div>
@@ -126,16 +115,24 @@ export default function GanttChart() {
       </div>
 
       {/* ガントチャート表示エリア */}
-      <div className="mt-6 bg-white p-4 rounded shadow-md">
-        {tasks.length > 0 ? (
+      <div className="bg-white p-4 rounded shadow-md">
+        {loading ? (
+          <div className="bg-gray-100 text-gray-600 p-10 text-center rounded">
+            <h1 className="text-2xl font-semibold">読み込み中...</h1>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 text-red-600 p-10 text-center rounded">
+            <h1 className="text-2xl font-semibold">エラーが発生しました</h1>
+            <p className="text-base mt-2">{error}</p>
+            <button
+              onClick={handleRefresh}
+              className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              再試行
+            </button>
+          </div>
+        ) : tasks.length > 0 ? (
           <FrappeGantt
-            /* customPopupHTML={(task) =>
-              `<div style="padding:10px;">
-                <strong>${task.name}</strong><br>
-                🗓 ${task.start} ~ ${task.end}<br>
-                📌 進捗: ${task.progress}%
-              </div>`
-            } */
             tasks={tasks}
             viewMode={viewMode}
             onClick={(task) => console.log("クリック:", task)}
