@@ -160,3 +160,13 @@ class MessageCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data: dict) -> Message:
         message = Message.objects.create(**validated_data)
         return message
+
+class MessageUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ["content"] # 編集できるのはメッセージ内容のみ
+
+    def validate_content(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Message content cannot be blank.")
+        return value

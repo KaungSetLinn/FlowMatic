@@ -12,6 +12,7 @@ from .serializers import (
     ChatRoomResponseSerializer,
     MessageCreateSerializer,
     MessageSerializer,
+    MessageUpdateSerializer,
 )
 from notifications.utils import create_chat_notification, create_chatroom_notification
 
@@ -120,4 +121,37 @@ class ChatRoomDeleteView(APIView):
         if not chatroom.project.members.filter(pk=request.user.pk).exists():
             raise PermissionDenied("You are not assigned to this project.")
         chatroom.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ChatRoomMessageDetailView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_message(self, project_id: str, chatroom_id: str, message_id: str):
+
+        message = get_object_or_404(
+            Message,
+            message_id=message_id,
+            chatroom__chatroom_id=chatroom_id,
+            chatroom__project__project_id=project_id,
+        )
+
+        if message.user != self.request.user:
+            raise PermissionDenied("You can only edit or delete your own messages.")
+
+        return message
+
+    def put(self, request, project_id: str, chatroom_id: str, message_id: str) -> Response:
+        message = self._get_message(project_id, chatroom_id, message_id)
+        
+        serializer = MessageUpdateSerializer(message, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated_message = serializer.save()
+
+        response_serializer = MessageSerializer(updated_message)
+        return Response(response_serializer.data)
+
+    def delete(self, request, project_id: str, chatroom_id: str, message_id: str) -> Response:
+        message = self._get_message(project_id, chatroom_id, message_id)
+        message.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
