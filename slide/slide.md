@@ -186,7 +186,7 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 </div>
 
 <div style="text-align: center; font-size: 1.1em; color: #667eea; margin-top: 40px; font-weight: bold;">
-Simple & Integrated - それがFlowMaticです
+Simple & Easy to Use - それがFlowMaticです
 </div>
 
 ---
