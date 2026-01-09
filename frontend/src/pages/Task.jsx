@@ -634,21 +634,26 @@ const Task = () => {
                 </div>
 
                 <div className="flex gap-4 ml-4">
-                  <button
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-lg bg-yellow-400 hover:bg-yellow-500 rounded-lg hover:cursor-pointer"
-                    title="編集"
-                  >
-                    <FontAwesomeIcon icon={faPen} />
-                    編集
-                  </button>
-                  <button
-                    onClick={() => deleteTask(task.id)}
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-lg text-white bg-red-500 hover:bg-red-600 rounded-lg hover:cursor-pointer"
-                    title="削除"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                    削除
-                  </button>
+                  {task.users.some((u) => u.user_id === user.id) && (
+                    <>
+                      <button
+                        className="flex items-center gap-2 px-4 py-2 font-bold text-lg bg-yellow-400 hover:bg-yellow-500 rounded-lg hover:cursor-pointer"
+                        title="編集"
+                      >
+                        <FontAwesomeIcon icon={faPen} />
+                        編集
+                      </button>
+
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        className="flex items-center gap-2 px-4 py-2 font-bold text-lg text-white bg-red-500 hover:bg-red-600 rounded-lg hover:cursor-pointer"
+                        title="削除"
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                        削除
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
