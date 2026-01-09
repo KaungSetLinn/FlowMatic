@@ -181,3 +181,178 @@ class EventNotificationIntegrationTest(APITestCase):
             "新しいイベント『終日イベント』が作成されました",
             notification.message,
         )
+
+    def test_event_update_sends_notifications_to_all_members_except_updater(self):
+        """イベント更新時、更新者以外の全プロジェクトメンバーに通知が送られること"""
+        # イベントを作成
+        start_time = timezone.now() + timedelta(hours=1)
+        end_time = timezone.now() + timedelta(hours=2)
+
+        event = Event.objects.create(
+            project=self.project,
+            title="更新対象イベント",
+            is_all_day=False,
+            start_date=start_time,
+            end_date=end_time,
+            color="blue",
+        )
+
+        # API URL
+        event_url = f"/api/projects/{self.project.project_id}/events/{event.event_id}/"
+
+        # user2がイベントを更新
+        self.client.force_authenticate(user=self.user2)
+        new_start_time = timezone.now() + timedelta(hours=3)
+        new_end_time = timezone.now() + timedelta(hours=4)
+        update_data = {
+            "title": "更新後イベント名",
+            "color": "red",
+            "is_all_day": False,
+            "start_date": new_start_time.isoformat(),
+            "end_date": new_end_time.isoformat(),
+        }
+        response = self.client.put(event_url, update_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # 通知を確認
+        notifications = Notification.objects.filter(
+            notification_type="event", title="イベント通知"
+        )
+        self.assertEqual(notifications.count(), 2)  # user1とuser3に通知
+
+        # 通知受信者の確認
+        notified_users = [n.recipient for n in notifications]
+        self.assertIn(self.user1, notified_users)
+        self.assertIn(self.user3, notified_users)
+        self.assertNotIn(self.user2, notified_users)  # 更新者には通知なし
+
+        # 通知メッセージの確認
+        for notification in notifications:
+            self.assertIn(
+                "イベント『更新後イベント名』が更新されました", notification.message
+            )
+
+    def test_event_update_notification_uses_japanese_language(self):
+        """イベント更新通知が日本語で表示されること"""
+        # イベントを作成
+        start_time = timezone.now() + timedelta(hours=1)
+        end_time = timezone.now() + timedelta(hours=2)
+
+        event = Event.objects.create(
+            project=self.project,
+            title="更新前日本語イベント",
+            is_all_day=False,
+            start_date=start_time,
+            end_date=end_time,
+            color="blue",
+        )
+
+        # API URL
+        event_url = f"/api/projects/{self.project.project_id}/events/{event.event_id}/"
+
+        # user1がイベントを更新
+        self.client.force_authenticate(user=self.user1)
+        new_start_time = timezone.now() + timedelta(hours=3)
+        new_end_time = timezone.now() + timedelta(hours=4)
+        update_data = {
+            "title": "更新後日本語イベント",
+            "is_all_day": False,
+            "start_date": new_start_time.isoformat(),
+            "end_date": new_end_time.isoformat(),
+            "color": "green",
+        }
+        response = self.client.put(event_url, update_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # 日本語の通知メッセージを確認
+        notification = Notification.objects.filter(
+            recipient=self.user2, notification_type="event"
+        ).first()
+
+        self.assertIsNotNone(notification)
+        self.assertEqual(notification.title, "イベント通知")
+        self.assertIn(
+            "イベント『更新後日本語イベント』が更新されました", notification.message
+        )
+
+    def test_event_update_related_object_id(self):
+        """イベント更新時のrelated_object_idが正しく設定されること"""
+        # イベントを作成
+        start_time = timezone.now() + timedelta(hours=1)
+        end_time = timezone.now() + timedelta(hours=2)
+
+        event = Event.objects.create(
+            project=self.project,
+            title="ID確認イベント",
+            is_all_day=False,
+            start_date=start_time,
+            end_date=end_time,
+            color="blue",
+        )
+
+        # API URL
+        event_url = f"/api/projects/{self.project.project_id}/events/{event.event_id}/"
+
+        # イベントを更新
+        self.client.force_authenticate(user=self.user1)
+        new_start_time = timezone.now() + timedelta(hours=3)
+        new_end_time = timezone.now() + timedelta(hours=4)
+        update_data = {
+            "title": "更新後",
+            "is_all_day": False,
+            "start_date": new_start_time.isoformat(),
+            "end_date": new_end_time.isoformat(),
+            "color": "red",
+        }
+        self.client.put(event_url, update_data, format="json")
+
+        # 通知のrelated_object_idを確認
+        notification = Notification.objects.filter(
+            recipient=self.user2, notification_type="event"
+        ).first()
+
+        self.assertIsNotNone(notification)
+        self.assertEqual(notification.related_object_id, str(event.event_id))
+
+    def test_event_update_creates_separate_notification_from_creation(self):
+        """イベント作成と更新で別々の通知が作成されること"""
+        start_time = timezone.now() + timedelta(hours=1)
+        end_time = timezone.now() + timedelta(hours=2)
+
+        # イベントを作成
+        self.client.force_authenticate(user=self.user1)
+        event_data = {
+            "title": "作成と更新テスト",
+            "is_all_day": False,
+            "start_date": start_time.isoformat(),
+            "end_date": end_time.isoformat(),
+            "color": "blue",
+        }
+        response = self.client.post(self.events_url, event_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        event_id = response.data["event_id"]
+
+        # イベントを更新
+        event_url = f"/api/projects/{self.project.project_id}/events/{event_id}/"
+        new_start_time = timezone.now() + timedelta(hours=3)
+        new_end_time = timezone.now() + timedelta(hours=4)
+        update_data = {
+            "title": "更新後のタイトル",
+            "is_all_day": False,
+            "start_date": new_start_time.isoformat(),
+            "end_date": new_end_time.isoformat(),
+            "color": "red",
+        }
+        response = self.client.put(event_url, update_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # user2の通知を確認
+        user2_notifications = Notification.objects.filter(
+            recipient=self.user2, notification_type="event"
+        )
+        self.assertEqual(user2_notifications.count(), 2)  # 作成と更新で2通知
+
+        # 各通知のメッセージを確認
+        messages = [n.message for n in user2_notifications]
+        self.assertIn("新しいイベント『作成と更新テスト』が作成されました", messages)
+        self.assertIn("イベント『更新後のタイトル』が更新されました", messages)

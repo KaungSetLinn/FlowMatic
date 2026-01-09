@@ -25,6 +25,7 @@ import { MobileDateTimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { updateProject } from "../services/ProjectService";
+import { resolveImageUrl } from "../utils/resolveImageUrl";
 dayjs.extend(utc);
 
 const ProjectDetail = () => {
@@ -49,6 +50,7 @@ const ProjectDetail = () => {
     members: (project.members || []).map((m) => ({
       ...m,
       user_id: Number(m.user_id),
+      profile_picture: resolveImageUrl(m.profile_picture),
     })),
   });
 
@@ -418,7 +420,7 @@ const ProjectDetail = () => {
             user_id: user.id,
             name: user.username,
             email: user.email,
-            profile_picture: user.profile_picture,
+            profile_picture: resolveImageUrl(user.profile_picture),
             role: role,
             pending: true,
           }));

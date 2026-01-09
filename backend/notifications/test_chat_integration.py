@@ -260,3 +260,59 @@ class ChatNotificationIntegrationTest(APITestCase):
                 notification_type="chat", title="新しいメッセージ"
             )
             self.assertEqual(notifications.count(), 2)  # user2とuser3に通知
+
+    def test_chatroom_creation_sends_notifications_to_all_members_except_creator(self):
+        """チャットルーム作成時、作成者以外の全メンバーに通知が送られること"""
+        chatrooms_url = f"/api/projects/{self.project.project_id}/chatrooms/"
+
+        # user1でチャットルーム作成
+        self.client.force_authenticate(user=self.user1)
+        chatroom_data = {
+            "name": "テストチャットルーム",
+            "members": [self.user1.id, self.user2.id, self.user3.id],
+        }
+        response = self.client.post(chatrooms_url, chatroom_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # 通知を確認
+        notifications = Notification.objects.filter(
+            notification_type="chat", title="チャットルーム通知"
+        )
+        self.assertEqual(notifications.count(), 2)  # user2とuser3に通知
+
+        # 通知受信者の確認
+        notified_users = [n.recipient for n in notifications]
+        self.assertIn(self.user2, notified_users)
+        self.assertIn(self.user3, notified_users)
+        self.assertNotIn(self.user1, notified_users)  # 作成者には通知なし
+
+        # 通知メッセージの確認
+        for notification in notifications:
+            self.assertEqual(notification.title, "チャットルーム通知")
+            self.assertIn("新しいチャットルームが作成されました", notification.message)
+            self.assertEqual(
+                notification.related_object_id, str(response.data["chatroom_id"])
+            )
+
+    def test_chatroom_creation_related_object_id(self):
+        """チャットルーム作成時のrelated_object_idが正しく設定されること"""
+        chatrooms_url = f"/api/projects/{self.project.project_id}/chatrooms/"
+
+        # チャットルームを作成
+        self.client.force_authenticate(user=self.user1)
+        chatroom_data = {
+            "name": "ID確認チャットルーム",
+            "members": [self.user1.id, self.user2.id, self.user3.id],
+        }
+        response = self.client.post(chatrooms_url, chatroom_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # 通知のrelated_object_idを確認
+        notification = Notification.objects.filter(
+            recipient=self.user2, notification_type="chat", title="チャットルーム通知"
+        ).first()
+
+        self.assertIsNotNone(notification)
+        self.assertEqual(
+            notification.related_object_id, str(response.data["chatroom_id"])
+        )
