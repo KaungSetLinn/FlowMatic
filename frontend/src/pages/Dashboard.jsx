@@ -1,31 +1,157 @@
 import { useState, useEffect } from "react";
+import { useProject } from "../context/ProjectContext";
+import { getTasks } from "../services/TaskService";
+import { useAuth } from "../context/AuthContext";
+import { getEvents } from "../services/EventService";
+import { formatDateJP, formatUTC } from "../utils/dateUtils";
 
 const Dashboard = () => {
+  const { user } = useAuth();
+
+  const { projects, currentProject } = useProject();
+
+  const [events, setEvents] = useState([]);
+
+  const [tasks, setTasks] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+
   const [summary, setSummary] = useState({
-    totalProjects: 5,
-    activeTasks: 18,
-    completedTasks: 42,
-    unreadMessages: 3,
-    upcomingMeetings: 2,
+    progress: 0,
+    activeTasks: 0,
+    completedTasks: 0,
+    membersCount: 0,
   });
+
+  const toDate = (iso) => new Date(iso);
+
+  const fetchTasks = async () => {
+    try {
+      const tasks = await getTasks(currentProject.project_id);
+
+      setTasks(tasks);
+      console.log(tasks);
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMyTasksCount = () => {
+    try {
+      setLoading(true);
+
+      const myActiveTasks = tasks.filter(
+        (task) =>
+          task.status !== "done" &&
+          task.users.some((u) => u.user_id === user.id)
+      ).length;
+
+      setSummary((prev) => ({
+        ...prev,
+        activeTasks: myActiveTasks,
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadClearedTasksCount = () => {
+    try {
+      setLoading(true);
+
+      const clearedTasks = tasks.filter(
+        (task) => task.status === "done"
+      ).length;
+
+      setSummary((prev) => ({
+        ...prev,
+        completedTasks: clearedTasks,
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadProgress = () => {
+    const progress = currentProject.progress;
+
+    setSummary((prev) => ({
+      ...prev,
+      progress: progress,
+    }));
+  };
+
+  const loadMemberCount = () => {
+    if (!currentProject?.members) return;
+
+    setSummary((prev) => ({
+      ...prev,
+      membersCount: currentProject.members.length,
+    }));
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const events = await getEvents(currentProject.project_id);
+
+      console.log(events);
+
+      setEvents(events);
+    } catch (error) {
+      console.error("Failed to fetch events:", error);
+    }
+  };
+
+  const getThisWeekEvents = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // start of today
+
+    const end = new Date(now);
+    end.setDate(end.getDate() + 7); // 7 days from today
+
+    return events
+      .filter((event) => {
+        const start = new Date(event.start_date);
+        return start >= now && start < end;
+      })
+      .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+  };
+
+  useEffect(() => {
+    loadProgress();
+
+    loadMemberCount();
+
+    fetchTasks();
+
+    fetchEvents();
+  }, [currentProject?.project_id]);
+
+  useEffect(() => {
+    loadMyTasksCount();
+
+    loadClearedTasksCount();
+  }, [tasks]);
 
   const cards = [
     {
-      key: "projects",
-      title: "プロジェクト",
-      label: "進行中",
-      value: summary.totalProjects,
-      hint: "👉 プロジェクトを見る",
-      gradient: "from-blue-500 to-blue-600",
-      icon: "fa-project-diagram",
+      key: "progress",
+      title: "進捗率",
+      label: "達成率",
+      value: `${summary.progress}%`,
+      hint: "📈 詳細を見る",
+      gradient: "from-indigo-500 via-indigo-700 to-indigo-800",
+      icon: "fa-chart-line",
     },
     {
       key: "tasks",
-      title: "今日のタスク",
+      title: "マイタスク",
       label: "やること",
       value: summary.activeTasks,
       hint: "👉 タスクを確認",
-      gradient: "from-yellow-400 to-yellow-500",
+      gradient: "from-yellow-400 via-yellow-600 to-yellow-700",
       icon: "fa-list",
     },
     {
@@ -34,22 +160,17 @@ const Dashboard = () => {
       label: "達成!",
       value: summary.completedTasks,
       hint: "🎉 よく頑張りました!",
-      gradient: "from-green-500 to-green-600",
+      gradient: "from-green-500 to-green-700 to-green-800",
       icon: "fa-circle-check",
     },
     {
-      key: "messages",
-      title: "メッセージ",
-      value: summary.unreadMessages,
-      hint: "👉 メッセージを開く",
-      gradient: "from-purple-500 to-purple-600",
-      icon: "fa-message",
-      badge:
-        summary.unreadMessages > 0 ? (
-          <span className="bg-red-500 px-3 py-1 rounded-full text-sm font-semibold animate-pulse">
-            新着!
-          </span>
-        ) : null,
+      key: "members",
+      title: "参加メンバー数",
+      label: "チーム",
+      value: summary.membersCount,
+      hint: "👥 メンバーを見る",
+      gradient: "from-cyan-500 via-cyan-700 to-cyan-800",
+      icon: "fa-users",
     },
   ];
 
@@ -113,77 +234,10 @@ const Dashboard = () => {
                   ))}
               </div>
 
-              <h3 className="text-xl font-bold mb-1">{card.title}</h3>
+              <h3 className="text-2xl font-bold mb-1">{card.title}</h3>
               <p className="text-4xl font-bold mb-2">{card.value}</p>
             </div>
           ))}
-        </div>
-
-        {/* Progress Section */}
-        <div className="bg-white rounded-3xl shadow-sm p-6 md:p-8 border-2 border-purple-100">
-          <div className="flex items-center mb-6">
-            <i className="fa-solid fa-bullseye text-3xl text-purple-600 mr-3"></i>
-            <h2 className="text-2xl font-bold text-gray-800">今週の進捗状況</h2>
-          </div>
-
-          <div className="space-y-5">
-            {/* Overall Progress */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-lg font-semibold text-gray-700">
-                  全体の進捗
-                </span>
-                <span className="text-2xl font-bold text-purple-600">
-                  {completionRate}%
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-6 rounded-full transition-all duration-1000 flex items-center justify-end pr-2"
-                  style={{ width: `${completionRate}%` }}
-                >
-                  <span className="text-white text-xs font-bold">
-                    {completionRate >= 20 && "🚀"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Individual Projects */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div className="bg-blue-50 p-4 rounded-xl border-2 border-blue-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-gray-700">
-                    📱 Webアプリ開発
-                  </span>
-                  <span className="text-lg font-bold text-blue-600">75%</span>
-                </div>
-                <div className="w-full bg-blue-200 rounded-full h-3">
-                  <div
-                    className="bg-blue-600 h-3 rounded-full"
-                    style={{ width: "75%" }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-600 mt-2">あと5タスクで完了!</p>
-              </div>
-
-              <div className="bg-green-50 p-4 rounded-xl border-2 border-green-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-gray-700">
-                    🎨 デザイン課題
-                  </span>
-                  <span className="text-lg font-bold text-green-600">90%</span>
-                </div>
-                <div className="w-full bg-green-200 rounded-full h-3">
-                  <div
-                    className="bg-green-600 h-3 rounded-full"
-                    style={{ width: "90%" }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-600 mt-2">もうすぐ完成です!</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Two Column Layout */}
@@ -219,66 +273,52 @@ const Dashboard = () => {
           {/* Upcoming Meetings */}
           <div className="bg-white rounded-3xl shadow-sm p-6 border-2 border-green-100">
             <div className="flex items-center mb-5">
-              <i className="fa-solid fa-calendar-days text-3xl text-green-600 mr-3"></i>
-              <h2 className="text-2xl font-bold text-gray-800">今週の予定</h2>
+              <i className="fa-solid fa-calendar-days text-3xl text-blue-700 mr-3"></i>
+              <h2 className="text-2xl font-bold text-gray-800">
+                直近7日間の予定
+              </h2>
             </div>
 
             <div className="space-y-4">
-              {/* Meeting 1 */}
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-5 rounded-2xl border-2 border-blue-300 hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">
-                      📋 UI設計ミーティング
-                    </h3>
-                    <div className="space-y-1 text-sm text-gray-700">
-                      <p className="flex items-center">
-                        <span className="mr-2">📅</span>
-                        <span className="font-semibold">10月14日（月）</span>
-                      </p>
-                      <p className="flex items-center">
-                        <span className="mr-2">⏰</span>
-                        <span>10:00〜11:30</span>
-                      </p>
-                      <p className="flex items-center">
-                        <span className="mr-2">👥</span>
-                        <span>5人参加予定</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
-                  詳細を見る
-                </button>
-              </div>
+              {getThisWeekEvents().length === 0 && (
+                <p className="text-gray-500">今週の予定はありません</p>
+              )}
 
-              {/* Meeting 2 */}
-              <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-5 rounded-2xl border-2 border-purple-300 hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
+              {getThisWeekEvents().map((event) => (
+                <div
+                  key={event.event_id}
+                  className="bg-gradient-to-r from-blue-50 to-blue-100 p-5 rounded-2xl border-2 border-blue-300 hover:shadow-md transition-all cursor-default"
+                >
+                  <div className="mb-3">
                     <h3 className="text-lg font-bold text-gray-800 mb-2">
-                      👨‍💼 クライアントレビュー
+                      📅 {event.title}
                     </h3>
+
                     <div className="space-y-1 text-sm text-gray-700">
                       <p className="flex items-center">
-                        <span className="mr-2">📅</span>
-                        <span className="font-semibold">10月16日（水）</span>
+                        <span className="mr-2">📆</span>
+                        <span className="font-semibold">
+                          {formatDateJP(toDate(event.start_date))}
+                        </span>
                       </p>
-                      <p className="flex items-center">
-                        <span className="mr-2">⏰</span>
-                        <span>14:00〜15:00</span>
-                      </p>
-                      <p className="flex items-center">
-                        <span className="mr-2">👥</span>
-                        <span>8人参加予定</span>
-                      </p>
+
+                      {!event.is_all_day && (
+                        <p className="flex items-center">
+                          <span className="mr-2">⏰</span>
+                          <span>
+                            {formatUTC(event.start_date)} 〜{" "}
+                            {formatUTC(event.end_date)}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
+
+                  {/* <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+                    詳細を見る
+                  </button> */}
                 </div>
-                <button className="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition">
-                  詳細を見る
-                </button>
-              </div>
+              ))}
             </div>
           </div>
         </div>
