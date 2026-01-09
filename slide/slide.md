@@ -60,6 +60,21 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 ---
 
 <!-- _class: content -->
+
+## メンバー
+ 
+**フロントエンド**
+カゥン セッリン
+足立 晴哉
+日並 春
+
+**バックエンド**
+照内 颯馬
+玉富 直輝
+
+---
+
+<!-- _class: content -->
 ## 既存ツールの課題
 
 **機能が多すぎて複雑**
@@ -77,7 +92,7 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 
 **Simple & Easy to Use**
 
-<img src=task-list_flowmatic.png alt="FlowMatic Task List" style="width:50%;">
+<img src=calendar_flowmatic.png alt="FlowMatic Task List" style="width:50%;">
 
 <div style="text-align: center; font-size: 1.1em; color: #667eea; margin-top: 20px; font-weight: bold;">
 ✓ 直感的な操作　✓ ラーニングカーブなし　✓ すぐに使える
@@ -94,50 +109,8 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 
 ---
 
-<!-- _class: content -->
-## 1. インタラクティブなガントチャート
-
-**視覚的なスケジュール管理**
-
-<img src=chart_flowmatic.png alt="FlowMatic Gantt Chart" style="width:50%;">
-
-<div style="display: flex; justify-content: space-around; margin-top: 30px; font-size: 0.95em;">
-<div>📊 タスクの依存関係</div>
-<div>👥 担当者の可視化</div>
-<div>⏱️ 進捗の追跡</div>
-</div>
-
-// TODO: よりタスクでいっぱいの画面にする
-
----
-
-<!-- _class: content -->
-## カレンダーとの連携
-
-<img src=calendar_flowmatic.png alt="FlowMatic Calendar" style="width:50%;">
-
-<div style="text-align: center; font-size: 1.05em; color: #667eea; margin-top: 20px;">
-📅 個人の予定と締め切りを直感的に同期
-</div>
-
-// TODO: よりタスクでいっぱいの画面にする
-
----
-
-<!-- _class: content -->
-## 2. チャット統合
-
-**すべてが一つの場所で**
-
-<img src=chat_flowmatic.png alt="FlowMatic Chat" style="width:50%;">
-
-<div style="display: flex; justify-content: space-around; margin-top: 30px; font-size: 0.95em;">
-<div>💬 リアルタイム会話</div>
-<div>🔗 タスクと連携</div>
-<div>🚫 外部ツール不要</div>
-</div>
-
-// TODO: よりタスクでいっぱいの画面にする
+<!-- _class: title -->
+# 技術スタック
 
 ---
 
