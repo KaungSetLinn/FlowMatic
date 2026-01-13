@@ -75,11 +75,11 @@ const Dashboard = () => {
   };
 
   const loadProgress = () => {
-    const progress = currentProject.progress;
+    if (!currentProject) return;
 
     setSummary((prev) => ({
       ...prev,
-      progress: progress,
+      progress: currentProject.progress ?? 0,
     }));
   };
 
@@ -120,14 +120,13 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    if (!currentProject) return;
+
     loadProgress();
-
     loadMemberCount();
-
     fetchTasks();
-
     fetchEvents();
-  }, [currentProject?.project_id]);
+  }, [currentProject]);
 
   useEffect(() => {
     loadMyTasksCount();
