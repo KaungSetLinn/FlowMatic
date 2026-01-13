@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
-import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
+import { ACCESS_TOKEN, CURRENT_USER, REFRESH_TOKEN } from "../constants";
 import api from "../api";
 
 const AuthContext = createContext();
@@ -12,8 +12,8 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         auth().catch(() => setIsAuthorized(false));
 
-        if (localStorage.getItem('user')) {
-            setUser(JSON.parse(localStorage.getItem('user')))
+        if (localStorage.getItem(CURRENT_USER)) {
+            setUser(JSON.parse(localStorage.getItem(CURRENT_USER)))
         }
     }, []);
 
