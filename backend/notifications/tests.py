@@ -137,7 +137,15 @@ class NotificationSerializerTest(TestCase):
         )
 
         serializer = NotificationSerializer(notification)
-        expected_fields = {"id", "title", "message", "notification_type", "created_at"}
+        expected_fields = {
+            "id",
+            "title",
+            "message",
+            "notification_type",
+            "created_at",
+            "related_object_id",
+            "is_read",
+        }
 
         self.assertEqual(set(serializer.data.keys()), expected_fields)
 
@@ -216,7 +224,15 @@ class NotificationListViewTest(APITestCase):
 
         # Check response structure
         notification = response.data[0]
-        expected_fields = {"id", "title", "message", "notification_type", "created_at"}
+        expected_fields = {
+            "id",
+            "title",
+            "message",
+            "notification_type",
+            "created_at",
+            "related_object_id",
+            "is_read",
+        }
         self.assertEqual(set(notification.keys()), expected_fields)
 
         # Check data types
@@ -225,6 +241,7 @@ class NotificationListViewTest(APITestCase):
         self.assertIsInstance(notification["message"], str)
         self.assertIsInstance(notification["notification_type"], str)
         self.assertIsInstance(notification["created_at"], str)
+        self.assertIsInstance(notification["is_read"], bool)
 
     def test_list_notifications_empty_for_user_with_no_notifications(self):
         # Create a user with no notifications
