@@ -2,12 +2,19 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework_simplejwt.tokens import AccessToken
 
 from projects.models import Project
 from chat.models import ChatRoom, Message
 from notifications.models import Notification
 
 User = get_user_model()
+
+
+def get_auth_headers(user):
+    """ユーザーのJWTトークンを使用して認証ヘッダーを生成"""
+    token = AccessToken.for_user(user)
+    return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
 
 class ChatNotificationIntegrationTest(APITestCase):
@@ -48,11 +55,13 @@ class ChatNotificationIntegrationTest(APITestCase):
 
     def test_message_creation_sends_notifications_to_all_members_except_sender(self):
         """メッセージ作成時、送信者以外の全チャットルームメンバーに通知が送られること"""
-        self.client.force_authenticate(user=self.user1)
+        headers = get_auth_headers(self.user1)
 
         message_data = {"content": "テストメッセージです"}
 
-        response = self.client.post(self.messages_url, message_data, format="json")
+        response = self.client.post(
+            self.messages_url, message_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 通知が作成されたことを確認
@@ -78,11 +87,13 @@ class ChatNotificationIntegrationTest(APITestCase):
 
     def test_message_notification_uses_japanese_language(self):
         """メッセージ通知が日本語で表示されること"""
-        self.client.force_authenticate(user=self.user1)
+        headers = get_auth_headers(self.user1)
 
         message_data = {"content": "日本語メッセージ"}
 
-        response = self.client.post(self.messages_url, message_data, format="json")
+        response = self.client.post(
+            self.messages_url, message_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 日本語の通知メッセージを確認
@@ -99,15 +110,19 @@ class ChatNotificationIntegrationTest(APITestCase):
     def test_different_users_send_messages_create_separate_notifications(self):
         """異なるユーザーがメッセージを送信した場合、それぞれ通知が作成されること"""
         # user1がメッセージ送信
-        self.client.force_authenticate(user=self.user1)
+        headers1 = get_auth_headers(self.user1)
         message_data1 = {"content": "user1のメッセージ"}
-        response1 = self.client.post(self.messages_url, message_data1, format="json")
+        response1 = self.client.post(
+            self.messages_url, message_data1, format="json", **headers1
+        )
         self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
 
         # user2がメッセージ送信
-        self.client.force_authenticate(user=self.user2)
+        headers2 = get_auth_headers(self.user2)
         message_data2 = {"content": "user2のメッセージ"}
-        response2 = self.client.post(self.messages_url, message_data2, format="json")
+        response2 = self.client.post(
+            self.messages_url, message_data2, format="json", **headers2
+        )
         self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
 
         # user3の通知を確認
@@ -123,12 +138,14 @@ class ChatNotificationIntegrationTest(APITestCase):
 
     def test_multiple_messages_from_same_user_create_multiple_notifications(self):
         """同一ユーザーから複数メッセージが送信された場合、複数の通知が作成されること"""
-        self.client.force_authenticate(user=self.user1)
+        headers = get_auth_headers(self.user1)
 
         # 複数のメッセージを送信
         for i in range(3):
             message_data = {"content": f"メッセージ{i + 1}"}
-            response = self.client.post(self.messages_url, message_data, format="json")
+            response = self.client.post(
+                self.messages_url, message_data, format="json", **headers
+            )
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # user2の通知を確認
@@ -139,10 +156,12 @@ class ChatNotificationIntegrationTest(APITestCase):
 
     def test_message_notification_related_object_id(self):
         """メッセージ通知のrelated_object_idが正しく設定されること"""
-        self.client.force_authenticate(user=self.user1)
+        headers = get_auth_headers(self.user1)
 
         message_data = {"content": "ID確認メッセージ"}
-        response = self.client.post(self.messages_url, message_data, format="json")
+        response = self.client.post(
+            self.messages_url, message_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 通知のrelated_object_idを確認
@@ -167,9 +186,11 @@ class ChatNotificationIntegrationTest(APITestCase):
         small_messages_url = f"/api/projects/{self.project.project_id}/chatrooms/{small_chatroom.chatroom_id}/messages/"
 
         # user1がメッセージ送信
-        self.client.force_authenticate(user=self.user1)
+        headers = get_auth_headers(self.user1)
         message_data = {"content": "2人でのメッセージ"}
-        response = self.client.post(small_messages_url, message_data, format="json")
+        response = self.client.post(
+            small_messages_url, message_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 通知を確認
@@ -183,10 +204,12 @@ class ChatNotificationIntegrationTest(APITestCase):
 
     def test_message_content_affects_notification_display(self):
         """メッセージ内容が通知表示に影響しないこと（送信者名のみ表示）"""
-        self.client.force_authenticate(user=self.user1)
+        headers = get_auth_headers(self.user1)
 
         message_data = {"content": "特別な文字!@#$%^&*()を含むメッセージ"}
-        response = self.client.post(self.messages_url, message_data, format="json")
+        response = self.client.post(
+            self.messages_url, message_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 通知メッセージは送信者名のみを含み、メッセージ内容は含まない
@@ -210,9 +233,11 @@ class ChatNotificationIntegrationTest(APITestCase):
         )
         self.project.members.add(user4)
 
-        self.client.force_authenticate(user=self.user1)
+        headers = get_auth_headers(self.user1)
         message_data = {"content": "限定メッセージ"}
-        response = self.client.post(self.messages_url, message_data, format="json")
+        response = self.client.post(
+            self.messages_url, message_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # user4には通知が送られないことを確認
@@ -230,9 +255,11 @@ class ChatNotificationIntegrationTest(APITestCase):
     def test_message_sender_name_in_notification(self):
         """通知メッセージに正しい送信者名が表示されること"""
         # 異なるユーザー名でテスト
-        self.client.force_authenticate(user=self.user2)
+        headers = get_auth_headers(self.user2)
         message_data = {"content": "user2からのメッセージ"}
-        response = self.client.post(self.messages_url, message_data, format="json")
+        response = self.client.post(
+            self.messages_url, message_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # user2からの通知を確認
@@ -247,12 +274,14 @@ class ChatNotificationIntegrationTest(APITestCase):
 
     def test_empty_message_notification(self):
         """空メッセージでも通知が送信されること"""
-        self.client.force_authenticate(user=self.user1)
+        headers = get_auth_headers(self.user1)
         message_data = {"content": ""}
 
         # 空メッセージはバリデーションで弾かれる可能性があるため、最小のメッセージでテスト
         message_data = {"content": " "}  # スペースのみ
-        response = self.client.post(self.messages_url, message_data, format="json")
+        response = self.client.post(
+            self.messages_url, message_data, format="json", **headers
+        )
 
         # バリデーション通過しない場合もあるので、成功した場合のみ通知を確認
         if response.status_code == status.HTTP_201_CREATED:

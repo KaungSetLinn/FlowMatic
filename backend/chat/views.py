@@ -14,7 +14,6 @@ from .serializers import (
     MessageSerializer,
     MessageUpdateSerializer,
 )
-from notifications.utils import create_chat_notification
 
 
 class ProjectChatRoomListCreateView(APIView):
@@ -104,14 +103,6 @@ class ChatRoomMessageListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         message = serializer.save()
-
-        for member in chatroom.members.all():
-            if member != request.user:
-                create_chat_notification(
-                    recipient=member,
-                    message=message,
-                    sender=request.user,
-                )
 
         response_serializer = MessageSerializer(message)
 

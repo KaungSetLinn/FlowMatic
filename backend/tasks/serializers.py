@@ -258,6 +258,15 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         attrs["member_objects"] = users
         return attrs
 
+    def update(self, instance, validated_data):
+        member_objects = validated_data.pop("member_objects", None)
+        if member_objects is not None:
+            instance.assigned_users.set(member_objects)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
+
 
 class TaskResponseSerializer(serializers.ModelSerializer):
     project_id = serializers.UUIDField(source="project.project_id", read_only=True)
