@@ -118,6 +118,16 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 👉 FlowMatic は <strong>「見る・押す要素」を最小化</strong>
 </div>
 
+<div style="
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  font-size: 0.75em;
+  opacity: 0.7;
+">
+※ Kaizen Coders調べ
+</div>
+
 ---
 
 <!-- _class: title -->
