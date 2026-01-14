@@ -105,11 +105,13 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 ## UIのシンプルさを数値で比較
 
 <div style="display: flex; justify-content: center;">
-| | Redmine | FlowMatic |
-|---|---:|---:|
-| 解析ファイル数 | 503 | 26 |
-| ボタンの数 | 497 | 85 |
-| リンク | 85 | 2 |
+
+  | | Redmine | FlowMatic |
+  |---|---:|---:|
+  | 解析ファイル数 | 503 | 26 |
+  | ボタンの数 | 497 | 85 |
+  | リンク | 85 | 2 |
+
 </div>
 
 <div style="margin-top: 40px; text-align: center; font-size: 1.1em;">
