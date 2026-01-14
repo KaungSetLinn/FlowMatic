@@ -8,6 +8,8 @@ const AccountSettings = () => {
   // console.log(user);
   const [edit, setEdit] = useState(false);
 
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   const [userData, setUserData] = useState({
     id: null,
     username: "",
@@ -20,6 +22,12 @@ const AccountSettings = () => {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+  });
+
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
   });
 
   const [notification, setNotification] = useState({
@@ -46,6 +54,13 @@ const AccountSettings = () => {
     const date = new Date(isoString);
 
     return `${date.getFullYear()}年${date.getMonth() + 1}月加入`;
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPassword((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
   };
 
   const handleInputChange = (e) => {
@@ -84,7 +99,9 @@ const AccountSettings = () => {
   };
 
   const handlePasswordSubmit = async () => {
-    // 1️⃣ Basic frontend validations
+    if (passwordLoading) return; // prevent double click
+
+    // Frontend validations
     if (
       !passwordData.currentPassword ||
       !passwordData.newPassword ||
@@ -108,25 +125,31 @@ const AccountSettings = () => {
     }
 
     try {
-      // 2️⃣ Send correct field names to backend
+      setPasswordLoading(true);
+
       await changeUserPassword({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
-        confirmPassword: passwordData.confirmPassword, // now included
+        confirmPassword: passwordData.confirmPassword,
       });
 
-      // 3️⃣ Reset form and show success
       showNotification("パスワードが正常に更新されました！", "success");
+
       setPasswordData({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
+
+      setShowPassword({
+        current: false,
+        new: false,
+        confirm: false,
+      });
     } catch (error) {
       console.error(error);
       const data = error.response?.data;
 
-      // 4️⃣ Handle backend validation errors
       if (data?.current_password) {
         showNotification(data.current_password.join(", "), "error");
       } else if (data?.new_password) {
@@ -138,6 +161,8 @@ const AccountSettings = () => {
       } else {
         showNotification("パスワード更新に失敗しました", "error");
       }
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -394,50 +419,114 @@ const AccountSettings = () => {
                 <label className="block text-lg font-bold text-gray-700 mb-2">
                   現在のパスワード
                 </label>
-                <input
-                  type="password"
-                  name="currentPassword"
-                  onChange={handlePasswordChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword.current ? "text" : "password"}
+                    name="currentPassword"
+                    value={passwordData.currentPassword}
+                    onChange={handlePasswordChange}
+                    disabled={passwordLoading}
+                    className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg
+               focus:ring-2 focus:ring-blue-500 focus:border-transparent
+               disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility("current")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-gray-500
+               hover:text-gray-700 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    <i
+                      className={`fas ${
+                        showPassword.current ? "fa-eye-slash" : "fa-eye"
+                      }`}
+                    ></i>
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-lg font-bold text-gray-700 mb-2">
-                  新しいパスワード
+                  新しいパスワード（6文字以上）
                 </label>
-                <input
-                  type="password"
-                  name="newPassword"
-                  value={passwordData.newPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword.new ? "text" : "password"}
+                    name="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={handlePasswordChange}
+                    disabled={passwordLoading}
+                    className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg
+               focus:ring-2 focus:ring-blue-500 focus:border-transparent
+               disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility("new")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-gray-500
+               hover:text-gray-700 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    <i
+                      className={`fas ${
+                        showPassword.new ? "fa-eye-slash" : "fa-eye"
+                      }`}
+                    ></i>
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-lg font-bold text-gray-700 mb-2">
                   新しいパスワード（確認）
                 </label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={passwordData.confirmPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword.confirm ? "text" : "password"}
+                    name="confirmPassword"
+                    value={passwordData.confirmPassword}
+                    onChange={handlePasswordChange}
+                    disabled={passwordLoading}
+                    className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg
+               focus:ring-2 focus:ring-blue-500 focus:border-transparent
+               disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility("confirm")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-gray-500
+               hover:text-gray-700 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    <i
+                      className={`fas ${
+                        showPassword.confirm ? "fa-eye-slash" : "fa-eye"
+                      }`}
+                    ></i>
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className="mt-6 flex justify-end">
               <button
                 onClick={handlePasswordSubmit}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-lg font-bold cursor-pointer"
+                disabled={passwordLoading}
+                className={`px-6 py-2 rounded-lg text-lg font-bold transition-colors
+    ${
+      passwordLoading
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+    }`}
               >
-                パスワードを更新
+                {passwordLoading ? "更新中..." : "パスワードを更新"}
               </button>
             </div>
           </div>
