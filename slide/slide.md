@@ -101,6 +101,20 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 // TODO: よりタスクでいっぱいの画面にする
 
 ---
+<!-- _class: content -->
+## UIのシンプルさを数値で比較
+
+| | Redmine | FlowMatic |
+|---|---:|---:|
+| 解析ファイル数 | 503 | 26 |
+| ボタンの数 | 497 | 85 |
+| リンク | 85 | 2 |
+
+<div style="margin-top: 40px; text-align: center; font-size: 1.1em;">
+👉 FlowMatic は <strong>「見る・押す要素」を最小化</strong>
+</div>
+
+---
 
 <!-- _class: title -->
 # 機能紹介
