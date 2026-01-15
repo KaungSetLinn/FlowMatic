@@ -12,6 +12,11 @@ class ProjectMemoListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
 
         project_id = self.kwargs.get('project_id')
+        
+        project = get_object_or_404(Project, project_id=project_id)
+        if not project.members.filter(pk=self.request.user.pk).exists():
+            raise PermissionDenied("You are not a member of this project.")
+        
         return ProjectMemo.objects.filter(project_id=project_id)
 
     def perform_create(self, serializer):

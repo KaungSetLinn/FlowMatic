@@ -21,7 +21,10 @@ class ProjectMemoSerializer(serializers.ModelSerializer):
     
     
     user_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), write_only=True, required=False
+        queryset=User.objects.all(), 
+        write_only=True, 
+        required=False,
+        source='user'
     )
 
     class Meta:
