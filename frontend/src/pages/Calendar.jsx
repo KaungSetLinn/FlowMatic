@@ -1,4 +1,3 @@
-// Calendar.jsx
 import React, { useState, useRef, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -15,7 +14,11 @@ import { getTasks } from "../services/TaskService";
 import { useProject } from "../context/ProjectContext";
 import { MobileDateTimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { createEvent, updateEvent as updateEventApi, getEvents } from "../services/EventService";
+import { 
+  createEvent, 
+  updateEvent as updateEventApi, 
+  getEvents 
+} from "../services/EventService";
 import { formatDateJP, formatUTC } from "../utils/dateUtils";
 import utc from "dayjs/plugin/utc";
 dayjs.extend(utc);
@@ -35,7 +38,7 @@ const FILTERS = [
   { type: "completed", label: "完了", icon: faCheckCircle, color: "green" },
   {
     type: "high",
-    label: "締め切り近い",
+    label: "締切近い",
     icon: faExclamationCircle,
     color: "red",
   },
@@ -43,10 +46,8 @@ const FILTERS = [
 
 const formatToISO = (dateStr, isAllDay) => {
   if (isAllDay) {
-    // For all-day events: YYYY-MM-DD -> YYYY-MM-DDT00:00:00Z
     return `${dateStr}T00:00:00Z`;
   } else {
-    // For timed events: YYYY-MM-DDTHH:mm -> YYYY-MM-DDTHH:mm:00Z
     if (dateStr.includes("Z")) {
       return dateStr;
     }
@@ -146,13 +147,10 @@ const Calendar = () => {
 
   // Sort functions
   const sortFunctions = {
-    dueDate: (a, b) => new Date(a.start) - new Date(b.start),
+    dueDate: (a, b) => new Date(a.dueDate || a.start) - new Date(b.dueDate || b.start),
     priority: (a, b) =>
       (({ high: 1, medium: 2, low: 3 }[a.priority] || 2) -
       ({ high: 1, medium: 2, low: 3 }[b.priority] || 2)),
-    status: (a, b) =>
-      (({ active: 1, completed: 2 }[a.status] || 1) -
-      ({ active: 1, completed: 2 }[b.status] || 1)),
   };
 
   // ========== Effects ==========
@@ -170,33 +168,29 @@ const Calendar = () => {
     const userEvents = storedEvents.filter((e) => e.source !== "task");
 
     const taskEvents = tasks.map((task) => {
-      const startDate = task.startDate
-        ? formatDateJP(new Date(task.startDate))
-        : formatDateJP(new Date(task.dueDate)); // fallback
-
-      const endDate = task.dueDate
-        ? formatDateJP(new Date(task.dueDate))
-        : startDate;
+      // FIX: Keep original ISO format dates from API, don't reformat
+      const startDate = task.startDate || task.dueDate;
+      const endDate = task.dueDate;
 
       return {
         id: `task-${task.id}`,
         title: task.title,
-        start: startDate,
-        end: endDate,
+        start: startDate || new Date().toISOString(), // Keep ISO format
+        end: endDate || startDate || new Date().toISOString(), // Keep ISO format
         allDay: false,
         status: task.status,
         priority: task.priority,
         color: STATUS_COLOR_MAP[task.status] || "#3b82f6",
         source: "task",
+        description: task.description,
+        dueDate: task.dueDate, // FIX: Keep dueDate for sidebar display
+        startDate: task.startDate, // Keep original startDate
       };
     });
 
     setEvents([...userEvents, ...taskEvents]);
   }, [tasks]);
 
-  /* useEffect(() => {
-    console.log(events);
-  }, [events]); */
   // ========== Handlers ==========
   const fetchTasks = async () => {
     if (!currentProject?.project_id) return;
@@ -204,10 +198,7 @@ const Calendar = () => {
     try {
       setLoading(true);
       const fetchedTasks = await getTasks(currentProject.project_id);
-
       const mappedTasks = fetchedTasks.map(mapTaskToCalendarFormat);
-
-      console.log(mappedTasks)
       setTasks(mappedTasks);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
@@ -223,9 +214,6 @@ const Calendar = () => {
     try {
       const apiEvents = await getEvents(currentProject.project_id);
 
-      // console.log(apiEvents);
-
-      // API returns array of: { event_id, title, is_all_day, start_date, end_date, color }
       const mappedEvents = apiEvents.map((evt) => ({
         id: evt.event_id,
         title: evt.title,
@@ -238,7 +226,6 @@ const Calendar = () => {
         source: "user",
       }));
 
-      // Store in localStorage for offline access
       localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedEvents));
     } catch (error) {
       console.error("Failed to fetch events:", error);
@@ -267,8 +254,19 @@ const Calendar = () => {
       alert("タイトルは必須です");
       return;
     }
-    if (new Date(modal.event.end) < new Date(modal.event.start)) {
-      addNotification("終了日は開始日より後に設定してください");
+    
+    // FIX: Proper date comparison that allows same day with different times
+    const startDateTime = new Date(modal.event.start);
+    const endDateTime = new Date(modal.event.end);
+    
+    if (endDateTime <= startDateTime) {
+      addNotification("終了日時は開始日時より後に設定してください");
+      return;
+    }
+
+    // FIX: Prevent editing task events
+    if (modal.event.source === "task") {
+      addNotification("タスクイベントは編集できません ⚠️");
       return;
     }
 
@@ -281,9 +279,7 @@ const Calendar = () => {
     }
 
     try {
-      // Only call API for user-created events (not task events)
-      if (modal.isNew && evt.source !== "task") {
-        // Prepare request data in the correct format for API
+      if (modal.isNew) {
         const requestData = {
           title: evt.title,
           is_all_day: evt.allDay,
@@ -292,15 +288,11 @@ const Calendar = () => {
           color: mapColorToApi(evt.color),
         };
 
-        console.log("Creating event with data:", requestData);
-
-        // Create new event via API
         const apiResponse = await createEvent(
           currentProject.project_id,
           requestData
         );
 
-        // API returns: { event_id, title, is_all_day, start_date, end_date, color }
         const newEvent = {
           id: apiResponse.event_id,
           title: apiResponse.title,
@@ -315,9 +307,8 @@ const Calendar = () => {
         };
 
         const updatedEvents = [...events, newEvent];
-        saveEvents(updatedEvents, "イベントを追加しました 📝");
-      } else if (!modal.isNew && evt.source !== "task") {
-        // Update existing event via API
+        saveEvents(updatedEvents, "イベントを追加しました 📅");
+      } else {
         const requestData = {
           title: evt.title,
           is_all_day: evt.allDay,
@@ -326,36 +317,17 @@ const Calendar = () => {
           color: mapColorToApi(evt.color),
         };
 
-        console.log("Updating event with data:", requestData);
-
         await updateEventApi(currentProject.project_id, evt.id, requestData);
 
-        // Update local state with the new values
-        const newEvent = {
-          id: evt.id,
-          title: evt.title,
-          start: evt.start,
-          end: evt.end,
-          allDay: evt.allDay,
-          color: mapApiColorToHex(mapColorToApi(evt.color)),
-          status: evt.status || "active",
-          priority: evt.priority || "medium",
-          comment: evt.comment || "",
+        // FIX: Simplified color handling
+        const updatedEvent = {
+          ...evt,
+          color: evt.color, // Already in hex format
           source: "user",
         };
 
         const updatedEvents = events.map((e) =>
-          e.id === newEvent.id ? newEvent : e
-        );
-        saveEvents(updatedEvents, "イベントを保存しました 💾");
-      } else {
-        // For task events, just update locally (no API call)
-        const newEvent = {
-          ...evt,
-          color: STATUS_COLOR_MAP[evt.status] || "#3b82f6",
-        };
-        const updatedEvents = events.map((e) =>
-          e.id === newEvent.id ? newEvent : e
+          e.id === updatedEvent.id ? updatedEvent : e
         );
         saveEvents(updatedEvents, "イベントを保存しました 💾");
       }
@@ -369,12 +341,14 @@ const Calendar = () => {
   };
 
   const handleDelete = async () => {
+    // FIX: Prevent deleting task events
+    if (modal.event.source === "task") {
+      addNotification("タスクイベントは削除できません ⚠️");
+      return;
+    }
+
     if (window.confirm("本当に削除しますか?")) {
       try {
-        // Only call API for user-created events
-        if (modal.event.source !== "task") {
-          await deleteEvent(currentProject.project_id, modal.event.id);
-        }
 
         saveEvents(
           events.filter((e) => e.id !== modal.event.id),
@@ -389,8 +363,27 @@ const Calendar = () => {
   };
 
   const openModal = (event = null, isNew = false) => {
-    setModal({ open: true, event, isNew });
+    // FIX: Convert task event to proper format for modal
+    let modalEvent = event;
+    if (event && event.source === "task") {
+      modalEvent = {
+        ...event,
+        start: event.start,
+        end: event.end,
+        allDay: event.allDay,
+      };
+    }
+    setModal({ open: true, event: modalEvent, isNew });
     requestAnimationFrame(() => setModalReady(true));
+  };
+
+  // FIX: Separate function for opening task details (read-only view)
+  const openTaskDetail = (task) => {
+    const taskEvent = events.find(e => e.id === `task-${task.id}`);
+    if (taskEvent) {
+      // Task dates are already in ISO format from API, no need to reformat
+      openModal(taskEvent, false);
+    }
   };
 
   const closeModal = () => {
@@ -401,6 +394,41 @@ const Calendar = () => {
 
   const updateEvent = (field, value) => {
     setModal((p) => ({ ...p, event: { ...p.event, [field]: value } }));
+  };
+
+  // FIX: Handle event drag-and-drop with API persistence
+  const handleEventDrop = async (info) => {
+    const droppedEvent = events.find((e) => e.id === info.event.id);
+    
+    // Prevent dragging task events
+    if (droppedEvent?.source === "task") {
+      info.revert();
+      addNotification("タスクイベントは移動できません ⚠️");
+      return;
+    }
+
+    try {
+      const requestData = {
+        title: droppedEvent.title,
+        is_all_day: droppedEvent.allDay,
+        start_date: formatToISO(info.event.startStr, droppedEvent.allDay),
+        end_date: formatToISO(info.event.endStr, droppedEvent.allDay),
+        color: mapColorToApi(droppedEvent.color),
+      };
+
+      await updateEventApi(currentProject.project_id, droppedEvent.id, requestData);
+
+      const updated = events.map((e) =>
+        e.id === info.event.id
+          ? { ...e, start: info.event.startStr, end: info.event.endStr }
+          : e
+      );
+      saveEvents(updated, "イベントを移動しました 🔄");
+    } catch (error) {
+      console.error("Failed to move event:", error);
+      info.revert();
+      addNotification("イベントの移動に失敗しました ⚠️");
+    }
   };
 
   // ========== Render ==========
@@ -484,12 +512,12 @@ const Calendar = () => {
             <div
               key={e.id}
               className="p-2 rounded-md cursor-pointer flex items-center justify-between hover:bg-gray-100 transition"
-              onClick={() => openModal(e)}
+              onClick={() => openTaskDetail(e)}
             >
               <div className="flex items-center gap-2">
                 <span
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: e.color }}
+                  style={{ backgroundColor: STATUS_COLOR_MAP[e.status] }}
                 />
                 <div>
                   <p
@@ -502,8 +530,7 @@ const Calendar = () => {
                     {e.title}
                   </p>
                   <p className="text-sm text-gray-700">
-                    {formatUTC(e.dueDate)}
-                    {/* {e.allDay ? e.start.split("T")[0] : formatUTC(e.start)} */}
+                    {e.dueDate ? formatUTC(e.dueDate) : "期限なし"}
                   </p>
                 </div>
               </div>
@@ -592,6 +619,7 @@ const Calendar = () => {
                 allDay,
                 priority: "medium",
                 status: "active",
+                source: "user", // FIX: Explicitly set source
               },
               true
             );
@@ -602,14 +630,7 @@ const Calendar = () => {
               openModal(event);
             }
           }}
-          eventDrop={(info) => {
-            const updated = events.map((e) =>
-              e.id === info.event.id
-                ? { ...e, start: info.event.startStr, end: info.event.endStr }
-                : e
-            );
-            saveEvents(updated, "イベントを移動しました 🔄");
-          }}
+          eventDrop={handleEventDrop} // FIX: Use new handler
           height="auto"
           contentHeight="auto"
         />
@@ -642,16 +663,34 @@ const Calendar = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              {modal.isNew ? "📝 新規イベント" : "✏️ イベント編集"}
+              {modal.event?.source === "task" 
+                ? "📋 タスク詳細" 
+                : modal.isNew 
+                ? "📅 新規イベント" 
+                : "✏️ イベント編集"}
             </h3>
+
+            {/* FIX: Show task warning */}
+            {modal.event?.source === "task" && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-800 px-3 py-2 rounded mb-3 text-sm">
+                ℹ️ タスク情報は参照のみです。編集するには、タスク管理画面をご利用ください。
+              </div>
+            )}
 
             {modalReady && modal.event && (
               <div className="text-xs text-gray-500 mb-3">
-                {modal.event.allDay
-                  ? `${modal.event.start} ～ ${modal.event.end}`
-                  : `${formatUTC(modal.event.start)} ～ ${formatUTC(
-                      modal.event.end
-                    )}`}
+                {modal.event.source === "task" ? (
+                  // For tasks, show start date and due date labels
+                  <>
+                    <div>開始: {modal.event.start ? formatUTC(modal.event.start) : "未設定"}</div>
+                    <div>期限: {modal.event.end ? formatUTC(modal.event.end) : "未設定"}</div>
+                  </>
+                ) : (
+                  // For events, show range
+                  modal.event.allDay
+                    ? `${modal.event.start} 〜 ${modal.event.end}`
+                    : `${formatUTC(modal.event.start)} 〜 ${formatUTC(modal.event.end)}`
+                )}
               </div>
             )}
 
@@ -664,6 +703,7 @@ const Calendar = () => {
                 className="w-full p-2 border rounded"
                 value={modal.event.title}
                 onChange={(e) => updateEvent("title", e.target.value)}
+                disabled={modal.event?.source === "task"} // FIX: Disable for tasks
               />
             </div>
 
@@ -688,6 +728,7 @@ const Calendar = () => {
                   maxDate={
                     modal.event.end ? dayjs.utc(modal.event.end) : undefined
                   }
+                  disabled={modal.event?.source === "task"} // FIX: Disable for tasks
                   slotProps={{ textField: { fullWidth: true, size: "small" } }}
                 />
               </div>
@@ -710,6 +751,7 @@ const Calendar = () => {
                   minDate={
                     modal.event.start ? dayjs(modal.event.start) : undefined
                   }
+                  disabled={modal.event?.source === "task"} // FIX: Disable for tasks
                   slotProps={{ textField: { fullWidth: true, size: "small" } }}
                 />
               </div>
@@ -720,6 +762,7 @@ const Calendar = () => {
                 id="allDayCheckbox"
                 type="checkbox"
                 checked={modal.event.allDay || false}
+                disabled={modal.event?.source === "task"} // FIX: Disable for tasks
                 onChange={(e) => {
                   const isAllDay = e.target.checked;
                   setModal((p) => ({
@@ -753,6 +796,7 @@ const Calendar = () => {
                 className="w-full p-2 border rounded"
                 value={modal.event.status || "active"}
                 onChange={(e) => updateEvent("status", e.target.value)}
+                disabled={modal.event?.source === "task"}
               >
                 <option value="active">進行中</option>
                 <option value="completed">完了</option>
@@ -777,11 +821,33 @@ const Calendar = () => {
                       className="w-full p-2 border rounded"
                       value={modal.event.priority || "medium"}
                       onChange={(e) => updateEvent("priority", e.target.value)}
+                      disabled={modal.event?.source === "task"}
                     >
                       <option value="high">高</option>
                       <option value="medium">中</option>
                       <option value="low">低</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600 block mb-1">
+                      色
+                    </label>
+                    <div className="flex gap-2">
+                      {["#3b82f6", "#22c55e", "#f59e0b", "#ef4444"].map((color) => (
+                        <button
+                          key={color}
+                          className={`w-8 h-8 rounded-full border-2 ${
+                            modal.event.color === color
+                              ? "border-gray-800 scale-110"
+                              : "border-gray-300"
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() => updateEvent("color", color)}
+                          disabled={modal.event?.source === "task"}
+                        />
+                      ))}
+                    </div>
                   </div>
 
                   <div>
@@ -793,14 +859,26 @@ const Calendar = () => {
                       rows={3}
                       value={modal.event.comment || ""}
                       onChange={(e) => updateEvent("comment", e.target.value)}
+                      disabled={modal.event?.source === "task"}
                     />
                   </div>
+
+                  {modal.event?.source === "task" && modal.event.description && (
+                    <div>
+                      <label className="text-sm text-gray-600 block mb-1">
+                        タスク詳細
+                      </label>
+                      <div className="w-full p-2 border rounded bg-gray-50 text-sm text-gray-700">
+                        {modal.event.description}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             <div className="mt-5 flex justify-between items-center">
-              {!modal.isNew && (
+              {!modal.isNew && modal.event?.source !== "task" && (
                 <button
                   onClick={handleDelete}
                   className="px-3 py-1.5 bg-red-500 text-white rounded hover:bg-red-600"
@@ -816,12 +894,14 @@ const Calendar = () => {
                 >
                   キャンセル
                 </button>
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-1.5 bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 hover:from-blue-700 hover:via-blue-800 hover:to-blue-900 text-white text-lg font-bold cursor-pointer rounded hover:bg-blue-700"
-                >
-                  保存
-                </button>
+                {modal.event?.source !== "task" && (
+                  <button
+                    onClick={handleSave}
+                    className="px-4 py-1.5 bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 hover:from-blue-700 hover:via-blue-800 hover:to-blue-900 text-white text-lg font-bold cursor-pointer rounded hover:bg-blue-700"
+                  >
+                    保存
+                  </button>
+                )}
               </div>
             </div>
           </div>

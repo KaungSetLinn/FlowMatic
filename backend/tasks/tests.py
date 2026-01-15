@@ -342,3 +342,38 @@ class TaskAPITests(APITestCase):
             task_data["parent_tasks"][0]["task_id"], str(parent_task.task_id)
         )
         self.assertEqual(task_data["parent_tasks"][0]["relation_type"], "StF")
+
+        # Check that email and profile_picture are included in users
+        user_data = next(
+            user for user in task_data["users"] if user["user_id"] == self.user.pk
+        )
+        self.assertIn("email", user_data)
+        self.assertIn("profile_picture", user_data)
+        self.assertEqual(user_data["email"], self.user.email)
+
+    def test_task_comment_includes_email_and_profile_picture(self):
+        """タスクコメントでユーザーのemailとprofile_pictureが含まれるテスト"""
+        task = Task.objects.create(
+            project=self.project,
+            name="Test Task",
+            deadline=timezone.now() + timezone.timedelta(days=7),
+            status=TaskStatus.TODO,
+        )
+        task.assigned_users.add(self.user)
+
+        from .models import TaskComment
+
+        TaskComment.objects.create(task=task, user=self.user, content="Test comment")
+
+        url = f"/api/projects/{self.project.project_id}/tasks/"
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        task_data = next(
+            task for task in response.data["tasks"] if task["name"] == "Test Task"
+        )
+        self.assertGreater(len(task_data["comments"]), 0)
+        comment = task_data["comments"][0]
+        self.assertIn("email", comment)
+        self.assertIn("profile_picture", comment)
+        self.assertEqual(comment["email"], self.user.email)

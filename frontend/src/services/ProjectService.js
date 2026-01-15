@@ -2,7 +2,7 @@ import api from "../api";
 
 export async function createProject(projectData) {
   try {
-    const response = await api.post('/api/projects/', projectData);
+    const response = await api.post('/api/projects/', projectData); 
     return response.data;
   } catch (error) {
     console.error("API Error:", error);
@@ -13,7 +13,7 @@ export async function createProject(projectData) {
 export async function getProjects() {
   try {
     const response = await api.get('/api/projects/');
-    return response.data;
+    return response.data.projects;
   } catch (error) {
     console.error("API Error:", error);
     throw error;
@@ -28,4 +28,17 @@ export async function getProjectById(projectId) {
     console.error("API Error:", error);
     throw error;
   } 
+}
+
+export async function updateProject(projectId, projectData) {
+  try {
+    const response = await api.put(
+      `/api/projects/${projectId}/`,
+      projectData
+    );
+    return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
 }
