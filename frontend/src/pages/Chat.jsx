@@ -101,33 +101,16 @@ const Chat = () => {
 
   // 選択されたチャットルームのメッセージを読み込む + ポーリング
   useEffect(() => {
-    if (!currentProjectId || !selectedChat) return;
+    const loadInitialMessages = async () => {
+      if (!currentProjectId || !selectedChat) return;
 
-    const token = localStorage.getItem(ACCESS_TOKEN);
-    // console.log(token)
+      try {
+        const res = await getMessages(currentProjectId, selectedChat, 1, 50);
 
-    const wsUrl = `ws://localhost:8000/ws/chat/${currentProjectId}/${selectedChat}/?token=${token}`;
-    const socket = new WebSocket(wsUrl);
-
-    socketRef.current = socket;
-
-    socket.onopen = () => {
-      console.log("WebSocket connected");
-
-      // Optional: explicitly join room (your consumer supports it)
-      socket.send(JSON.stringify({ type: "join_room" }));
-    };
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === "chat_message") {
-        const msg = data.message;
-
-        const formattedMessage = {
+        const formatted = res.messages.map((msg) => ({
           id: msg.message_id,
           userId: msg.user_id,
-          userName: msg.username,
+          userName: msg.username || msg.name,
           profilePicture: msg.profile_picture,
           text: msg.content,
           time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
@@ -137,36 +120,106 @@ const Chat = () => {
           date: new Date(msg.timestamp).toLocaleDateString("ja-JP"),
           self: msg.user_id === user.id,
           reactions: {},
-        };
+        }));
 
         setAllMessages((prev) => ({
           ...prev,
-          [selectedChat]: [...(prev[selectedChat] || []), formattedMessage],
+          [selectedChat]: formatted,
         }));
-      }
-
-      if (data.type === "typing") {
-        // future: typing indicator
+      } catch (err) {
+        console.error("Failed to load messages", err);
       }
     };
 
+    loadInitialMessages();
+  }, [currentProjectId, selectedChat]);
+
+  useEffect(() => {
+    if (!currentProjectId || !selectedChat) return;
+
+    const token = localStorage.getItem(ACCESS_TOKEN);
+    const wsUrl = `ws://localhost:8000/ws/chat/${currentProjectId}/${selectedChat}/?token=${token}`;
+
+    const socket = new WebSocket(wsUrl);
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      console.log("✅ WebSocket connected");
+
+      socket.send(
+        JSON.stringify({
+          type: "join_room",
+        })
+      );
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type !== "message") return;
+
+      const msg = data.message;
+
+      // safety: ignore messages for other rooms
+      if (msg.chatroom_id !== selectedChat) return;
+
+      const formattedMessage = {
+        id: msg.message_id,
+        userId: msg.user_id,
+        userName: msg.username || msg.name,
+        profilePicture: msg.profile_picture,
+        text: msg.content,
+        time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        date: new Date(msg.timestamp).toLocaleDateString("ja-JP"),
+        self: msg.user_id === user.id,
+        reactions: {},
+      };
+
+      setAllMessages((prev) => {
+        const existing = prev[selectedChat] || [];
+
+        // prevent duplicates
+        if (existing.some((m) => m.id === formattedMessage.id)) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [selectedChat]: [...existing, formattedMessage],
+        };
+      });
+    };
+
+    socket.onerror = (err) => {
+      console.error("❌ WebSocket error", err);
+    };
+
     socket.onclose = () => {
-      console.log("WebSocket disconnected");
+      console.log("🔌 WebSocket disconnected");
     };
 
     return () => {
       socket.close();
     };
-  }, [currentProjectId, selectedChat]);
+  }, [currentProjectId, selectedChat, user.id]);
 
   // メッセージ送信
   const handleSendMessage = () => {
-    if (!messageInput.trim() || !socketRef.current) return;
+    if (
+      !messageInput.trim() ||
+      !socketRef.current ||
+      socketRef.current.readyState !== WebSocket.OPEN
+    ) {
+      return;
+    }
 
     socketRef.current.send(
       JSON.stringify({
-        type: "chat_message",
-        content: messageInput,
+        type: "message", // ✅ MUST be "message"
+        content: messageInput, // ✅ backend expects this
       })
     );
 
