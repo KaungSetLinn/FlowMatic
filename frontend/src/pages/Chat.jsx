@@ -64,6 +64,12 @@ const Chat = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [currentMessages]);
+
   // チャットルーム一覧を読み込む
   useEffect(() => {
     const loadChatrooms = async () => {
@@ -364,7 +370,7 @@ const Chat = () => {
 
   return (
     <div
-      className="flex w-full bg-white mb-4 rounded-xl shadow-lg overflow-hidden"
+      className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden"
       onClick={closeMenu}
       style={{ height: "calc(100vh - 100px)" }} // 親コンテナの高さを設定
     >
