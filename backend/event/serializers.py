@@ -35,18 +35,20 @@ class EventCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         start_date = attrs.get("start_date")
         end_date = attrs.get("end_date")
-        title = attrs.get("title", "").strip()
 
-        if not title:
-            self.fail("blank_title")
-        attrs["title"] = title
+        if "title" in attrs:
+            title = attrs["title"].strip()
+            if not title:
+                self.fail("blank_title")
+            attrs["title"] = title
 
         if start_date and end_date and end_date < start_date:
             self.fail("invalid_date_range")
 
-        color = attrs.get("color")
-        if color not in [c.value for c in EventColor]:
-            self.fail("invalid_color")
+        if "color" in attrs:
+            color = attrs["color"]
+            if color not in [c.value for c in EventColor]:
+                self.fail("invalid_color")
 
         return attrs
 

@@ -8,7 +8,6 @@ from rest_framework.views import APIView
 from projects.models import Project
 from .models import Event
 from .serializers import EventCreateSerializer, EventResponseSerializer
-from notifications.utils import create_event_notification
 
 
 class ProjectEventListCreateView(APIView):
@@ -89,11 +88,6 @@ class ProjectEventListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         event = serializer.save()
 
-        # Create notifications for project members (except creator)
-        for member in project.members.all():
-            if member != request.user:
-                create_event_notification(member, event, "created")
-
         response_serializer = EventResponseSerializer(event)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -137,6 +131,22 @@ class EventDetailView(APIView):
         updated_event = serializer.save()
 
         response_serializer = EventResponseSerializer(event)
+        return Response(response_serializer.data)
+
+    def patch(self, request, project_id: str, event_id: str) -> Response:
+        event = self._get_event(project_id, event_id)
+        serializer = EventCreateSerializer(
+            instance=event,
+            data=request.data,
+            partial=True,
+            context={"project": event.project, "request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # Update the event using the serializer's update method
+        updated_event = serializer.save()
+
+        response_serializer = EventResponseSerializer(updated_event)
         return Response(response_serializer.data)
 
     def delete(self, request, project_id: str, event_id: str) -> Response:

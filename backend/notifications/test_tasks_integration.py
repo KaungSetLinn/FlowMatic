@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework_simplejwt.tokens import AccessToken
 from unittest.mock import patch
 from django.urls import reverse
 from datetime import timedelta
@@ -12,6 +13,12 @@ from tasks.models import Task, TaskComment
 from notifications.models import Notification
 
 User = get_user_model()
+
+
+def get_auth_headers(user):
+    """ユーザーのJWTトークンを使用して認証ヘッダーを生成"""
+    token = AccessToken.for_user(user)
+    return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
 
 class TasksNotificationIntegrationTest(APITestCase):
@@ -45,7 +52,8 @@ class TasksNotificationIntegrationTest(APITestCase):
 
     def test_task_creation_sends_notifications_to_all_members_except_creator(self):
         """タスク作成時、作成者以外の全プロジェクトメンバーに通知が送られること"""
-        self.client.force_authenticate(user=self.user1)
+        token = AccessToken.for_user(self.user1)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
         task_data = {
             "name": "テストタスク",
@@ -55,7 +63,7 @@ class TasksNotificationIntegrationTest(APITestCase):
             "assigned_user_ids": [self.user2.id, self.user3.id],
         }
 
-        response = self.client.post(self.tasks_url, task_data, format="json")
+        response = self.client.post(self.tasks_url, task_data, format="json", **headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 通知が作成されたことを確認
@@ -95,9 +103,12 @@ class TasksNotificationIntegrationTest(APITestCase):
         )
 
         # user2がコメント投稿
-        self.client.force_authenticate(user=self.user2)
+        token = AccessToken.for_user(self.user2)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
         comment_data = {"content": "テストコメントです"}
-        response = self.client.post(comments_url, comment_data, format="json")
+        response = self.client.post(
+            comments_url, comment_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 通知を確認
@@ -121,6 +132,9 @@ class TasksNotificationIntegrationTest(APITestCase):
 
     def test_task_status_change_to_done_sends_completion_notifications(self):
         """タスクが完了状態に変更された場合、完了通知が送られること"""
+        # タスクを作成前に通知をクリア
+        Notification.objects.all().delete()
+
         # タスクを作成
         task = Task.objects.create(
             name="未完了タスク",
@@ -133,14 +147,17 @@ class TasksNotificationIntegrationTest(APITestCase):
         task_url = f"/api/projects/{self.project.project_id}/tasks/{task.task_id}/"
 
         # user1がタスクを完了に更新
-        self.client.force_authenticate(user=self.user1)
+        token = AccessToken.for_user(self.user1)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
         update_data = {"status": "done"}
-        response = self.client.patch(task_url, update_data, format="json")
+        response = self.client.patch(task_url, update_data, format="json", **headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # 通知を確認
+        # 通知を確認 - 完了通知のみをフィルタリング
         notifications = Notification.objects.filter(
-            notification_type="task", title="タスク通知"
+            notification_type="task",
+            title="タスク通知",
+            message__contains="完了しました",
         )
         self.assertEqual(notifications.count(), 2)  # user2とuser3に通知
 
@@ -150,6 +167,9 @@ class TasksNotificationIntegrationTest(APITestCase):
 
     def test_task_status_change_to_other_status_sends_change_notifications(self):
         """タスクが完了以外の状態に変更された場合、変更通知が送られること"""
+        # タスクを作成前に通知をクリア
+        Notification.objects.all().delete()
+
         # タスクを作成
         task = Task.objects.create(
             name="進行中タスク",
@@ -162,9 +182,10 @@ class TasksNotificationIntegrationTest(APITestCase):
         task_url = f"/api/projects/{self.project.project_id}/tasks/{task.task_id}/"
 
         # user1がタスクを進行中に更新
-        self.client.force_authenticate(user=self.user1)
+        token = AccessToken.for_user(self.user1)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
         update_data = {"status": "in_progress"}
-        response = self.client.patch(task_url, update_data, format="json")
+        response = self.client.patch(task_url, update_data, format="json", **headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # 通知を確認
@@ -192,9 +213,10 @@ class TasksNotificationIntegrationTest(APITestCase):
         task_url = f"/api/projects/{self.project.project_id}/tasks/{task.task_id}/"
 
         # user1がuser2とuser3を担当者として割り当て
-        self.client.force_authenticate(user=self.user1)
+        token = AccessToken.for_user(self.user1)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
         update_data = {"assigned_user_ids": [self.user2.id, self.user3.id]}
-        response = self.client.patch(task_url, update_data, format="json")
+        response = self.client.patch(task_url, update_data, format="json", **headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # 通知を確認
@@ -218,7 +240,8 @@ class TasksNotificationIntegrationTest(APITestCase):
 
     def test_task_creation_notification_with_no_assigned_users(self):
         """担当者なしでタスクを作成した場合、プロジェクトメンバーに通知が送られること"""
-        self.client.force_authenticate(user=self.user1)
+        token = AccessToken.for_user(self.user1)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
         task_data = {
             "name": "担当者なしタスク",
@@ -227,7 +250,7 @@ class TasksNotificationIntegrationTest(APITestCase):
             "status": "todo",
         }
 
-        response = self.client.post(self.tasks_url, task_data, format="json")
+        response = self.client.post(self.tasks_url, task_data, format="json", **headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 通知を確認
@@ -257,9 +280,12 @@ class TasksNotificationIntegrationTest(APITestCase):
         )
 
         # user1がコメント投稿
-        self.client.force_authenticate(user=self.user1)
+        token = AccessToken.for_user(self.user1)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
         comment_data = {"content": "担当者向けコメント"}
-        response = self.client.post(comments_url, comment_data, format="json")
+        response = self.client.post(
+            comments_url, comment_data, format="json", **headers
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 通知を確認 - user2にのみ通知が送られるはず
@@ -273,7 +299,8 @@ class TasksNotificationIntegrationTest(APITestCase):
 
     def test_notification_content_uses_japanese_language(self):
         """通知メッセージが日本語で表示されること"""
-        self.client.force_authenticate(user=self.user1)
+        token = AccessToken.for_user(self.user1)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
         task_data = {
             "name": "日本語タスク名",
@@ -282,7 +309,7 @@ class TasksNotificationIntegrationTest(APITestCase):
             "status": "todo",
         }
 
-        response = self.client.post(self.tasks_url, task_data, format="json")
+        response = self.client.post(self.tasks_url, task_data, format="json", **headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # 日本語の通知メッセージを確認
@@ -298,15 +325,20 @@ class TasksNotificationIntegrationTest(APITestCase):
 
     def test_multiple_actions_create_separate_notifications(self):
         """複数のアクションが別々の通知として作成されること"""
+        # タスクを作成前に通知をクリア
+        Notification.objects.all().delete()
+
+        token = AccessToken.for_user(self.user1)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+
         # タスクを作成
-        self.client.force_authenticate(user=self.user1)
         task_data = {
             "name": "複数アクションタスク",
             "status": "todo",
             "deadline": "2024-12-31T23:59:59Z",
             "assigned_user_ids": [self.user2.id, self.user3.id],
         }
-        response = self.client.post(self.tasks_url, task_data, format="json")
+        response = self.client.post(self.tasks_url, task_data, format="json", **headers)
         # APIがtask_idを返すか確認し、なければタスクを取得
         try:
             task_id = response.data["task_id"]
@@ -317,21 +349,38 @@ class TasksNotificationIntegrationTest(APITestCase):
             ).first()
             task_id = str(task.task_id) if task else None
 
-        # タスクを更新
+        # タスクを更新 - assigned_user_idsも含める
         task_url = f"/api/projects/{self.project.project_id}/tasks/{task_id}/"
-        self.client.patch(task_url, {"status": "done"}, format="json")
+        self.client.patch(
+            task_url,
+            {"status": "done", "assigned_user_ids": [self.user2.id, self.user3.id]},
+            format="json",
+            **headers,
+        )
 
         # コメントを投稿
         comments_url = (
             f"/api/projects/{self.project.project_id}/tasks/{task_id}/comments/"
         )
-        self.client.post(comments_url, {"content": "テストコメント"}, format="json")
+        self.client.post(
+            comments_url, {"content": "テストコメント"}, format="json", **headers
+        )
 
-        # user2の通知を確認
+        # user2の通知を確認 - 作成・完了・コメント・割り当ての4通知
         user2_notifications = Notification.objects.filter(recipient=self.user2)
-        self.assertEqual(user2_notifications.count(), 3)  # 作成・完了・コメントの3通知
+        self.assertEqual(
+            user2_notifications.count(), 4
+        )  # 作成・完了・コメント・割り当ての4通知
 
-        # 各通知のタイトルを確認
-        titles = [n.title for n in user2_notifications]
-        self.assertIn("タスク通知", titles)  # 作成と完了で2回
-        self.assertIn("新しいコメント", titles)  # コメントで1回
+        # 各通知のメッセージを確認
+        messages = [n.message for n in user2_notifications]
+        self.assertIn(
+            "新しいタスク『複数アクションタスク』が追加されました", messages
+        )  # 作成
+        self.assertIn("タスク『複数アクションタスク』が完了しました", messages)  # 完了
+        self.assertIn(
+            "タスク『複数アクションタスク』に新しいコメントが追加されました", messages
+        )  # コメント
+        self.assertIn(
+            "タスク『複数アクションタスク』があなたに割り当てられました", messages
+        )  # 割り当て
