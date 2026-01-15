@@ -131,7 +131,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_messages(self, chatroom):
-        return list(chatroom.messages.all())
+        return list(chatroom.messages.all().select_related("user", "chatroom"))
 
     @database_sync_to_async
     def save_message(self, content):
