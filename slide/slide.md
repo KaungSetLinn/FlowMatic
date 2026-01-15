@@ -98,7 +98,6 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 ✓ 直感的な操作　✓ ラーニングカーブなし　✓ すぐに使える
 </div>
 
-// TODO: よりタスクでいっぱいの画面にする
 
 ---
 <!-- _class: content -->
