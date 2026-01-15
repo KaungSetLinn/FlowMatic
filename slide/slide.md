@@ -110,7 +110,7 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
   |---|---:|---:|
   | 解析ファイル数 | 503 | 26 |
   | ボタンの数 | 497 | 85 |
-  | リンク | 85 | 2 |
+  | リンクの数 | 85 | 2 |
 
 </div>
 
