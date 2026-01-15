@@ -1,7 +1,7 @@
 // Chat.jsx
 import { useState, useRef, useEffect } from "react";
 import EmojiPicker from "emoji-picker-react";
-import { CURRENT_PROJECT_ID } from "../constants";
+import { ACCESS_TOKEN, CURRENT_PROJECT_ID } from "../constants";
 import { getChatrooms, getMessages } from "../services/ChatService";
 import api from "../api";
 import { useProject } from "../context/ProjectContext";
@@ -33,6 +33,8 @@ const Chat = () => {
   const { user } = useAuth();
   const { currentProject } = useProject();
   const currentProjectId = currentProject?.project_id;
+
+  const socketRef = useRef(null);
 
   const [chats, setChats] = useState([]);
   const [allMessages, setAllMessages] = useState({});
@@ -99,19 +101,33 @@ const Chat = () => {
 
   // 選択されたチャットルームのメッセージを読み込む + ポーリング
   useEffect(() => {
-    const loadMessages = async () => {
-      if (!currentProjectId || !selectedChat) return;
+    if (!currentProjectId || !selectedChat) return;
 
-      try {
-        setIsLoading(true);
-        const response = await getMessages(currentProjectId, selectedChat);
+    const token = localStorage.getItem(ACCESS_TOKEN);
+    // console.log(token)
 
-        console.log("messages: ", response);
+    const wsUrl = `ws://localhost:8000/ws/chat/${currentProjectId}/${selectedChat}/?token=${token}`;
+    const socket = new WebSocket(wsUrl);
 
-        const formattedMessages = response.messages.map((msg) => ({
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      console.log("WebSocket connected");
+
+      // Optional: explicitly join room (your consumer supports it)
+      socket.send(JSON.stringify({ type: "join_room" }));
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "chat_message") {
+        const msg = data.message;
+
+        const formattedMessage = {
           id: msg.message_id,
           userId: msg.user_id,
-          userName: msg.name || `User ${msg.user_id}`,
+          userName: msg.username,
           profilePicture: msg.profile_picture,
           text: msg.content,
           time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
@@ -119,90 +135,43 @@ const Chat = () => {
             minute: "2-digit",
           }),
           date: new Date(msg.timestamp).toLocaleDateString("ja-JP"),
-          self: msg.user_id === user.id ? true : false,
-          replyTo: null,
-          reaction: null,
+          self: msg.user_id === user.id,
           reactions: {},
-        }));
+        };
 
         setAllMessages((prev) => ({
           ...prev,
-          [selectedChat]: formattedMessages,
+          [selectedChat]: [...(prev[selectedChat] || []), formattedMessage],
         }));
+      }
 
-        setCurrentPage(1);
-        setHasMore(response.messages.length === 50);
-      } catch (error) {
-        console.error("メッセージの読み込みに失敗しました:", error);
-      } finally {
-        setIsLoading(false);
+      if (data.type === "typing") {
+        // future: typing indicator
       }
     };
 
-    loadMessages();
+    socket.onclose = () => {
+      console.log("WebSocket disconnected");
+    };
 
-    const pollInterval = setInterval(loadMessages, 5000);
-
-    return () => clearInterval(pollInterval);
+    return () => {
+      socket.close();
+    };
   }, [currentProjectId, selectedChat]);
 
   // メッセージ送信
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !currentProjectId || !selectedChat) return;
+  const handleSendMessage = () => {
+    if (!messageInput.trim() || !socketRef.current) return;
 
-    try {
-      const user_id = user.id;
-
-      const messageData = {
-        user_id: user_id,
+    socketRef.current.send(
+      JSON.stringify({
+        type: "chat_message",
         content: messageInput,
-      };
+      })
+    );
 
-      const response = await api.post(
-        `/api/projects/${currentProjectId}/chatrooms/${selectedChat}/messages/`,
-        messageData
-      );
-
-      const newMessage = response.data;
-
-      const formattedMessage = {
-        id: newMessage.message_id,
-        user: "自分",
-        text: newMessage.content,
-        time: new Date(newMessage.timestamp).toLocaleTimeString("ja-JP", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        date: new Date(newMessage.timestamp).toLocaleDateString("ja-JP"),
-        self: true,
-        replyTo: replyTo || null,
-        reaction: null,
-        reactions: {},
-      };
-
-      setAllMessages((prev) => ({
-        ...prev,
-        [selectedChat]: [...(prev[selectedChat] || []), formattedMessage],
-      }));
-
-      setMessageInput("");
-      setReplyTo(null);
-
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.chatroom_id === selectedChat
-            ? { ...chat, lastMessage: messageData.content, timestamp: "今" }
-            : chat
-        )
-      );
-    } catch (error) {
-      console.error("メッセージの送信に失敗しました:", error);
-      alert("メッセージの送信に失敗しました。もう一度お試しください。");
-    }
+    setMessageInput("");
+    setReplyTo(null);
   };
 
   // 編集開始 / 保存
