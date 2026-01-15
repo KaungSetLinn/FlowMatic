@@ -64,9 +64,9 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 ## メンバー
  
 **フロントエンド**
-カゥン セッリン
+カゥン セッリン 
 足立 晴哉
-日並 春
+日並 春  
 
 **バックエンド**
 照内 颯馬
