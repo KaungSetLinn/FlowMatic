@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_extensions",
     "files",
+    "memos"
 ]
 
 MIDDLEWARE = [
