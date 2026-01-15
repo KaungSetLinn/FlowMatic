@@ -199,6 +199,12 @@ const AccountSettings = () => {
   };
 
   const removeProfilePicture = async () => {
+    const confirmed = window.confirm(
+      "プロフィール画像を削除してもよろしいですか？"
+    );
+
+    if (!confirmed) return;
+
     try {
       setUserData((prev) => ({
         ...prev,

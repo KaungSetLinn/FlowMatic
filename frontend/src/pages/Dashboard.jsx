@@ -5,6 +5,10 @@ import { useAuth } from "../context/AuthContext";
 import { getEvents } from "../services/EventService";
 import { formatDateJP, formatUTC } from "../utils/dateUtils";
 import CreateMemoModal from "./CreateMemoModal";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCirclePlus } from "@fortawesome/free-solid-svg-icons";
+import { Link } from "react-router-dom";
+import ProjectRequired from "../components/ProjectRequired";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -283,6 +287,11 @@ const Dashboard = () => {
     (summary.completedTasks / (summary.completedTasks + summary.activeTasks)) *
       100
   );
+
+  // プロジェクトが存在しない、または選択されていない場合
+  if (!projects || projects.length === 0 || !currentProject) {
+    return <ProjectRequired />;
+  }
 
   return (
     <div className="min-h-screen p-4 md:p-6">

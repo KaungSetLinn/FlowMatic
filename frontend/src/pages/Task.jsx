@@ -20,11 +20,12 @@ import { CURRENT_PROJECT_ID } from "../constants";
 import { useAuth } from "../context/AuthContext";
 import { createComment } from "../services/CommentService";
 import { resolveImageUrl } from "../utils/resolveImageUrl";
+import ProjectRequired from "../components/ProjectRequired";
 
 const Task = () => {
   const { user } = useAuth();
-  const { currentProject, refreshProjects } = useProject();
-  const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
+  const { projects, currentProject, refreshProjects } = useProject();
+  const currentProjectId = currentProject?.project_id;
 
   // For testing
   const [tasks, setTasks] = useState([]);
@@ -103,6 +104,12 @@ const Task = () => {
 
   useEffect(() => {
     const loadTasks = async () => {
+      if (!currentProjectId) {
+        setTasks([]);
+        setLoading(false); // ✅ IMPORTANT
+        return;
+      }
+
       try {
         const response = await getTasks(currentProjectId);
 
@@ -259,6 +266,22 @@ const Task = () => {
 
   if (loading)
     return <div className="p-6 text-gray-600">タスクの読み込み中...</div>;
+
+  if (!projects || projects.length === 0 || !currentProject) {
+    return (
+      <ProjectRequired
+        icon="📝"
+        title="タスクを管理するプロジェクトがありません"
+        description={
+          <>
+            タスクを表示するには、まずプロジェクトを作成、
+            <br />
+            または選択してください。
+          </>
+        }
+      />
+    );
+  }
 
   return (
     <div className="mx-auto md:p-6 space-y-10">

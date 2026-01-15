@@ -13,6 +13,7 @@ import {
   faTrash,
   faSortUp,
   faSortDown,
+  faCirclePlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { useProject } from "../context/ProjectContext";
 import {
@@ -23,6 +24,8 @@ import {
 } from "../services/FileService";
 import { resolveImageUrl } from "../utils/resolveImageUrl";
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
+import ProjectRequired from "../components/ProjectRequired";
 
 const Files = () => {
   const { user } = useAuth();
@@ -33,7 +36,7 @@ const Files = () => {
   const [sortKey, setSortKey] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
 
-  const { currentProject } = useProject();
+  const { projects, currentProject } = useProject();
 
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,8 +50,9 @@ const Files = () => {
   };
 
   useEffect(() => {
+    if (!currentProject) return;
     loadFiles();
-  }, [currentProject.project_id]);
+  }, [currentProject]);
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -146,6 +150,23 @@ const Files = () => {
     if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
     return 0;
   });
+
+  // プロジェクトが存在しない、または選択されていない場合
+  if (!projects || projects.length === 0 || !currentProject) {
+    return (
+      <ProjectRequired
+        icon="📂"
+        title="プロジェクトが選択されていません"
+        description={
+          <>
+            ファイルを管理するには、
+            <br />
+            まずプロジェクトを作成、または選択してください。
+          </>
+        }
+      />
+    );
+  }
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 bg-gray-50 min-h-screen">
