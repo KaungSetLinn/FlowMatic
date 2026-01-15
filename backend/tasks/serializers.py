@@ -8,10 +8,15 @@ User = get_user_model()
 class AssignedUserSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source="pk")
     name = serializers.CharField(source="username")
+    email = serializers.EmailField()
+    profile_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["user_id", "name"]
+        fields = ["user_id", "name", "email", "profile_picture"]
+
+    def get_profile_picture(self, obj):
+        return obj.profile_picture.url if obj.profile_picture else None
 
 
 class TaskRelationInputSerializer(serializers.Serializer):
@@ -125,22 +130,16 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
 
 class TaskCommentCreateSerializer(serializers.ModelSerializer):
-    user_id = serializers.IntegerField(write_only=True)
-
     class Meta:
         model = TaskComment
-        fields = ["user_id", "content"]
-
-    def validate_user_id(self, value):
-        if not User.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("User with this ID does not exist.")
-        return value
+        fields = ["content"]
 
     def create(self, validated_data):
         task = self.context["task"]
-        user_id = validated_data.pop("user_id")
-        user = User.objects.get(pk=user_id)
-        comment = TaskComment.objects.create(task=task, user=user, **validated_data)
+        request = self.context["request"]
+        comment = TaskComment.objects.create(
+            task=task, user=request.user, **validated_data
+        )
         return comment
 
 
@@ -148,10 +147,24 @@ class TaskCommentResponseSerializer(serializers.ModelSerializer):
     task_id = serializers.UUIDField(source="task.task_id", read_only=True)
     user_id = serializers.IntegerField(source="user.pk", read_only=True)
     name = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    profile_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = TaskComment
-        fields = ["comment_id", "task_id", "user_id", "name", "content", "created_at"]
+        fields = [
+            "comment_id",
+            "task_id",
+            "user_id",
+            "name",
+            "email",
+            "profile_picture",
+            "content",
+            "created_at",
+        ]
+
+    def get_profile_picture(self, obj):
+        return obj.user.profile_picture.url if obj.user.profile_picture else None
 
 
 class TaskCommentListSerializer(serializers.ModelSerializer):
@@ -162,7 +175,91 @@ class TaskCommentListSerializer(serializers.ModelSerializer):
         fields = ["comment_id", "user_id", "content", "created_at", "user"]
 
     def get_user(self, obj):
-        return {"user_id": obj.user.pk, "name": obj.user.username}
+        return {
+            "user_id": obj.user.pk,
+            "name": obj.user.username,
+            "email": obj.user.email,
+            "profile_picture": obj.user.profile_picture.url
+            if obj.user.profile_picture
+            else None,
+        }
+
+
+class TaskUpdateSerializer(serializers.ModelSerializer):
+    assigned_user_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
+
+    class Meta:
+        model = Task
+        fields = [
+            "name",
+            "description",
+            "start_date",
+            "deadline",
+            "priority",
+            "status",
+            "assigned_user_ids",
+        ]
+        extra_kwargs = {
+            "name": {"required": False},
+            "deadline": {"required": False},
+            "start_date": {"required": False},
+        }
+
+    def validate_assigned_user_ids(self, value):
+        if value is None:
+            return []
+        return value
+
+    def validate(self, attrs):
+        project = self.context["project"]
+
+        # Only process assigned_user_ids if present in attrs
+        if "assigned_user_ids" not in attrs:
+            # Do not touch member_objects
+            return attrs
+
+        assigned_user_ids = attrs.get("assigned_user_ids", [])
+
+        # Ensure assigned_user_ids are unique
+        seen = set()
+        unique_user_ids = []
+        for uid in assigned_user_ids:
+            if uid in seen:
+                raise serializers.ValidationError(
+                    {"assigned_user_ids": "Duplicate IDs are not allowed."}
+                )
+            seen.add(uid)
+            unique_user_ids.append(uid)
+
+        users = list(User.objects.filter(pk__in=unique_user_ids)) if unique_user_ids else []
+        if len(users) != len(unique_user_ids):
+            raise serializers.ValidationError(
+                {"assigned_user_ids": "Some assigned_user_ids are invalid."}
+            )
+
+        # Ensure assigned users are all in the project
+        if users:
+            assigned_user_pks = set(
+                project.members.filter(pk__in=unique_user_ids).values_list("pk", flat=True)
+            )
+            if assigned_user_pks != set(unique_user_ids):
+                raise serializers.ValidationError(
+                    {"assigned_user_ids": "All assigned users must be assigned to the project."}
+                )
+
+        attrs["member_objects"] = users
+        return attrs
+
+    def update(self, instance, validated_data):
+        member_objects = validated_data.pop("member_objects", None)
+        if member_objects is not None:
+            instance.assigned_users.set(member_objects)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
 
 
 class TaskResponseSerializer(serializers.ModelSerializer):

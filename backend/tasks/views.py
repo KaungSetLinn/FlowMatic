@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied
 from projects.models import Project
 from .serializers import (
     TaskCreateSerializer,
+    TaskUpdateSerializer,
     TaskResponseSerializer,
     TaskCommentCreateSerializer,
     TaskCommentResponseSerializer,
@@ -52,6 +53,7 @@ class TaskListCreateView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         task = serializer.save()
+
         response_serializer = TaskResponseSerializer(task)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -80,10 +82,11 @@ class TaskCommentCreateView(APIView):
         project = self._get_project(project_id)
         task = self._get_task(project, task_id)
         serializer = TaskCommentCreateSerializer(
-            data=request.data, context={"task": task}
+            data=request.data, context={"task": task, "request": request}
         )
         serializer.is_valid(raise_exception=True)
         comment = serializer.save()
+
         response_serializer = TaskCommentResponseSerializer(comment)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -105,8 +108,68 @@ class TaskCommentListView(APIView):
             raise PermissionDenied("You are not assigned to this project.")
         return task
 
-    def get(self, request, task_id):
-        task = self._get_task(task_id)
-        comments = task.comments.select_related("user").all()
-        serializer = TaskCommentListSerializer(comments, many=True)
-        return Response({"comments": serializer.data}, status=status.HTTP_200_OK)
+
+def get(self, request, task_id):
+    task = self._get_task(task_id)
+    comments = task.comments.select_related("user").all()
+    serializer = TaskCommentListSerializer(comments, many=True)
+    return Response({"comments": serializer.data}, status=status.HTTP_200_OK)
+
+
+class TaskDetailView(APIView):
+    """GET/PUT/PATCH /api/projects/{project_id}/tasks/{task_id} - Get, update, and delete a task.
+
+    Permissions: authenticated user assigned to the project.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_project(self, project_id):
+        project = get_object_or_404(
+            Project.objects.prefetch_related("members"), project_id=project_id
+        )
+        if not project.members.filter(pk=self.request.user.pk).exists():
+            raise PermissionDenied("You are not assigned to this project.")
+        return project
+
+    def _get_task(self, project, task_id):
+        task = get_object_or_404(Task, task_id=task_id, project=project)
+        return task
+
+    def get(self, request, project_id, task_id):
+        project = self._get_project(project_id)
+        task = self._get_task(project, task_id)
+        serializer = TaskResponseSerializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, project_id, task_id):
+        project = self._get_project(project_id)
+        task = self._get_task(project, task_id)
+
+        serializer = TaskUpdateSerializer(
+            instance=task,
+            data=request.data,
+            context={"project": project, "request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        task.refresh_from_db()
+        response_serializer = TaskResponseSerializer(task)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, project_id, task_id):
+        project = self._get_project(project_id)
+        task = self._get_task(project, task_id)
+
+        serializer = TaskUpdateSerializer(
+            instance=task,
+            data=request.data,
+            context={"project": project, "request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        task.refresh_from_db()
+        response_serializer = TaskResponseSerializer(task)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)

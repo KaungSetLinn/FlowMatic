@@ -42,6 +42,10 @@ class Task(models.Model):
         settings.AUTH_USER_MODEL, through="TaskAssignedUser", related_name="tasks"
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._old_status = self.status
+
     def __str__(self):
         return self.name
 

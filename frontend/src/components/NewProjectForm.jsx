@@ -1,3 +1,4 @@
+// NewProjectForm.jsx
 import { faCircleXmark, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { MobileDateTimePicker } from "@mui/x-date-pickers";
@@ -5,9 +6,11 @@ import dayjs from "dayjs";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUsers } from "../services/UserService";
-import { createProject } from "../services/ProjectService";
+import { createProject, getProjectById } from "../services/ProjectService";
+import { createChatroom } from "../services/ChatService"; // Add this import
 import { useAuth } from "../context/AuthContext";
 import { useProject } from "../context/ProjectContext";
+import { CURRENT_PROJECT_ID } from "../constants";
 
 export default function NewProjectForm() {
   const navigate = useNavigate();
@@ -15,7 +18,7 @@ export default function NewProjectForm() {
 
   const { user } = useAuth();
 
-  const { projects, setProjects } = useProject();
+  const { projects, setProjects, setCurrentProject } = useProject();
 
   const [availableMembers, setAvailableMembers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,8 +58,6 @@ export default function NewProjectForm() {
   useEffect(() => {
     inputRef.current?.focus();
 
-    // console.log(user);
-
     const fetchUsers = async () => {
       try {
         const users = await getUsers();
@@ -74,13 +75,14 @@ export default function NewProjectForm() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const loggedInUserId = user.id;
 
     const newMembers = Array.from(
-      new Set([...formData.members, loggedInUserId]) // <— Automatically include yourself
+      new Set([...formData.members, loggedInUserId])
     );
 
     const submitData = {
@@ -90,15 +92,50 @@ export default function NewProjectForm() {
       progress: 0,
       deadline: formData.deadline,
       status: formData.status,
-      members: newMembers, // 🔥 Your ID is always included
+      members: newMembers,
     };
 
-    const newProject = await createProject(submitData);
-    
-    setProjects([...projects, newProject]);
+    try {
+      // Create the project
+      const newProject = await createProject(submitData);
+      console.log("new project : ", newProject);
 
-    alert(newProject.title + "は正常に作成されました");
-    navigate("/project");
+      // Create a chatroom for the new project
+      try {
+        const chatroomData = {
+          name: `${newProject.title} - チャットルーム`,
+          members: newMembers,
+        };
+
+        console.log("Creating chatroom with data:", chatroomData);
+        const newChatroom = await createChatroom(
+          newProject.project_id,
+          chatroomData
+        );
+        console.log("new chatroom : ", newChatroom);
+      } catch (chatroomError) {
+        console.error("Error creating chatroom:", chatroomError);
+        console.error("Chatroom error details:", chatroomError.response?.data);
+        // Note: Project was created successfully, only chatroom creation failed
+        alert(
+          "プロジェクトは作成されましたが、チャットルームの作成に失敗しました"
+        );
+      }
+
+      // ✅ Update projects list
+      const updatedProjects = [...projects, newProject];
+      setProjects(updatedProjects);
+
+      // ✅ Set as current project directly and update localStorage
+      setCurrentProject(newProject);
+      localStorage.setItem(CURRENT_PROJECT_ID, newProject.project_id);
+
+      alert(newProject.title + "は正常に作成されました");
+      navigate("/project");
+    } catch (error) {
+      console.error("Error creating project:", error);
+      alert("プロジェクトの作成に失敗しました");
+    }
   };
 
   const handleDateChange = (name, newValue) => {
@@ -225,7 +262,7 @@ export default function NewProjectForm() {
             </select>
           </div>
 
-          {/* メンバー選択（frontend version kept!) */}
+          {/* メンバー選択 */}
           <div>
             <label className="block text-xl font-bold mb-3">メンバー</label>
 

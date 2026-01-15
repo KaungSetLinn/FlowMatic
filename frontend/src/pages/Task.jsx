@@ -15,15 +15,17 @@ import {
   faUserCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import { useProject } from "../context/ProjectContext";
-import { getTasks } from "../services/TaskService";
+import { getTasks, updateTask } from "../services/TaskService";
 import { CURRENT_PROJECT_ID } from "../constants";
 import { useAuth } from "../context/AuthContext";
 import { createComment } from "../services/CommentService";
+import { resolveImageUrl } from "../utils/resolveImageUrl";
+import ProjectRequired from "../components/ProjectRequired";
 
 const Task = () => {
   const { user } = useAuth();
-  const { currentProject } = useProject();
-  const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
+  const { projects, currentProject, refreshProjects } = useProject();
+  const currentProjectId = currentProject?.project_id;
 
   // For testing
   const [tasks, setTasks] = useState([]);
@@ -36,6 +38,9 @@ const Task = () => {
   const [newComments, setNewComments] = useState({});
 
   const [openCommentsTaskId, setOpenCommentsTaskId] = useState(null);
+
+  // loading state for updating tasks
+  const [updatingTasks, setUpdatingTasks] = useState({});
 
   const addComment = async (projectId, taskId) => {
     const commentText = newComments[taskId] || "";
@@ -99,6 +104,12 @@ const Task = () => {
 
   useEffect(() => {
     const loadTasks = async () => {
+      if (!currentProjectId) {
+        setTasks([]);
+        setLoading(false); // ✅ IMPORTANT
+        return;
+      }
+
       try {
         const response = await getTasks(currentProjectId);
 
@@ -112,7 +123,7 @@ const Task = () => {
           dueDate: task.deadline,
           priority: task.priority,
           status: task.status,
-          assignedUsers: task.users,
+          users: task.users,
           parentTasks: task.parent_tasks,
           comments: task.comments || [], // default empty array
         }));
@@ -140,9 +151,9 @@ const Task = () => {
 
   // ✅ Check if task is assigned to current user
   const isMyTask = (task) => {
-    if (!user || !user.id || !task.assignedUsers) return false;
+    if (!user || !user.id || !task.users) return false;
 
-    return task.assignedUsers.some((assignedUser) => assignedUser.user_id === user.id);
+    return task.users.some((assignedUser) => assignedUser.user_id === user.id);
   };
 
   // ✅ Dynamic filter logic
@@ -174,17 +185,53 @@ const Task = () => {
     return false;
   });
 
-  const toggleTaskStatus = (taskId) => {
-    setTasks((tasks) =>
-      tasks.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              status: task.status === "done" ? "in_progress" : "done",
-            }
-          : task
-      )
-    );
+  const toggleTaskStatus = async (taskId) => {
+    try {
+      const currentTask = tasks.find((task) => task.id === taskId);
+      if (!currentTask) return;
+
+      const newStatus = currentTask.status === "done" ? "in_progress" : "done";
+
+      // OPTIMISTIC UPDATE: Update UI immediately
+      setTasks((tasks) =>
+        tasks.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                status: newStatus,
+              }
+            : task
+        )
+      );
+
+      // Then update database
+      const taskData = {
+        status: newStatus,
+      };
+
+      await updateTask(currentProjectId, taskId, taskData);
+
+      await refreshProjects();
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+
+      // REVERT ON ERROR: Only revert if currentTask was found
+      const currentTask = tasks.find((task) => task.id === taskId);
+      if (currentTask) {
+        setTasks((tasks) =>
+          tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  status: currentTask.status, // Revert to original status
+                }
+              : task
+          )
+        );
+      }
+
+      alert("⚠ タスクのステータス更新に失敗しました。");
+    }
   };
 
   const deleteTask = (taskId) => {
@@ -220,11 +267,27 @@ const Task = () => {
   if (loading)
     return <div className="p-6 text-gray-600">タスクの読み込み中...</div>;
 
+  if (!projects || projects.length === 0 || !currentProject) {
+    return (
+      <ProjectRequired
+        icon="📝"
+        title="タスクを管理するプロジェクトがありません"
+        description={
+          <>
+            タスクを表示するには、まずプロジェクトを作成、
+            <br />
+            または選択してください。
+          </>
+        }
+      />
+    );
+  }
+
   return (
     <div className="mx-auto md:p-6 space-y-10">
       {/* Header */}
-      <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-6 rounded-2xl shadow-lg">
-        <h1 className="text-3xl font-bold tracking-wide">タスク管理</h1>
+      <div className="flex justify-between items-center bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white px-8 py-6 rounded-2xl shadow-lg">
+        <h1 className="text-4xl font-bold tracking-wide">タスク管理</h1>
         <Link to="/task/new">
           <button
             className="flex items-center bg-white text-blue-700 font-semibold text-xl px-4 py-3 hover:cursor-pointer
@@ -238,10 +301,10 @@ const Task = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <StatCard 
-          title="マイタスク" 
+        <StatCard
+          title="マイタスク"
           value={tasks.filter((t) => isMyTask(t)).length}
-          color="indigo" 
+          color="indigo"
         />
         <StatCard title="すべてのタスク" value={tasks.length} color="blue" />
         <StatCard
@@ -264,7 +327,12 @@ const Task = () => {
       {/* Filter Buttons */}
       <div className="flex flex-wrap gap-4">
         {[
-          { type: "my_tasks", label: "マイタスク", icon: faUserCheck, color: "indigo" },
+          {
+            type: "my_tasks",
+            label: "マイタスク",
+            icon: faUserCheck,
+            color: "indigo",
+          },
           { type: "all", label: "すべて", icon: faListUl, color: "blue" },
           {
             type: "active",
@@ -337,30 +405,40 @@ const Task = () => {
                 className="p-6 hover:bg-gray-50 transition-all duration-200 flex items-start justify-between group"
               >
                 <div className="flex items-start gap-4 flex-1">
-                  <button
-                    onClick={() => toggleTaskStatus(task.id)}
-                    className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center hover:cursor-pointer transition-all ${
-                      task.status === "done"
-                        ? "bg-green-500 border-green-500"
-                        : "border-gray-300 hover:border-green-500"
-                    }`}
-                  >
-                    {task.status === "done" && (
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    )}
-                  </button>
+                  {/* user.id is the ID of current user */}
+                  {task.users.some((u) => u.user_id === user.id) && (
+                    <button
+                      onClick={() => toggleTaskStatus(task.id)}
+                      disabled={updatingTasks[task.id]}
+                      className={`mt-1 w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center hover:cursor-pointer transition-all ${
+                        task.status === "done"
+                          ? "bg-green-500 border-green-500"
+                          : "border-gray-300 hover:border-green-500"
+                      } ${
+                        updatingTasks[task.id]
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                    >
+                      {updatingTasks[task.id] ? (
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : task.status === "done" ? (
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      ) : null}
+                    </button>
+                  )}
 
                   <div className="flex-1 space-y-5">
                     <div className="flex items-center gap-3">
@@ -425,16 +503,26 @@ const Task = () => {
                       </span>
                     </div>
 
-                    {task.assignedUsers && task.assignedUsers.length > 0 && (
+                    {task.users && task.users.length > 0 && (
                       <div className="flex items-center gap-2 text-lg font-bold">
                         <span className="text-gray-600">担当者:</span>
                         <div className="flex gap-2 flex-wrap">
-                          {task.assignedUsers.map((user) => (
+                          {task.users.map((user) => (
                             <span
                               key={user.user_id}
-                              className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full flex items-center gap-1"
+                              className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full flex items-center gap-3"
                             >
-                              <FontAwesomeIcon icon={faUser} />
+                              {user.profile_picture ? (
+                                <img
+                                  src={resolveImageUrl(user.profile_picture)}
+                                  className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center"
+                                />
+                              ) : (
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                                  {user.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+
                               {user.name}
                             </span>
                           ))}
@@ -497,9 +585,18 @@ const Task = () => {
                               >
                                 <div className="flex items-start gap-3">
                                   {/* Avatar with initials */}
-                                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
-                                    {comment.name.charAt(0).toUpperCase()}
-                                  </div>
+                                  {comment.profile_picture ? (
+                                    <img
+                                      src={resolveImageUrl(
+                                        comment.profile_picture
+                                      )}
+                                      className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center"
+                                    />
+                                  ) : (
+                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                                      {comment.name.charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
 
                                   <div className="flex-1 min-w-0">
                                     {/* Author and timestamp */}
@@ -560,21 +657,26 @@ const Task = () => {
                 </div>
 
                 <div className="flex gap-4 ml-4">
-                  <button
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-lg bg-yellow-400 hover:bg-yellow-500 rounded-lg hover:cursor-pointer"
-                    title="編集"
-                  >
-                    <FontAwesomeIcon icon={faPen} />
-                    編集
-                  </button>
-                  <button
-                    onClick={() => deleteTask(task.id)}
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-lg text-white bg-red-500 hover:bg-red-600 rounded-lg hover:cursor-pointer"
-                    title="削除"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                    削除
-                  </button>
+                  {task.users.some((u) => u.user_id === user.id) && (
+                    <>
+                      <button
+                        className="flex items-center gap-2 px-4 py-2 font-bold text-lg bg-yellow-400 hover:bg-yellow-500 rounded-lg hover:cursor-pointer"
+                        title="編集"
+                      >
+                        <FontAwesomeIcon icon={faPen} />
+                        編集
+                      </button>
+
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        className="flex items-center gap-2 px-4 py-2 font-bold text-lg text-white bg-red-500 hover:bg-red-600 rounded-lg hover:cursor-pointer"
+                        title="削除"
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                        削除
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
