@@ -1,347 +1,539 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { changeUserPassword, updateUserProfile } from "../services/UserService";
+import { CURRENT_USER } from "../constants";
 
 const AccountSettings = () => {
-    const [edit, setEdit] = useState(false);
+  const { user, setUser } = useAuth();
+  // console.log(user);
+  const [edit, setEdit] = useState(false);
 
-    const [userData, setUserData] = useState({
-        username: '山田太郎',
-        email: 'taro.yamada@example.com',
-        bio: '5年以上の経験を持つプロジェクトマネージャー。クロスファンクショナルチームを率いて成功するソフトウェアプロジェクトを提供してきました。',
-        profileImage: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=500&q=80'
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const [userData, setUserData] = useState({
+    id: null,
+    username: "",
+    email: "",
+    profile_picture: null,
+    date_joined: null,
+  });
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+  const [notification, setNotification] = useState({
+    show: false,
+    message: "",
+    type: "",
+  });
+
+  useEffect(() => {
+    setUserData({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      profile_picture: user.profile_picture,
+      date_joined: user.date_joined,
     });
-    
-    const [passwordData, setPasswordData] = useState({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
+  }, [user]);
+
+  const fileInputRef = useRef(null);
+
+  const formatJoinedDateJP = (isoString) => {
+    if (!isoString) return "";
+
+    const date = new Date(isoString);
+
+    return `${date.getFullYear()}年${date.getMonth() + 1}月加入`;
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPassword((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setUserData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      // Only update the username
+      const updateData = { username: userData.username };
+
+      const updatedUser = await updateUserProfile(updateData); // no profile_picture here
+      setUser(updatedUser);
+      localStorage.setItem(CURRENT_USER, JSON.stringify(updatedUser));
+
+      showNotification("ユーザー名が正常に更新されました！", "success");
+      setEdit(false);
+    } catch (error) {
+      console.error(error);
+      showNotification("ユーザー名の更新に失敗しました", "error");
+    }
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (passwordLoading) return; // prevent double click
+
+    // Frontend validations
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+      showNotification("すべてのフィールドを入力してください", "error");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      showNotification(
+        "新しいパスワードは6文字以上で入力してください",
+        "error"
+      );
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      showNotification("新しいパスワードが一致しません", "error");
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+
+      await changeUserPassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword,
+      });
+
+      showNotification("パスワードが正常に更新されました！", "success");
+
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setShowPassword({
+        current: false,
+        new: false,
+        confirm: false,
+      });
+    } catch (error) {
+      console.error(error);
+      const data = error.response?.data;
+
+      if (data?.current_password) {
+        showNotification(data.current_password.join(", "), "error");
+      } else if (data?.new_password) {
+        showNotification(data.new_password.join(", "), "error");
+      } else if (data?.confirm_password) {
+        showNotification(data.confirm_password.join(", "), "error");
+      } else if (typeof data === "string") {
+        showNotification(data, "error");
+      } else {
+        showNotification("パスワード更新に失敗しました", "error");
+      }
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handlePictureChange = async (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        // Update local state for preview
+        setUserData((prev) => ({
+          ...prev,
+          profile_picture: file,
+          profile_preview: event.target.result,
+        }));
+
+        // Upload immediately
+        try {
+          const updatedUser = await updateUserProfile({
+            username: userData.username, // keep current username
+            profile_picture: file,
+          });
+
+          setUser(updatedUser);
+          localStorage.setItem(CURRENT_USER, JSON.stringify(updatedUser));
+          showNotification("プロフィール画像が更新されました！", "success");
+        } catch (error) {
+          console.error(error);
+          showNotification("プロフィール画像の更新に失敗しました", "error");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeProfilePicture = async () => {
+    try {
+      setUserData((prev) => ({
+        ...prev,
+        profile_picture: null,
+        profile_preview: null,
+      }));
+
+      // Send PATCH with profile_picture null to backend
+      const updatedUser = await updateUserProfile({
+        username: userData.username,
+        profile_picture: null,
+      });
+      setUser(updatedUser);
+
+      showNotification("プロフィール画像が削除されました", "info");
+    } catch (error) {
+      console.error(error);
+      showNotification("画像削除に失敗しました", "error");
+    }
+  };
+
+  const showNotification = (message, type) => {
+    setNotification({
+      show: true,
+      message,
+      type,
     });
-    
-    const [notification, setNotification] = useState({
+
+    setTimeout(() => {
+      setNotification({
         show: false,
-        message: '',
-        type: ''
-    });
-    
-    const fileInputRef = useRef(null);
-    const defaultProfilePic = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=500&q=80";
+        message: "",
+        type: "",
+      });
+    }, 3000);
+  };
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setUserData(prev => ({
-        ...prev,
-        [name]: value
-        }));
-    };
+  const handleImageClick = () => {
+    fileInputRef.current.click();
+  };
 
-    const handlePasswordChange = (e) => {
-        const { name, value } = e.target;
-        setPasswordData(prev => ({
-        ...prev,
-        [name]: value
-        }));
-    };
+  return (
+    <>
+      <div className="min-h-screen bg-gray-50 p-4">
+        {notification.show && (
+          <div
+            className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-bold z-50 ${
+              notification.type === "success"
+                ? "bg-green-500"
+                : notification.type === "error"
+                ? "bg-red-500"
+                : "bg-blue-500"
+            }`}
+          >
+            {notification.message}
+          </div>
+        )}
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        setEdit(false);
-        showNotification('プロファイルが正常に更新されました！', 'success');
-    };
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-4xl font-bold text-gray-800">アカウント設定</h1>
+            <p className="text-gray-600 mt-3 text-lg">
+              プロフィールとセキュリティの管理
+            </p>
+          </div>
 
-    const handlePasswordSubmit = (e) => {
-        e.preventDefault();
-        if (passwordData.newPassword !== passwordData.confirmPassword) {
-        showNotification('新しいパスワードが一致しません', 'error');
-        return;
-        }
-        showNotification('パスワードが正常に更新されました！', 'success');
-        setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-        });
-    };
+          {/* Profile Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-gray-800">
+                プロフィール
+              </h2>
+              {!edit ? (
+                <button
+                  onClick={() => setEdit(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer text-lg font-bold"
+                >
+                  編集
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      // Reset userData to original user
+                      setUserData({
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        profile_picture: user.profile_picture,
+                        date_joined: user.date_joined,
+                      });
+                      setEdit(false);
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer font-bold flex items-center gap-2"
+                  >
+                    <i className="fas fa-times"></i>
+                    キャンセル
+                  </button>
 
-    const handlePictureChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            setUserData(prev => ({
-            ...prev,
-            profileImage: e.target.result
-            }));
-            showNotification('プロフィール画像が更新されました', 'success');
-        };
-        reader.readAsDataURL(e.target.files[0]);
-        }
-    };
-
-    const removeProfilePicture = () => {
-        setUserData(prev => ({
-        ...prev,
-        profileImage: defaultProfilePic
-        }));
-        showNotification('プロフィール画像が削除されました', 'info');
-    };
-
-    const showNotification = (message, type) => {
-        setNotification({
-        show: true,
-        message,
-        type
-        });
-        
-        setTimeout(() => {
-        setNotification({
-            show: false,
-            message: '',
-            type: ''
-        });
-        }, 3000);
-    };
-
-    // 画像クリックでファイル選択ダイアログを開く
-    const handleImageClick = () => {
-        fileInputRef.current.click();
-        console.log("画像がクリックされました");
-    };
-
-    return (
-        <div className="flex-1 p-8">
-            {notification.show && (
-                <div className={`fixed top-4 right-4 px-4 py-3 rounded-md shadow-md text-white font-medium transform transition-all duration-300 z-50 ${
-                notification.type === 'success' ? 'bg-green-600' : 
-                notification.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
-                }`}>
-                {notification.message}
+                  <button
+                    onClick={handleSubmit}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer font-bold flex items-center gap-2"
+                  >
+                    <i className="fas fa-check"></i>
+                    保存
+                  </button>
                 </div>
-            )}
-            
-            <div className="max-w-5xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-800">アカウント設定</h2>
-                <div className="flex items-center space-x-4">
-                    <span className="text-gray-700">{userData.username}</span>
-                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                    {userData.username.split(' ').map(name => name[0]).join('')}
-                    </div>
-                </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                    <div className='flex'>
-                        <h3 className="flex-1 text-xl font-semibold text-gray-800 mb-6">プロフィール情報</h3>
-                        <span className='flex-1 text-right'>
-                            {!edit && (
-                                <button 
-                                    type='button' 
-                                    className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white
-                                    font-bold rounded-lg cursor-pointer'
-                                    onClick={() => setEdit(true)}
-                                    >
-                                    編集
-                                </button>
-                            )}
-                        </span>
-                    </div>
-                
-                    <div className="flex flex-col md:flex-row items-center mb-8">
-                        <div className="relative mb-4 md:mb-0 md:mr-8">
-                        {/* クリック可能なコンテナ - ここにクリックイベントを追加 */}
-                        <div 
-                            className="w-32 h-32 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden cursor-pointer relative"
-                            onClick={handleImageClick}
-                        >
-                            <img 
-                            id="profile-image" 
-                            src={userData.profileImage} 
-                            alt="プロフィール" 
-                            className="w-full h-full object-cover"
-                            />
-                            {/* ホバー時に表示されるオーバーレイ */}
-                            <div className="absolute inset-0 rounded-full flex items-center justify-center transition-all duration-300">
-                            <div className="text-white text-center duration-300">
-                                <i className="fas fa-camera mb-1 block text-xl"></i>
-                                <span className="ml-1 font-bold">変更</span>
-                            </div>
-                            </div>
-                        </div>
-                        {/* 非表示のファイル入力 */}
-                        <input 
-                            type="file" 
-                            id="upload-photo" 
-                            className="hidden" 
-                            accept="image/*" 
-                            ref={fileInputRef}
-                            onChange={handlePictureChange}
-                        />
-                        </div>
-                        
-                        <div className="flex-1 text-center md:text-left">
-                            <h2 className="text-2xl font-bold text-gray-800">{userData.username}</h2>
-                            <p className="text-gray-600">{userData.email}</p>
-                            <p className="text-sm text-gray-500 mt-2">2023年1月加入</p>
-                        
-                            <div className="mt-4 flex justify-center md:justify-start space-x-4">
-                                <button 
-                                onClick={() => fileInputRef.current.click()} 
-                                className="text-blue-600 hover:text-blue-800 text-md font-bold cursor-pointer"
-                                >
-                                画像を変更
-                                </button>
-                                <button 
-                                onClick={removeProfilePicture} 
-                                className="text-red-600 hover:text-red-800 text-md font-bold cursor-pointer"
-                                >
-                                画像を削除
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                
-                    {edit && (
-                        <div className="border-t border-gray-200 pt-6">
-                            <form onSubmit={handleSubmit}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                    <div>
-                                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                                        ユーザー名
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        id="username" 
-                                        name="username"
-                                        value={userData.username} 
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    </div>
-                                    <div>
-                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                                        メールアドレス
-                                    </label>
-                                    <input 
-                                        type="email" 
-                                        id="email" 
-                                        name="email"
-                                        value={userData.email} 
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-md 
-                                        focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        disabled
-                                    />
-                                    </div>
-                                </div>
-                                
-                                <div className="mb-6">
-                                    <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
-                                    自己紹介
-                                    </label>
-                                    <textarea 
-                                    id="bio" 
-                                    name="bio"
-                                    rows="3" 
-                                    value={userData.bio} 
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    ></textarea>
-                                </div>
-                                
-                                <div className="flex justify-end space-x-4">
-                                    <button 
-                                    type="button" 
-                                    onClick={() => {
-                                        setUserData({
-                                        ...userData,
-                                        username: '山田太郎',
-                                        email: 'taro.yamada@example.com',
-                                        bio: '5年以上の経験を持つプロジェクトマネージャー。クロスファンクショナルチームを率いて成功するソフトウェアプロジェクトを提供してきました。'
-                                        });
-
-                                        setEdit(false);
-                                    }} 
-                                    className="px-5 py-2 border border-gray-300 rounded-md font-bold
-                                    hover:bg-gray-100 cursor-pointer"
-                                    >
-                                    キャンセル
-                                    </button>
-
-                                    <button 
-                                    type="submit" 
-                                    className="px-5 py-2 bg-green-600 text-white rounded-md font-bold
-                                    hover:bg-green-700 cursor-pointer"
-                                    >
-                                    変更を保存
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-                </div>
-                
-                <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-semibold text-gray-800 mb-6">セキュリティ設定</h3>
-                
-                <div className="border-t border-gray-200 pt-4">
-                    <form onSubmit={handlePasswordSubmit}>
-                    <div className="mb-6">
-                        <h4 className="text-lg font-medium text-gray-800 mb-4">パスワードの変更</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-3">
-                                現在のパスワード
-                                </label>
-                                <input 
-                                type="password" 
-                                id="current-password" 
-                                name="currentPassword"
-                                value={passwordData.currentPassword} 
-                                onChange={handlePasswordChange}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-3">
-                                新しいパスワード
-                                </label>
-                                <input 
-                                type="password" 
-                                id="new-password" 
-                                name="newPassword"
-                                value={passwordData.newPassword} 
-                                onChange={handlePasswordChange}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-3">
-                                新しいパスワード（確認）
-                                </label>
-                                <input 
-                                type="password" 
-                                id="confirm-password" 
-                                name="confirmPassword"
-                                value={passwordData.confirmPassword} 
-                                onChange={handlePasswordChange}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-                        </div>
-                        <div className="mt-4 flex justify-end">
-                        <button 
-                            type="submit" 
-                            className="px-5 py-2 bg-green-600 text-white rounded-md font-bold
-                                    hover:bg-green-700 cursor-pointer"
-                        >
-                            パスワードを更新
-                        </button>
-                        </div>
-                    </div>
-                    </form>
-                </div>
-                </div>
+              )}
             </div>
+
+            {/* Profile Picture */}
+            <div className="flex items-center gap-6 mb-6 pb-6 border-b border-gray-100">
+              <div className="relative group">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                  {userData.profile_picture ? (
+                    <img
+                      src={userData.profile_preview || userData.profile_picture}
+                      alt="プロフィール"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <i className="fas fa-user text-gray-500 text-4xl"></i>
+                  )}
+                </div>
+                <button
+                  onClick={handleImageClick}
+                  className="absolute inset-0 w-24 h-24 rounded-full group-hover:bg-opacity-40 transition-all flex items-center justify-center cursor-pointer"
+                >
+                  {userData.profile_picture && (
+                    <i className="fas fa-camera text-white text-2xl"></i>
+                  )}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handlePictureChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+              </div>
+              <div>
+                <div className="flex gap-4 text-lg font-bold">
+                  <button
+                    onClick={handleImageClick}
+                    className="text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    {userData.profile_picture ? "画像を変更" : "画像を選択"}
+                  </button>
+                  {userData.profile_picture && (
+                    <button
+                      onClick={removeProfilePicture}
+                      className="text-red-600 hover:text-red-700 cursor-pointer"
+                    >
+                      画像を削除
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Fields */}
+            <div className="space-y-6">
+              <div>
+                <label className="flex items-center gap-2 text-lg font-bold text-gray-700 mb-2">
+                  <i className="fas fa-user"></i>
+                  ユーザー名
+                </label>
+                {edit ? (
+                  <input
+                    type="text"
+                    name="username"
+                    value={userData.username}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xl"
+                  />
+                ) : (
+                  <p className="text-gray-900 text-xl px-4 py-2">
+                    {userData.username}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-lg font-bold text-gray-700 mb-2">
+                  <i className="fas fa-envelope"></i>
+                  メールアドレス
+                </label>
+                <p className="text-gray-900 text-xl px-4 py-2 bg-gray-50 rounded-lg">
+                  {userData.email}
+                </p>
+                <p className="text-xs text-gray-500 mt-1 px-4">
+                  メールアドレスは変更できません
+                </p>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-lg font-bold text-gray-700 mb-2">
+                  <i className="fas fa-calendar"></i>
+                  登録日
+                </label>
+                <p className="text-gray-900 text-xl px-4 py-2">
+                  {formatJoinedDateJP(userData.date_joined)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Security Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+              <i className="fas fa-lock"></i>
+              セキュリティ
+            </h2>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-lg font-bold text-gray-700 mb-2">
+                  現在のパスワード
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword.current ? "text" : "password"}
+                    name="currentPassword"
+                    value={passwordData.currentPassword}
+                    onChange={handlePasswordChange}
+                    disabled={passwordLoading}
+                    className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg
+               focus:ring-2 focus:ring-blue-500 focus:border-transparent
+               disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility("current")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-gray-500
+               hover:text-gray-700 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    <i
+                      className={`fas ${
+                        showPassword.current ? "fa-eye-slash" : "fa-eye"
+                      }`}
+                    ></i>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-lg font-bold text-gray-700 mb-2">
+                  新しいパスワード（6文字以上）
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword.new ? "text" : "password"}
+                    name="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={handlePasswordChange}
+                    disabled={passwordLoading}
+                    className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg
+               focus:ring-2 focus:ring-blue-500 focus:border-transparent
+               disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility("new")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-gray-500
+               hover:text-gray-700 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    <i
+                      className={`fas ${
+                        showPassword.new ? "fa-eye-slash" : "fa-eye"
+                      }`}
+                    ></i>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-lg font-bold text-gray-700 mb-2">
+                  新しいパスワード（確認）
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword.confirm ? "text" : "password"}
+                    name="confirmPassword"
+                    value={passwordData.confirmPassword}
+                    onChange={handlePasswordChange}
+                    disabled={passwordLoading}
+                    className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg
+               focus:ring-2 focus:ring-blue-500 focus:border-transparent
+               disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility("confirm")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-gray-500
+               hover:text-gray-700 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    <i
+                      className={`fas ${
+                        showPassword.confirm ? "fa-eye-slash" : "fa-eye"
+                      }`}
+                    ></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={handlePasswordSubmit}
+                disabled={passwordLoading}
+                className={`px-6 py-2 rounded-lg text-lg font-bold transition-colors
+    ${
+      passwordLoading
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+    }`}
+              >
+                {passwordLoading ? "更新中..." : "パスワードを更新"}
+              </button>
+            </div>
+          </div>
         </div>
-    );
+      </div>
+    </>
+  );
 };
 
 export default AccountSettings;
