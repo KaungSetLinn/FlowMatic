@@ -4,6 +4,11 @@ import { getTasks } from "../services/TaskService";
 import { useAuth } from "../context/AuthContext";
 import { getEvents } from "../services/EventService";
 import { formatDateJP, formatUTC } from "../utils/dateUtils";
+import CreateMemoModal from "./CreateMemoModal";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCirclePlus } from "@fortawesome/free-solid-svg-icons";
+import { Link } from "react-router-dom";
+import ProjectRequired from "../components/ProjectRequired";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -15,6 +20,43 @@ const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
 
   const [loading, setLoading] = useState(true);
+
+  const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
+
+  const [projectMemos, setProjectMemos] = useState([
+    {
+      id: 1,
+      content: "API仕様変更あり\nタスク作成前に必ず確認してください。",
+      author: "山田",
+      created_at: "2026-01-13T10:00:00",
+      color: "yellow",
+      is_pinned: false,
+    },
+    {
+      id: 2,
+      content: "金曜 18:00 に本番デプロイ予定です。",
+      author: "管理者",
+      created_at: "2026-01-12T18:30:00",
+      color: "blue",
+      is_pinned: false,
+    },
+    {
+      id: 3,
+      content: "WebSocket 実装は来週対応予定。",
+      author: "佐藤",
+      created_at: "2026-01-11T09:15:00",
+      color: "green",
+      is_pinned: true,
+    },
+  ]);
+
+  const [editingMemo, setEditingMemo] = useState(null);
+
+  const memoColors = {
+    yellow: "bg-yellow-100 border-yellow-300",
+    blue: "bg-blue-100 border-blue-300",
+    green: "bg-green-100 border-green-300",
+  };
 
   const [summary, setSummary] = useState({
     progress: 0,
@@ -119,6 +161,53 @@ const Dashboard = () => {
       .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
   };
 
+  const handleAddMemo = () => {
+    setIsMemoModalOpen(true);
+  };
+
+  const handleSubmitMemo = async ({ id, content, color }) => {
+    await new Promise((r) => setTimeout(r, 400)); // demo delay
+
+    setProjectMemos((prev) => {
+      // EDIT
+      if (id) {
+        return prev.map((m) => (m.id === id ? { ...m, content, color } : m));
+      }
+
+      // CREATE
+      return [
+        {
+          id: Date.now(),
+          content,
+          color,
+          author: user.username,
+          created_at: new Date().toISOString(),
+          is_pinned: false,
+        },
+        ...prev,
+      ];
+    });
+
+    setEditingMemo(null);
+  };
+
+  const handleTogglePin = (id) => {
+    setProjectMemos((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, is_pinned: !m.is_pinned } : m))
+    );
+  };
+
+  const handleEditMemo = (memo) => {
+    setEditingMemo(memo);
+    setIsMemoModalOpen(true);
+  };
+
+  const handleDeleteMemo = (id) => {
+    if (!window.confirm("このメモを削除しますか？")) return;
+
+    setProjectMemos((prev) => prev.filter((m) => m.id !== id));
+  };
+
   useEffect(() => {
     if (!currentProject) return;
 
@@ -199,6 +288,11 @@ const Dashboard = () => {
       100
   );
 
+  // プロジェクトが存在しない、または選択されていない場合
+  if (!projects || projects.length === 0 || !currentProject) {
+    return <ProjectRequired />;
+  }
+
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -241,31 +335,93 @@ const Dashboard = () => {
 
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Activities */}
-          <div className="bg-white rounded-3xl shadow-sm p-6 border-2 border-orange-100">
-            <div className="flex items-center mb-5">
-              <i className="fa-solid fa-chart-line text-3xl text-orange-600 mr-3"></i>
-              <h2 className="text-2xl font-bold text-gray-800">最近の活動</h2>
+          {/* Project Memo (Demo) */}
+          <div className="bg-white rounded-3xl shadow-sm p-6 border-2 border-blue-200">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center">
+                <i className="fa-solid fa-note-sticky text-3xl text-blue-600 mr-3"></i>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  📌 プロジェクトメモ
+                </h2>
+              </div>
+
+              <button
+                onClick={handleAddMemo}
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800
+                text-white px-4 py-2 rounded-xl transition shadow-sm cursor-pointer text-lg font-semibold"
+              >
+                <i className="fa-solid fa-plus"></i>
+                メモ追加
+              </button>
             </div>
 
-            <div className="space-y-3">
-              {recentActivities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer border-2 border-transparent hover:border-orange-200"
-                >
-                  <div className="text-3xl flex-shrink-0">{activity.icon}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-800 font-medium leading-relaxed">
-                      {activity.text}
+            <div className="space-y-4 lg:max-h-[380px] max-h-[460px] overflow-y-auto pr-1">
+              {projectMemos.length === 0 && (
+                <p className="text-gray-500">メモはまだありません</p>
+              )}
+
+              {[...projectMemos]
+                .sort((a, b) => {
+                  if (a.is_pinned !== b.is_pinned) {
+                    return b.is_pinned - a.is_pinned;
+                  }
+                  return new Date(b.created_at) - new Date(a.created_at);
+                })
+                .map((memo) => (
+                  <div
+                    key={memo.id}
+                    className={`relative p-4 rounded-2xl border-2 shadow-sm
+    ${memoColors[memo.color]}
+  `}
+                  >
+                    {/* Action buttons */}
+                    <div className="absolute top-3 right-3 flex md:gap-4 gap-2 text-lg">
+                      {/* Pin */}
+                      <button
+                        onClick={() => handleTogglePin(memo.id)}
+                        className={`transition cursor-pointer
+        ${
+          memo.is_pinned
+            ? "text-blue-600 hover:text-blue-700"
+            : "text-gray-400 hover:text-gray-600"
+        }
+      `}
+                        title="ピン留め"
+                      >
+                        <i className="fa-solid fa-thumbtack"></i>
+                      </button>
+
+                      {/* Edit */}
+                      <button
+                        onClick={() => handleEditMemo(memo)}
+                        className="text-gray-400 hover:text-green-600 transition cursor-pointer"
+                        title="編集"
+                      >
+                        <i className="fa-solid fa-pen"></i>
+                      </button>
+
+                      {/* Delete */}
+                      <button
+                        onClick={() => handleDeleteMemo(memo.id)}
+                        className="text-gray-400 hover:text-red-600 transition cursor-pointer"
+                        title="削除"
+                      >
+                        <i className="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+
+                    {/* Content */}
+                    <p className="text-gray-800 text-lg font-bold whitespace-pre-wrap pr-16">
+                      {memo.content}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1 flex items-center">
-                      <i className="fa-solid fa-clock text-xs mr-1"></i>
-                      {activity.time}
-                    </p>
+
+                    {/* Footer */}
+                    <div className="flex justify-between text-lg font-bold text-gray-500 mt-3">
+                      <span>✍ {memo.author}</span>
+                      <span>{formatDateJP(new Date(memo.created_at))}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
 
@@ -338,6 +494,16 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      <CreateMemoModal
+        isOpen={isMemoModalOpen}
+        onClose={() => {
+          setIsMemoModalOpen(false);
+          setEditingMemo(null);
+        }}
+        onSubmit={handleSubmitMemo}
+        initialMemo={editingMemo}
+      />
     </div>
   );
 };

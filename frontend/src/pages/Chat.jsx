@@ -27,11 +27,12 @@ import {
   faSmileBeam,
   faMessage,
 } from "@fortawesome/free-solid-svg-icons";
+import ProjectRequired from "../components/ProjectRequired";
 
 const Chat = () => {
   const { user } = useAuth();
   const { currentProject } = useProject();
-  const currentProjectId = currentProject.project_id;
+  const currentProjectId = currentProject?.project_id;
 
   const [chats, setChats] = useState([]);
   const [allMessages, setAllMessages] = useState({});
@@ -325,22 +326,17 @@ const Chat = () => {
 
   if (!currentProjectId) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-gray-50 to-blue-50 p-8">
-        <div className="text-center space-y-4">
-          <div className="w-24 h-24 mx-auto bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
-            <FontAwesomeIcon
-              icon={faSmile}
-              className="text-4xl text-blue-500"
-            />
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800">
-            プロジェクトを選択してください
-          </h3>
-          <p className="text-gray-600 max-w-md">
-            チャット機能を利用するには、まずプロジェクトを選択してください。
-          </p>
-        </div>
-      </div>
+      <ProjectRequired
+        icon="💬"
+        title="プロジェクトが選択されていません"
+        description={
+          <>
+            チャット機能を利用するには、
+            <br />
+            まずプロジェクトを作成、または選択してください。
+          </>
+        }
+      />
     );
   }
 
@@ -533,7 +529,7 @@ const Chat = () => {
                               <FontAwesomeIcon
                                 icon={faTrash}
                                 className="w-4 h-4 text-gray-600"
-                            />
+                              />
                             </IconButton>
                           )}
                         </div>
