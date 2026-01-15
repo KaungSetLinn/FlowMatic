@@ -9,6 +9,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCirclePlus } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
 import ProjectRequired from "../components/ProjectRequired";
+import { createMemo, deleteMemo, getMemos, updateMemo } from "../services/MemoService";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -23,32 +24,7 @@ const Dashboard = () => {
 
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
 
-  const [projectMemos, setProjectMemos] = useState([
-    {
-      id: 1,
-      content: "API仕様変更あり\nタスク作成前に必ず確認してください。",
-      author: "山田",
-      created_at: "2026-01-13T10:00:00",
-      color: "yellow",
-      is_pinned: false,
-    },
-    {
-      id: 2,
-      content: "金曜 18:00 に本番デプロイ予定です。",
-      author: "管理者",
-      created_at: "2026-01-12T18:30:00",
-      color: "blue",
-      is_pinned: false,
-    },
-    {
-      id: 3,
-      content: "WebSocket 実装は来週対応予定。",
-      author: "佐藤",
-      created_at: "2026-01-11T09:15:00",
-      color: "green",
-      is_pinned: true,
-    },
-  ]);
+  const [projectMemos, setProjectMemos] = useState([]);
 
   const [editingMemo, setEditingMemo] = useState(null);
 
@@ -161,40 +137,74 @@ const Dashboard = () => {
       .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
   };
 
+  const fetchMemos = async () => {
+    try {
+      const memos = await getMemos(currentProject.project_id);
+      console.log(memos);
+      setProjectMemos(memos ?? []);
+    } catch (error) {
+      console.error("Failed to fetch memos:", error);
+    }
+  };
+
   const handleAddMemo = () => {
     setIsMemoModalOpen(true);
   };
 
-  const handleSubmitMemo = async ({ id, content, color }) => {
-    await new Promise((r) => setTimeout(r, 400)); // demo delay
+  const handleSubmitMemo = async ({ memo_id, content, color }) => {
+    try {
+      if (memo_id) {
+        const targetMemo = projectMemos.find((m) => m.memo_id === memo_id);
 
-    setProjectMemos((prev) => {
-      // EDIT
-      if (id) {
-        return prev.map((m) => (m.id === id ? { ...m, content, color } : m));
-      }
-
-      // CREATE
-      return [
-        {
-          id: Date.now(),
+        const updated = await updateMemo(currentProject.project_id, memo_id, {
+          user_id: user.id,
           content,
           color,
-          author: user.username,
-          created_at: new Date().toISOString(),
-          is_pinned: false,
-        },
-        ...prev,
-      ];
-    });
+          is_pinned: targetMemo?.is_pinned ?? false,
+        });
 
-    setEditingMemo(null);
+        setProjectMemos((prev) =>
+          prev.map((m) => (m.memo_id === memo_id ? updated : m))
+        );
+      } else {
+        const created = await createMemo(currentProject.project_id, {
+          user_id: user.id,
+          content,
+          color,
+          is_pinned: false,
+        });
+
+        setProjectMemos((prev) => [created, ...prev]);
+      }
+
+      setEditingMemo(null);
+      setIsMemoModalOpen(false);
+    } catch (error) {
+      console.error("Failed to save memo:", error);
+    }
   };
 
-  const handleTogglePin = (id) => {
+  const handleTogglePin = async (memo_id) => {
     setProjectMemos((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, is_pinned: !m.is_pinned } : m))
+      prev.map((m) =>
+        m.memo_id === memo_id ? { ...m, is_pinned: !m.is_pinned } : m
+      )
     );
+
+    const memo = projectMemos.find((m) => m.memo_id === memo_id);
+
+    try {
+      await updateMemo(currentProject.project_id, memo_id, {
+        is_pinned: !memo.is_pinned,
+      });
+    } catch (err) {
+      // rollback on failure
+      setProjectMemos((prev) =>
+        prev.map((m) =>
+          m.memo_id === memo_id ? { ...m, is_pinned: memo.is_pinned } : m
+        )
+      );
+    }
   };
 
   const handleEditMemo = (memo) => {
@@ -202,10 +212,25 @@ const Dashboard = () => {
     setIsMemoModalOpen(true);
   };
 
-  const handleDeleteMemo = (id) => {
+  const handleDeleteMemo = async (memo_id) => {
     if (!window.confirm("このメモを削除しますか？")) return;
 
-    setProjectMemos((prev) => prev.filter((m) => m.id !== id));
+    // Save current state for rollback
+    const prevMemos = projectMemos;
+
+    // Optimistic UI update
+    setProjectMemos((prev) => prev.filter((m) => m.memo_id !== memo_id));
+
+    try {
+      await deleteMemo(currentProject.project_id, memo_id);
+    } catch (error) {
+      console.error("Failed to delete memo:", error);
+
+      // Rollback if API fails
+      setProjectMemos(prevMemos);
+
+      alert("メモの削除に失敗しました");
+    }
   };
 
   useEffect(() => {
@@ -215,6 +240,7 @@ const Dashboard = () => {
     loadMemberCount();
     fetchTasks();
     fetchEvents();
+    fetchMemos();
   }, [currentProject]);
 
   useEffect(() => {
@@ -261,32 +287,6 @@ const Dashboard = () => {
       icon: "fa-users",
     },
   ];
-
-  const [recentActivities, setRecentActivities] = useState([
-    {
-      id: 1,
-      text: "プロジェクト『Webアプリ開発』に新しいタスクを追加しました",
-      time: "2時間前",
-      icon: "📝",
-    },
-    {
-      id: 2,
-      text: "山田さんが『デザインレビュー』を完了しました",
-      time: "5時間前",
-      icon: "✅",
-    },
-    {
-      id: 3,
-      text: "新しいチャットメッセージが届いています",
-      time: "昨日",
-      icon: "💬",
-    },
-  ]);
-
-  const completionRate = Math.round(
-    (summary.completedTasks / (summary.completedTasks + summary.activeTasks)) *
-      100
-  );
 
   // プロジェクトが存在しない、または選択されていない場合
   if (!projects || projects.length === 0 || !currentProject) {
@@ -356,11 +356,11 @@ const Dashboard = () => {
             </div>
 
             <div className="space-y-4 lg:max-h-[380px] max-h-[460px] overflow-y-auto pr-1">
-              {projectMemos.length === 0 && (
+              {(!projectMemos || projectMemos.length === 0) && (
                 <p className="text-gray-500">メモはまだありません</p>
               )}
 
-              {[...projectMemos]
+              {(projectMemos ?? [])
                 .sort((a, b) => {
                   if (a.is_pinned !== b.is_pinned) {
                     return b.is_pinned - a.is_pinned;
@@ -369,7 +369,7 @@ const Dashboard = () => {
                 })
                 .map((memo) => (
                   <div
-                    key={memo.id}
+                    key={memo.memo_id}
                     className={`relative p-4 rounded-2xl border-2 shadow-sm
     ${memoColors[memo.color]}
   `}
@@ -378,7 +378,7 @@ const Dashboard = () => {
                     <div className="absolute top-3 right-3 flex md:gap-4 gap-2 text-lg">
                       {/* Pin */}
                       <button
-                        onClick={() => handleTogglePin(memo.id)}
+                        onClick={() => handleTogglePin(memo.memo_id)}
                         className={`transition cursor-pointer
         ${
           memo.is_pinned
@@ -391,23 +391,27 @@ const Dashboard = () => {
                         <i className="fa-solid fa-thumbtack"></i>
                       </button>
 
-                      {/* Edit */}
-                      <button
-                        onClick={() => handleEditMemo(memo)}
-                        className="text-gray-400 hover:text-green-600 transition cursor-pointer"
-                        title="編集"
-                      >
-                        <i className="fa-solid fa-pen"></i>
-                      </button>
+                      {memo.user.user_id === user.id && (
+                        <>
+                          {/* Edit */}
+                          <button
+                            onClick={() => handleEditMemo(memo)}
+                            className="text-gray-400 hover:text-green-600 transition cursor-pointer"
+                            title="編集"
+                          >
+                            <i className="fa-solid fa-pen"></i>
+                          </button>
 
-                      {/* Delete */}
-                      <button
-                        onClick={() => handleDeleteMemo(memo.id)}
-                        className="text-gray-400 hover:text-red-600 transition cursor-pointer"
-                        title="削除"
-                      >
-                        <i className="fa-solid fa-trash"></i>
-                      </button>
+                          {/* Delete */}
+                          <button
+                            onClick={() => handleDeleteMemo(memo.memo_id)}
+                            className="text-gray-400 hover:text-red-600 transition cursor-pointer"
+                            title="削除"
+                          >
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        </>
+                      )}
                     </div>
 
                     {/* Content */}
@@ -417,7 +421,7 @@ const Dashboard = () => {
 
                     {/* Footer */}
                     <div className="flex justify-between text-lg font-bold text-gray-500 mt-3">
-                      <span>✍ {memo.author}</span>
+                      <span>✍ {memo.user.name}</span>
                       <span>{formatDateJP(new Date(memo.created_at))}</span>
                     </div>
                   </div>

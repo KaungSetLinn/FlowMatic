@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const CreateMemoModal = ({ isOpen, onClose, onSubmit, initialMemo = null }) => {
   const [content, setContent] = useState("");
   const [color, setColor] = useState("blue");
   const [loading, setLoading] = useState(false);
+
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -15,6 +17,11 @@ const CreateMemoModal = ({ isOpen, onClose, onSubmit, initialMemo = null }) => {
       setContent("");
       setColor("blue");
     }
+
+    // ⬇️ focus textarea after modal opens
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
   }, [initialMemo, isOpen]);
 
   /* ---------------- ESC key close ---------------- */
@@ -41,10 +48,11 @@ const CreateMemoModal = ({ isOpen, onClose, onSubmit, initialMemo = null }) => {
     try {
       setLoading(true);
       await onSubmit({
-        id: initialMemo?.id,
+        memo_id: initialMemo?.memo_id,
         content,
         color,
       });
+
       onClose();
     } finally {
       setLoading(false);
@@ -81,6 +89,7 @@ const CreateMemoModal = ({ isOpen, onClose, onSubmit, initialMemo = null }) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Content */}
           <textarea
+            ref={textareaRef}
             className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-yellow-400"
             rows={4}
             placeholder="メモ内容を入力..."
