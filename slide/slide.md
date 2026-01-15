@@ -114,10 +114,6 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 
 </div>
 
-<div style="margin-top: 40px; text-align: center; font-size: 1.1em;">
-👉 FlowMatic は <strong>「見る・押す要素」を最小化</strong>
-</div>
-
 <div style="
   position: absolute;
   right: 24px;
@@ -127,6 +123,11 @@ footer: 'FlowMatic - Simple & Easy to Use Project Management'
 ">
 ※ Kaizen Coders調べ
 </div>
+
+<div style="margin-top: 40px; text-align: center; font-size: 1.1em;">
+👉 FlowMatic は <strong>「見る・押す要素」を最小化</strong>
+</div>
+
 
 ---
 
