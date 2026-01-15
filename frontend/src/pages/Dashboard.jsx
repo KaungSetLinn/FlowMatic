@@ -9,7 +9,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCirclePlus } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
 import ProjectRequired from "../components/ProjectRequired";
-import { createMemo, deleteMemo, getMemos, updateMemo } from "../services/MemoService";
+import {
+  createMemo,
+  deleteMemo,
+  getMemos,
+  updateMemo,
+} from "../services/MemoService";
+import { resolveImageUrl } from "../utils/resolveImageUrl";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -376,20 +382,21 @@ const Dashboard = () => {
                   >
                     {/* Action buttons */}
                     <div className="absolute top-3 right-3 flex md:gap-4 gap-2 text-lg">
-                      {/* Pin */}
-                      <button
-                        onClick={() => handleTogglePin(memo.memo_id)}
-                        className={`transition cursor-pointer
+                      {(memo.is_pinned || memo.user.user_id === user.id) && (
+                        <button
+                          onClick={() => handleTogglePin(memo.memo_id)}
+                          className={`transition cursor-pointer
         ${
           memo.is_pinned
             ? "text-blue-600 hover:text-blue-700"
             : "text-gray-400 hover:text-gray-600"
         }
       `}
-                        title="ピン留め"
-                      >
-                        <i className="fa-solid fa-thumbtack"></i>
-                      </button>
+                          title="ピン留め"
+                        >
+                          <i className="fa-solid fa-thumbtack"></i>
+                        </button>
+                      )}
 
                       {memo.user.user_id === user.id && (
                         <>
@@ -420,8 +427,21 @@ const Dashboard = () => {
                     </p>
 
                     {/* Footer */}
-                    <div className="flex justify-between text-lg font-bold text-gray-500 mt-3">
-                      <span>✍ {memo.user.name}</span>
+                    <div className="flex justify-between text-lg font-bold text-gray-500 mt-5">
+                      <span className="flex gap-3">
+                        {memo.user?.profile_picture ? (
+                          <img
+                            src={resolveImageUrl(memo.user.profile_picture)}
+                            alt="profile"
+                            className="w-8 h-8 rounded-full object-cover border"
+                          />
+                        ) : (
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">
+                            {memo.user.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        {memo.user.name}
+                      </span>
                       <span>{formatDateJP(new Date(memo.created_at))}</span>
                     </div>
                   </div>
