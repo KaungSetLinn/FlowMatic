@@ -6,6 +6,7 @@ from rest_framework import status
 from channels.testing import WebsocketCommunicator
 from channels.layers import get_channel_layer
 from django.contrib.sessions.backends.db import SessionStore
+from rest_framework_simplejwt.tokens import AccessToken
 
 from projects.models import Project
 from .models import ChatRoom, ChatRoomUser, Message
@@ -95,9 +96,10 @@ class ChatWebSocketTests(TestCase):
 
     async def test_connect_to_chatroom(self):
         """チャットルームへの正常接続テスト"""
+        token = AccessToken.for_user(self.user)
         communicator = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token)}",
         )
         connected, subprotocol = await communicator.connect()
         self.assertTrue(connected)
@@ -110,9 +112,10 @@ class ChatWebSocketTests(TestCase):
 
     async def test_send_and_receive_message(self):
         """メッセージ送信とブロードキャストのテスト"""
+        token = AccessToken.for_user(self.user)
         communicator = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token)}",
         )
         connected, subprotocol = await communicator.connect()
         self.assertTrue(connected)
@@ -133,13 +136,15 @@ class ChatWebSocketTests(TestCase):
 
     async def test_multiple_clients_message_sync(self):
         """複数クライアント間でのメッセージ同期テスト"""
+        token1 = AccessToken.for_user(self.user)
+        token2 = AccessToken.for_user(self.user2)
         communicator1 = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token1)}",
         )
         communicator2 = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token2)}",
         )
 
         connected1, _ = await communicator1.connect()
@@ -207,9 +212,10 @@ class ChatWebSocketTests(TestCase):
         """無効なチャットルームIDでのメッセージ送信失敗テスト"""
         import uuid
 
+        token = AccessToken.for_user(self.user)
         communicator = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token)}",
         )
         connected, _ = await communicator.connect()
         self.assertTrue(connected)
@@ -227,9 +233,10 @@ class ChatWebSocketTests(TestCase):
 
     async def test_non_member_can_connect_but_message_fails(self):
         """メンバー以外のユーザーは接続できるが、メッセージ送信が失敗するテスト"""
+        token = AccessToken.for_user(self.user3)
         communicator = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token)}",
         )
         connected, _ = await communicator.connect()
 
@@ -242,13 +249,15 @@ class ChatWebSocketTests(TestCase):
 
     async def test_typing_notification(self):
         """タイピング通知の送受信テスト"""
+        token1 = AccessToken.for_user(self.user)
+        token2 = AccessToken.for_user(self.user2)
         communicator1 = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token1)}",
         )
         communicator2 = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token2)}",
         )
 
         connected1, _ = await communicator1.connect()
@@ -283,9 +292,10 @@ class ChatWebSocketTests(TestCase):
 
     async def test_message_creation_in_database(self):
         """WebSocket経由で送信したメッセージがデータベースに保存されるテスト"""
+        token = AccessToken.for_user(self.user)
         communicator = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token)}",
         )
         connected, _ = await communicator.connect()
         self.assertTrue(connected)
@@ -311,13 +321,14 @@ class ChatWebSocketTests(TestCase):
 
     async def test_disconnect_removes_from_group(self):
         """切断時にグループから削除されるテスト"""
+        token = AccessToken.for_user(self.user)
         communicator1 = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token)}",
         )
         communicator2 = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token)}",
         )
 
         await communicator1.connect()
@@ -342,9 +353,10 @@ class ChatWebSocketTests(TestCase):
 
     async def test_message_persists_user_data(self):
         """メッセージにユーザーデータが正しく保存されるテスト"""
+        token = AccessToken.for_user(self.user)
         communicator = WebsocketCommunicator(
             application,
-            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/",
+            f"/ws/chat/{self.project.project_id}/{self.chatroom.chatroom_id}/?token={str(token)}",
         )
         connected, _ = await communicator.connect()
         self.assertTrue(connected)

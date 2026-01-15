@@ -33,23 +33,45 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def handle_join_room(self):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
-        await self.send(
-            text_data=json.dumps(
-                {
-                    "type": "connected",
-                    "message": f"Connected to chat room {self.chatroom_id}",
-                }
+        chatroom = await self.get_chatroom()
+        if not chatroom:
+            await self.send(
+                text_data=json.dumps({"type": "error", "message": "Chatroom not found"})
             )
-        )
+            return
+
+        messages = await self.get_messages(chatroom)
+
+        for message in messages:
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "message",
+                        "message": {
+                            "message_id": str(message.message_id),
+                            "chatroom_id": str(message.chatroom.chatroom_id),
+                            "user_id": message.user.pk,
+                            "name": message.user.username,
+                            "email": message.user.email,
+                            "profile_picture": message.user.profile_picture.url
+                            if message.user.profile_picture
+                            else None,
+                            "content": message.content,
+                            "timestamp": message.timestamp.isoformat(),
+                        },
+                    }
+                )
+            )
+
+        await self.send(text_data=json.dumps({"type": "history_complete"}))
 
     async def handle_message(self, text_data_json):
-        user_id = text_data_json.get("user_id")
         content = text_data_json.get("content")
 
         if not content or not content.strip():
             return
 
-        message = await self.save_message(user_id, content)
+        message = await self.save_message(content)
 
         await self.channel_layer.group_send(
             self.room_group_name,
@@ -99,20 +121,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     @database_sync_to_async
-    def save_message(self, user_id, content):
+    def get_chatroom(self):
+        try:
+            return ChatRoom.objects.get(
+                chatroom_id=self.chatroom_id, project__project_id=self.project_id
+            )
+        except ChatRoom.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def get_messages(self, chatroom):
+        return list(chatroom.messages.all().select_related("user", "chatroom"))
+
+    @database_sync_to_async
+    def save_message(self, content):
         try:
             chatroom = ChatRoom.objects.get(
                 chatroom_id=self.chatroom_id, project__project_id=self.project_id
             )
 
-            if user_id:
-                user = User.objects.get(pk=user_id)
-            else:
-                user = self.scope["user"]
-
             message = Message.objects.create(
-                chatroom=chatroom, user=user, content=content
+                chatroom=chatroom, user=self.scope["user"], content=content
             )
             return message
-        except (ChatRoom.DoesNotExist, User.DoesNotExist):
-            raise ValueError("Invalid chatroom or user")
+        except ChatRoom.DoesNotExist:
+            raise ValueError("Invalid chatroom")
