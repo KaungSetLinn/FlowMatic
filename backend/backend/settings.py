@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 
 AUTH_USER_MODEL = "api.User"
 
@@ -68,7 +68,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_extensions",
     "files",
-    "memos"
+    "memos",
 ]
 
 MIDDLEWARE = [
@@ -156,5 +156,10 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = not bool(os.getenv("CORS_ALLOWED_ORIGINS"))
 CORS_ALLOWS_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = (
+    os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if os.getenv("CORS_ALLOWED_ORIGINS")
+    else []
+)

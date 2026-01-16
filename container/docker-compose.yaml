@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: container/backend.containerfile
+    container_name: flowmatic-backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      - DEBUG=${DEBUG:-True}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+    volumes:
+      - ../backend:/app:z
+      - backend-db:/app/db.sqlite3
+    restart: unless-stopped
+    networks:
+      - flowmatic-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: container/frontend.containerfile
+    container_name: flowmatic-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:8000}
+    volumes:
+      - ../frontend:/app:z
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - flowmatic-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: flowmatic-tunnel
+    command: ${CLOUDFLARE_TUNNEL_TOKEN:+tunnel --config /etc/cloudflared/config.yaml run}
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    volumes:
+      - ./cloudflared.yaml:/etc/cloudflared/config.yaml:z
+    restart: unless-stopped
+    networks:
+      - flowmatic-net
+    profiles:
+      - production
+
+networks:
+  flowmatic-net:
+    driver: bridge
+
+volumes:
+  backend-db:
+    driver: local
