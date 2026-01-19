@@ -235,6 +235,8 @@ const Task = () => {
   };
 
   const deleteTask = (taskId) => {
+    if (!window.confirm("このタスクを削除しますか？")) return;
+
     setTasks((tasks) => tasks.filter((t) => t.id !== taskId));
   };
 
@@ -494,7 +496,7 @@ const Task = () => {
                           : task.status === "in_progress"
                           ? "進行中"
                           : task.status === "in_review"
-                          ? "レビュー中"
+                          ? "レビュー待ち"
                           : task.status === "testing"
                           ? "テスト中"
                           : task.status === "pending"
@@ -659,13 +661,15 @@ const Task = () => {
                 <div className="flex gap-4 ml-4">
                   {task.users.some((u) => u.user_id === user.id) && (
                     <>
-                      <button
-                        className="flex items-center gap-2 px-4 py-2 font-bold text-lg bg-yellow-400 hover:bg-yellow-500 rounded-lg hover:cursor-pointer"
-                        title="編集"
-                      >
-                        <FontAwesomeIcon icon={faPen} />
-                        編集
-                      </button>
+                      <Link to={`/task/${task.id}/edit`}>
+                        <button
+                          className="flex items-center gap-2 px-4 py-2 font-bold text-lg bg-yellow-400 hover:bg-yellow-500 rounded-lg hover:cursor-pointer"
+                          title="編集"
+                        >
+                          <FontAwesomeIcon icon={faPen} />
+                          編集
+                        </button>
+                      </Link>
 
                       <button
                         onClick={() => deleteTask(task.id)}

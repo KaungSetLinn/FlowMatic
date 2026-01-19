@@ -22,6 +22,13 @@ export async function getTasks(projectId) {
   }
 }
 
+export async function getTaskById(projectId, taskId) {
+  const response = await api.get(
+    `/api/projects/${projectId}/tasks/${taskId}/`
+  );
+  return response.data;
+}
+
 export async function updateTask(projectId, taskId, taskData) {
   try {
     // Update a specific task within a project
@@ -29,6 +36,15 @@ export async function updateTask(projectId, taskId, taskData) {
 
     console.log(response.data)
     return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+}
+
+export async function deleteTask(projectId, taskId) {
+  try {
+    await api.delete(`/api/projects/${projectId}/tasks/${taskId}/`);
   } catch (error) {
     console.error("API Error:", error);
     throw error;

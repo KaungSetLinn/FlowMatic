@@ -1,14 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useProject } from "../context/ProjectContext";
-import { createTask, getTasks } from "../services/TaskService";
+import {
+  createTask,
+  getTaskById,
+  getTasks,
+  updateTask,
+} from "../services/TaskService";
 import { MobileDateTimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { CURRENT_PROJECT_ID } from "../constants";
 
 export default function NewTaskForm() {
   const { currentProject } = useProject();
-  const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
+  const currentProjectId = currentProject?.project_id;
+
+  const { taskId } = useParams();
+  const isEditMode = Boolean(taskId);
 
   const [existingTasks, setExistingTasks] = useState([]);
 
@@ -57,6 +65,35 @@ export default function NewTaskForm() {
   }, []);
 
   useEffect(() => {
+    if (!isEditMode) return;
+
+    const loadTask = async () => {
+      const task = await getTaskById(currentProjectId, taskId);
+
+      setTaskName(task.name);
+      setDescription(task.description || "");
+      setPriority(task.priority);
+      setStatus(task.status);
+
+      setDates({
+        startDate: task.start_date ? new Date(task.start_date) : null,
+        deadline: task.deadline ? new Date(task.deadline) : null,
+      });
+
+      setAssignees(task.users.map((u) => u.user_id));
+
+      setDependencies(
+        (task.parent_tasks || []).map((p) => ({
+          taskId: p.task_id,
+          type: p.relation_type,
+        }))
+      );
+    };
+
+    loadTask();
+  }, [isEditMode, taskId, currentProjectId]);
+
+  useEffect(() => {
     console.log(existingTasks);
   }, [existingTasks]);
 
@@ -91,24 +128,10 @@ export default function NewTaskForm() {
     if (!taskName.trim()) return showMessage("タスク名が必要です。", "error");
     if (!dates.deadline)
       return showMessage("期限日を設定してください。", "error");
-
-    if (assignees.length === 0) {
+    if (assignees.length === 0)
       return showMessage("担当者を1名以上選択してください。", "error");
-    }
 
-    // Validate dependency selection
-    const hasEmptyDependency = dependencies.some(
-      (dep) => !dep.taskId || dep.taskId.trim() === ""
-    );
-    if (hasEmptyDependency) {
-      return showMessage(
-        "すべてのタスク間関係で既存タスクを選択してください。",
-        "error"
-      );
-    }
-
-    // Validate logical date order
-    if (dates.startDate && dates.deadline && dates.deadline < dates.startDate) {
+    if (dates.startDate && dates.deadline < dates.startDate) {
       return showMessage(
         "期限日は開始日より後の日付を選択してください。",
         "error"
@@ -119,7 +142,7 @@ export default function NewTaskForm() {
       name: taskName,
       description,
       start_date: dates.startDate?.toISOString() || null,
-      deadline: dates.deadline?.toISOString(),
+      deadline: dates.deadline.toISOString(),
       priority,
       status,
       assigned_user_ids: assignees,
@@ -129,16 +152,20 @@ export default function NewTaskForm() {
       })),
     };
 
-    console.log("📦 Sending API request:", requestData);
+    try {
+      if (isEditMode) {
+        await updateTask(currentProjectId, taskId, requestData);
+        alert("タスクを更新しました！");
+      } else {
+        await createTask(currentProjectId, requestData);
+        alert(`${taskName} を作成しました！`);
+      }
 
-    const response = await createTask(currentProjectId, requestData);
-
-    console.log("🎉 API Response:", response);
-
-    alert(`${taskName} を作成しました！`);
-    resetForm();
-
-    navigate("/task");
+      resetForm();
+      navigate("/task");
+    } catch (error) {
+      showMessage("保存に失敗しました。", "error");
+    }
   };
 
   const showMessage = (text, type) => {
@@ -175,7 +202,7 @@ export default function NewTaskForm() {
 
       <div className="bg-white p-8 rounded-xl shadow-lg w-full">
         <h1 className="text-4xl font-bold text-gray-800 mb-6 text-center">
-          新しいタスクの作成
+          {isEditMode ? "タスクを編集" : "新しいタスクの作成"}
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -303,7 +330,7 @@ export default function NewTaskForm() {
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white"
               >
-                <option value="to_do">未着手</option>
+                <option value="todo">未着手</option>
                 <option value="pending">保留</option>
                 <option value="in_progress">進行中</option>
                 <option value="in_review">レビュー待ち</option>
@@ -313,7 +340,7 @@ export default function NewTaskForm() {
           </div>
 
           {/* Dependencies Section */}
-          <div className="border-t border-gray-200 pt-5">
+          {/* <div className="border-t border-gray-200 pt-5">
             <div className="flex justify-between items-center mb-4">
               <label className="block text-gray-700 text-lg font-semibold">
                 タスク間の関係
@@ -354,8 +381,6 @@ export default function NewTaskForm() {
                         削除
                       </button>
                     </div>
-
-                    {/* Select Existing Task & Relation Type */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-gray-700 text-lg font-semibold mb-1">
@@ -396,8 +421,6 @@ export default function NewTaskForm() {
                         </select>
                       </div>
                     </div>
-
-                    {/* Relation Preview */}
                     <div className="mt-3 text-lg text-gray-700 flex items-center justify-center gap-2">
                       {relatedTask && taskName && (
                         <span>
@@ -422,7 +445,7 @@ export default function NewTaskForm() {
                 );
               })
             )}
-          </div>
+          </div> */}
 
           {/* Submit Button */}
           <button
@@ -430,7 +453,7 @@ export default function NewTaskForm() {
             className="w-full bg-blue-600 text-white font-extrabold text-lg py-3 rounded-lg 
             hover:cursor-pointer hover:bg-blue-700 transition duration-300 transform hover:scale-105"
           >
-            タスクを作成
+            {isEditMode ? "更新する" : "タスクを作成"}
           </button>
         </form>
 
