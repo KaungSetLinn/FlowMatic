@@ -49,6 +49,13 @@ class Message(models.Model):
     )
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
+    reply_to = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replies",
+    )
 
     class Meta:
         ordering = ["timestamp"]
@@ -61,3 +68,24 @@ class Message(models.Model):
 
     def __str__(self) -> str:
         return f"Message({self.message_id})"
+
+
+class MessageReaction(models.Model):
+    reaction_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.ForeignKey(
+        Message, on_delete=models.CASCADE, related_name="reactions"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="message_reactions",
+    )
+    emoji = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("message", "user", "emoji")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"MessageReaction({self.reaction_id})"

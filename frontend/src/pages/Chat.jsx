@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import EmojiPicker from "emoji-picker-react";
 import { ACCESS_TOKEN, CURRENT_PROJECT_ID } from "../constants";
-import { getChatrooms, getMessages } from "../services/ChatService";
+import { getChatrooms, getMessages, addReaction, removeReaction } from "../services/ChatService";
 import api from "../api";
 import { useProject } from "../context/ProjectContext";
 import { useAuth } from "../context/AuthContext";
@@ -125,7 +125,15 @@ const Chat = () => {
           }),
           date: new Date(msg.timestamp).toLocaleDateString("ja-JP"),
           self: msg.user_id === user.id,
-          reactions: {},
+          replyTo: msg.reply_to_message
+            ? {
+                id: msg.reply_to_message.message_id,
+                userId: msg.reply_to_message.user_id,
+                userName: msg.reply_to_message.name,
+                text: msg.reply_to_message.content,
+              }
+            : null,
+          reactions: msg.reactions || {},
         }));
 
         setAllMessages((prev) => ({
@@ -162,41 +170,86 @@ const Chat = () => {
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      if (data.type !== "message") return;
+      if (data.type === "message") {
+        const msg = data.message;
 
-      const msg = data.message;
+        // safety: ignore messages for other rooms
+        if (msg.chatroom_id !== selectedChat) return;
 
-      // safety: ignore messages for other rooms
-      if (msg.chatroom_id !== selectedChat) return;
-
-      const formattedMessage = {
-        id: msg.message_id,
-        userId: msg.user_id,
-        userName: msg.username || msg.name,
-        profilePicture: msg.profile_picture,
-        text: msg.content,
-        time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        date: new Date(msg.timestamp).toLocaleDateString("ja-JP"),
-        self: msg.user_id === user.id,
-        reactions: {},
-      };
-
-      setAllMessages((prev) => {
-        const existing = prev[selectedChat] || [];
-
-        // prevent duplicates
-        if (existing.some((m) => m.id === formattedMessage.id)) {
-          return prev;
-        }
-
-        return {
-          ...prev,
-          [selectedChat]: [...existing, formattedMessage],
+        const formattedMessage = {
+          id: msg.message_id,
+          userId: msg.user_id,
+          userName: msg.username || msg.name,
+          profilePicture: msg.profile_picture,
+          text: msg.content,
+          time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          date: new Date(msg.timestamp).toLocaleDateString("ja-JP"),
+          self: msg.user_id === user.id,
+          replyTo: msg.reply_to_message
+            ? {
+                id: msg.reply_to_message.message_id,
+                userId: msg.reply_to_message.user_id,
+                userName: msg.reply_to_message.name,
+                text: msg.reply_to_message.content,
+              }
+            : null,
+          reactions: msg.reactions || {},
         };
-      });
+
+        setAllMessages((prev) => {
+          const existing = prev[selectedChat] || [];
+
+          // prevent duplicates
+          if (existing.some((m) => m.id === formattedMessage.id)) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            [selectedChat]: [...existing, formattedMessage],
+          };
+        });
+      } else if (data.type === "reaction_added") {
+        const { message_id, reaction } = data;
+
+        setAllMessages((prev) => ({
+          ...prev,
+          [selectedChat]: prev[selectedChat].map((m) =>
+            m.id === message_id
+              ? {
+                  ...m,
+                  reactions: {
+                    ...m.reactions,
+                    [reaction.emoji]: [
+                      ...(m.reactions[reaction.emoji] || []),
+                      reaction.user_id,
+                    ],
+                  },
+                }
+              : m
+          ),
+        }));
+      } else if (data.type === "reaction_removed") {
+        const { message_id, user_id, emoji } = data;
+
+        setAllMessages((prev) => ({
+          ...prev,
+          [selectedChat]: prev[selectedChat].map((m) =>
+            m.id === message_id
+              ? {
+                  ...m,
+                  reactions: {
+                    ...m.reactions,
+                    [emoji]: m.reactions[emoji].filter((id) => id !== user_id),
+                  },
+                }
+              : m
+          ),
+        }));
+      }
     };
 
     socket.onerror = (err) => {
@@ -222,12 +275,16 @@ const Chat = () => {
       return;
     }
 
-    socketRef.current.send(
-      JSON.stringify({
-        type: "message", // ✅ MUST be "message"
-        content: messageInput, // ✅ backend expects this
-      })
-    );
+    const payload = {
+      type: "message",
+      content: messageInput,
+    };
+
+    if (replyTo) {
+      payload.reply_to = replyTo.id;
+    }
+
+    socketRef.current.send(JSON.stringify(payload));
 
     setMessageInput("");
     setReplyTo(null);
@@ -333,9 +390,15 @@ const Chat = () => {
           minute: "2-digit",
         }),
         self: msg.user_id === user.id,
-        replyTo: null,
-        reaction: null,
-        reactions: {},
+        replyTo: msg.reply_to_message
+          ? {
+              id: msg.reply_to_message.message_id,
+              userId: msg.reply_to_message.user_id,
+              userName: msg.reply_to_message.name,
+              text: msg.reply_to_message.content,
+            }
+          : null,
+        reactions: msg.reactions || {},
       }));
 
       setAllMessages((prev) => ({
@@ -572,10 +635,10 @@ const Chat = () => {
                                   className="w-3 h-3 text-blue-500"
                                 />
                                 <span className="font-semibold text-xs text-gray-500">
-                                  引用
+                                  返信: {msg.replyTo.userName}
                                 </span>
                               </div>
-                              {msg.replyTo.text.slice(0, 50)}
+                              {msg.replyTo.text}
                             </div>
                           )}
                           {editingId === msg.id ? (
@@ -648,7 +711,47 @@ const Chat = () => {
                                 ([emoji, users]) => (
                                   <span
                                     key={emoji}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 cursor-pointer"
+                                    onClick={async () => {
+                                      if (users.includes(user.id)) {
+                                        try {
+                                          await removeReaction(
+                                            currentProjectId,
+                                            selectedChat,
+                                            msg.id,
+                                            emoji
+                                          );
+
+                                          setAllMessages((prev) => ({
+                                            ...prev,
+                                            [selectedChat]: prev[
+                                              selectedChat
+                                            ].map((m) =>
+                                              m.id === msg.id
+                                                ? {
+                                                    ...m,
+                                                    reactions: {
+                                                      ...m.reactions,
+                                                      [emoji]: m.reactions[
+                                                        emoji
+                                                      ].filter((id) => id !== user.id),
+                                                    },
+                                                  }
+                                                : m
+                                            ),
+                                          }));
+                                        } catch (error) {
+                                          console.error(
+                                            "Failed to remove reaction:",
+                                            error
+                                          );
+                                        }
+                                      }
+                                    }}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm shadow-sm transition-all duration-200 cursor-pointer ${
+                                      users.includes(user.id)
+                                        ? "ring-2 ring-blue-400"
+                                        : "hover:shadow-md hover:scale-105"
+                                    }`}
                                   >
                                     <span className="text-base">{emoji}</span>
                                     <span className="font-semibold text-gray-700">
@@ -699,24 +802,56 @@ const Chat = () => {
             <EmojiPicker
               width={350}
               height={400}
-              onEmojiClick={(emoji) => {
-                setAllMessages((prev) => ({
-                  ...prev,
-                  [selectedChat]: prev[selectedChat].map((m) =>
-                    m.id === reactionPickerMessageId
-                      ? {
-                          ...m,
-                          reactions: {
-                            ...m.reactions,
-                            [emoji.emoji]: [
-                              ...(m.reactions[emoji.emoji] || []),
-                              user.id,
-                            ],
-                          },
-                        }
-                      : m
-                  ),
-                }));
+              onEmojiClick={async (emoji) => {
+                try {
+                  const result = await addReaction(
+                    currentProjectId,
+                    selectedChat,
+                    reactionPickerMessageId,
+                    emoji.emoji
+                  );
+
+                  if (result) {
+                    setAllMessages((prev) => ({
+                      ...prev,
+                      [selectedChat]: prev[selectedChat].map((m) =>
+                        m.id === reactionPickerMessageId
+                          ? {
+                              ...m,
+                              reactions: {
+                                ...m.reactions,
+                                [emoji.emoji]: [
+                                  ...(m.reactions[emoji.emoji] || []),
+                                  user.id,
+                                ],
+                              },
+                            }
+                          : m
+                      ),
+                    }));
+                  } else {
+                    // Reaction was removed (toggled)
+                    setAllMessages((prev) => ({
+                      ...prev,
+                      [selectedChat]: prev[selectedChat].map((m) =>
+                        m.id === reactionPickerMessageId
+                          ? {
+                              ...m,
+                              reactions: {
+                                ...m.reactions,
+                                [emoji.emoji]: m.reactions[
+                                  emoji.emoji
+                                ].filter((id) => id !== user.id),
+                              },
+                            }
+                          : m
+                      ),
+                    }));
+                  }
+                } catch (error) {
+                  console.error("Failed to add reaction:", error);
+                }
+
                 setShowReactionPicker(false);
                 setReactionPickerMessageId(null);
               }}
@@ -729,7 +864,7 @@ const Chat = () => {
           <div className="mx-6 mb-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-xl shadow-sm flex items-center gap-3 flex-shrink-0">
             <div className="flex-1">
               <div className="text-xs font-semibold text-blue-700 mb-1">
-                返信中:
+                返信中: {replyTo.userName}
               </div>
               <div className="text-sm text-gray-800 line-clamp-1">
                 {replyTo.text}

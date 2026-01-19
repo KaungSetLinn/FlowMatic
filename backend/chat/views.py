@@ -4,15 +4,18 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from notifications.utils import create_reply_notification, create_reaction_notification
 
 from projects.models import Project
-from .models import ChatRoom, Message
+from .models import ChatRoom, Message, MessageReaction
 from .serializers import (
     ChatRoomCreateSerializer,
     ChatRoomResponseSerializer,
     MessageCreateSerializer,
     MessageSerializer,
     MessageUpdateSerializer,
+    MessageReactionCreateSerializer,
+    MessageReactionSerializer,
 )
 
 
@@ -104,6 +107,14 @@ class ChatRoomMessageListCreateView(APIView):
 
         message = serializer.save()
 
+        # Create notification for reply target (if any)
+        if message.reply_to and message.reply_to.user != request.user:
+            create_reply_notification(
+                recipient=message.reply_to.user,
+                reply_message=message,
+                sender=request.user,
+            )
+
         response_serializer = MessageSerializer(message)
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -158,37 +169,117 @@ class ChatRoomMessageDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ChatRoomMessageDetailView(APIView):
+class MessageReactionView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def _get_message(self, project_id: str, chatroom_id: str, message_id: str):
+    def _get_message_and_chatroom(
+        self, project_id: str, chatroom_id: str, message_id: str
+    ):
         message = get_object_or_404(
             Message,
             message_id=message_id,
             chatroom__chatroom_id=chatroom_id,
             chatroom__project__project_id=project_id,
         )
+        chatroom = message.chatroom
 
-        if message.user != self.request.user:
-            raise PermissionDenied("You can only edit or delete your own messages.")
+        if not chatroom.members.filter(pk=self.request.user.pk).exists():
+            raise PermissionDenied("You are not a member of this chat room.")
 
-        return message
+        return message, chatroom
 
-    def put(
+    def post(
         self, request, project_id: str, chatroom_id: str, message_id: str
     ) -> Response:
-        message = self._get_message(project_id, chatroom_id, message_id)
+        message, chatroom = self._get_message_and_chatroom(
+            project_id, chatroom_id, message_id
+        )
 
-        serializer = MessageUpdateSerializer(message, data=request.data)
+        # Check if reaction already exists and toggle
+        emoji = request.data.get("emoji")
+        existing_reaction = MessageReaction.objects.filter(
+            message=message, user=request.user, emoji=emoji
+        ).first()
+
+        if existing_reaction:
+            # Remove existing reaction
+            existing_reaction.delete()
+            return Response({"detail": "Reaction removed."}, status=status.HTTP_200_OK)
+
+        # Create new reaction
+        serializer = MessageReactionCreateSerializer(
+            data=request.data,
+            context={"message": message, "chatroom": chatroom, "request": request},
+        )
         serializer.is_valid(raise_exception=True)
-        updated_message = serializer.save()
 
-        response_serializer = MessageSerializer(updated_message)
-        return Response(response_serializer.data)
+        reaction = serializer.save()
+
+        # Create notification for message author (if not self)
+        if message.user != request.user:
+            create_reaction_notification(
+                recipient=message.user,
+                message=message,
+                sender=request.user,
+                emoji=reaction.emoji,
+            )
+
+        response_serializer = MessageReactionSerializer(reaction)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        serializer = MessageReactionCreateSerializer(
+            data=request.data,
+            context={"message": message, "chatroom": chatroom, "request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        reaction = serializer.save()
+
+        if reaction:
+            # Create notification for message author (if not self)
+            if message.user != request.user:
+                create_reaction_notification(
+                    recipient=message.user,
+                    message=message,
+                    sender=request.user,
+                    emoji=reaction.emoji,
+                )
+
+            response_serializer = MessageReactionSerializer(reaction)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            # Reaction was removed (toggled)
+            return Response({"detail": "Reaction removed."}, status=status.HTTP_200_OK)
+
+        serializer = MessageReactionCreateSerializer(
+            data=request.data,
+            context={"message": message, "chatroom": chatroom, "request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        reaction = serializer.save()
+
+        if reaction:
+            response_serializer = MessageReactionSerializer(reaction)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            # Reaction was removed (toggled)
+            return Response({"detail": "Reaction removed."}, status=status.HTTP_200_OK)
 
     def delete(
-        self, request, project_id: str, chatroom_id: str, message_id: str
+        self, request, project_id: str, chatroom_id: str, message_id: str, emoji: str
     ) -> Response:
-        message = self._get_message(project_id, chatroom_id, message_id)
-        message.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        message, chatroom = self._get_message_and_chatroom(
+            project_id, chatroom_id, message_id
+        )
+
+        try:
+            reaction = MessageReaction.objects.get(
+                message=message, user=request.user, emoji=emoji
+            )
+            reaction.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except MessageReaction.DoesNotExist:
+            return Response(
+                {"detail": "Reaction not found."}, status=status.HTTP_404_NOT_FOUND
+            )

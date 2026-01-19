@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from projects.models import Project
-from .models import ChatRoom, ChatRoomUser, Message
+from .models import ChatRoom, ChatRoomUser, Message, MessageReaction
 
 
 User = get_user_model()
@@ -95,6 +95,8 @@ class MessageSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source="user.username", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
     profile_picture = serializers.SerializerMethodField()
+    reply_to_message = serializers.SerializerMethodField()
+    reactions = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -107,18 +109,40 @@ class MessageSerializer(serializers.ModelSerializer):
             "profile_picture",
             "content",
             "timestamp",
+            "reply_to_message",
+            "reactions",
         )
 
     def get_profile_picture(self, obj):
         return obj.user.profile_picture.url if obj.user.profile_picture else None
 
+    def get_reply_to_message(self, obj):
+        if obj.reply_to:
+            return {
+                "message_id": str(obj.reply_to.message_id),
+                "user_id": obj.reply_to.user.pk,
+                "name": obj.reply_to.user.username,
+                "content": obj.reply_to.content,
+            }
+        return None
+
+    def get_reactions(self, obj):
+        reactions = {}
+        for reaction in obj.reactions.all():
+            emoji = reaction.emoji
+            if emoji not in reactions:
+                reactions[emoji] = []
+            reactions[emoji].append(reaction.user.pk)
+        return reactions
+
 
 class MessageCreateSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(write_only=True, required=False)
+    reply_to_id = serializers.UUIDField(write_only=True, required=False)
 
     class Meta:
         model = Message
-        fields = ["content", "user_id"]
+        fields = ["content", "user_id", "reply_to_id"]
 
     default_error_messages = {
         "not_in_chatroom": "The user is not a member of this chat room.",
@@ -155,18 +179,85 @@ class MessageCreateSerializer(serializers.ModelSerializer):
 
         attrs["user"] = user
         attrs["chatroom"] = chatroom
+
+        # Validate reply_to
+        reply_to_id = attrs.pop("reply_to_id", None)
+        if reply_to_id:
+            try:
+                reply_to_message = Message.objects.get(
+                    message_id=reply_to_id, chatroom=chatroom
+                )
+                attrs["reply_to"] = reply_to_message
+            except Message.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"reply_to_id": "Reply message not found in this chatroom."}
+                )
+
         return attrs
 
     def create(self, validated_data: dict) -> Message:
         message = Message.objects.create(**validated_data)
         return message
 
+
 class MessageUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
-        fields = ["content"] # 編集できるのはメッセージ内容のみ
+        fields = ["content"]
 
     def validate_content(self, value):
         if not value.strip():
             raise serializers.ValidationError("Message content cannot be blank.")
         return value
+
+
+class MessageReactionSerializer(serializers.ModelSerializer):
+    message_id = serializers.UUIDField(source="message.message_id", read_only=True)
+    user_id = serializers.IntegerField(source="user.pk", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = MessageReaction
+        fields = (
+            "reaction_id",
+            "message_id",
+            "user_id",
+            "username",
+            "emoji",
+            "created_at",
+        )
+
+
+class MessageReactionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MessageReaction
+        fields = ["emoji"]
+
+    default_error_messages = {
+        "not_in_chatroom": "You are not a member of this chat room.",
+        "invalid_emoji": "Invalid emoji.",
+    }
+
+    def validate_emoji(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Emoji cannot be blank.")
+        return value
+
+    def validate(self, attrs: dict) -> dict:
+        message: Message = self.context["message"]
+        chatroom: ChatRoom = self.context["chatroom"]
+        request = self.context["request"]
+
+        # Check if user is a member of the chatroom
+        is_member = chatroom.members.filter(pk=request.user.pk).exists()
+        if not is_member:
+            self.fail("not_in_chatroom")
+
+        attrs["message"] = message
+        attrs["user"] = request.user
+        return attrs
+
+    def create(self, validated_data: dict) -> MessageReaction:
+        # Create reaction
+        reaction = MessageReaction.objects.create(**validated_data)
+        return reaction

@@ -104,3 +104,28 @@ export async function postMessage(projectId, chatroomId, messageData) {
     throw error;
   }
 }
+
+export async function addReaction(projectId, chatroomId, messageId, emoji) {
+  try {
+    const response = await api.post(
+      `/api/projects/${projectId}/chatrooms/${chatroomId}/messages/${messageId}/reactions/`,
+      { emoji }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+}
+
+export async function removeReaction(projectId, chatroomId, messageId, emoji) {
+  try {
+    const response = await api.delete(
+      `/api/projects/${projectId}/chatrooms/${chatroomId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}/`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+}

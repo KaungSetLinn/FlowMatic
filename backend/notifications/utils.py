@@ -165,3 +165,40 @@ def create_chatroom_notification(recipient, chatroom, action="created"):
         notification_type="chat",
         related_object_id=str(chatroom.chatroom_id),
     )
+
+
+def create_reply_notification(recipient, reply_message, sender):
+    """
+    Create reply-related notifications
+
+    Args:
+        recipient: User to notify
+        reply_message: Message object that is the reply
+        sender: User who sent the reply
+    """
+    return create_notification(
+        recipient=recipient,
+        title="メッセージに返信がありました",
+        message=f"{sender.username}さんがあなたのメッセージに返信しました",
+        notification_type="chat",
+        related_object_id=str(reply_message.message_id),
+    )
+
+
+def create_reaction_notification(recipient, message, sender, emoji):
+    """
+    Create reaction-related notifications
+
+    Args:
+        recipient: User to notify
+        message: Message object that was reacted to
+        sender: User who reacted
+        emoji: Emoji reaction
+    """
+    return create_notification(
+        recipient=recipient,
+        title="メッセージにリアクションがありました",
+        message=f"{sender.username}さんがあなたのメッセージに{emoji}でリアクションしました",
+        notification_type="chat",
+        related_object_id=str(message.message_id),
+    )

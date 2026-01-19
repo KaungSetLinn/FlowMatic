@@ -2,8 +2,10 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
+from asgiref.sync import async_to_sync
+from notifications.utils import create_reply_notification, create_reaction_notification
 
-from .models import ChatRoom, ChatRoomUser, Message
+from .models import ChatRoom, ChatRoomUser, Message, MessageReaction
 
 User = get_user_model()
 
@@ -29,6 +31,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.handle_message(text_data_json)
         elif message_type == "typing":
             await self.handle_typing(text_data_json)
+        elif message_type == "add_reaction":
+            await self.handle_add_reaction(text_data_json)
+        elif message_type == "remove_reaction":
+            await self.handle_remove_reaction(text_data_json)
 
     async def handle_join_room(self):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
@@ -67,11 +73,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def handle_message(self, text_data_json):
         content = text_data_json.get("content")
+        reply_to_id = text_data_json.get("reply_to")
 
         if not content or not content.strip():
             return
 
-        message = await self.save_message(content)
+        message = await self.save_message(content, reply_to_id)
+
+        reply_to_message = None
+        if message.reply_to:
+            reply_to_message = {
+                "message_id": str(message.reply_to.message_id),
+                "user_id": message.reply_to.user.pk,
+                "name": message.reply_to.user.username,
+                "content": message.reply_to.content,
+            }
 
         await self.channel_layer.group_send(
             self.room_group_name,
@@ -88,6 +104,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     else None,
                     "content": message.content,
                     "timestamp": message.timestamp.isoformat(),
+                    "reply_to_message": reply_to_message,
+                    "reactions": {},
                 },
             },
         )
@@ -120,6 +138,66 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         )
 
+    async def handle_add_reaction(self, text_data_json):
+        message_id = text_data_json.get("message_id")
+        emoji = text_data_json.get("emoji")
+
+        if not message_id or not emoji:
+            return
+
+        reaction = await self.save_reaction(message_id, emoji)
+
+        if reaction:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "reaction_added",
+                    "message_id": message_id,
+                    "reaction": {
+                        "reaction_id": str(reaction.reaction_id),
+                        "user_id": reaction.user.pk,
+                        "username": reaction.user.username,
+                        "emoji": reaction.emoji,
+                    },
+                },
+            )
+        else:
+            # Reaction was removed (toggled)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "reaction_removed",
+                    "message_id": message_id,
+                    "user_id": self.scope["user"].pk,
+                    "emoji": emoji,
+                },
+            )
+
+    async def handle_remove_reaction(self, text_data_json):
+        message_id = text_data_json.get("message_id")
+        emoji = text_data_json.get("emoji")
+
+        if not message_id or not emoji:
+            return
+
+        await self.delete_reaction(message_id, emoji)
+
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                "type": "reaction_removed",
+                "message_id": message_id,
+                "user_id": self.scope["user"].pk,
+                "emoji": emoji,
+            },
+        )
+
+    async def reaction_added(self, event):
+        await self.send(text_data=json.dumps({"type": "reaction_added", **event}))
+
+    async def reaction_removed(self, event):
+        await self.send(text_data=json.dumps({"type": "reaction_removed", **event}))
+
     @database_sync_to_async
     def get_chatroom(self):
         try:
@@ -134,15 +212,94 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return list(chatroom.messages.all().select_related("user", "chatroom"))
 
     @database_sync_to_async
-    def save_message(self, content):
+    def save_message(self, content, reply_to_id=None):
         try:
             chatroom = ChatRoom.objects.get(
                 chatroom_id=self.chatroom_id, project__project_id=self.project_id
             )
 
+            reply_to = None
+            if reply_to_id:
+                reply_to = Message.objects.get(
+                    message_id=reply_to_id, chatroom=chatroom
+                )
+
+            user = self.scope["user"]
             message = Message.objects.create(
-                chatroom=chatroom, user=self.scope["user"], content=content
+                chatroom=chatroom, user=user, content=content, reply_to=reply_to
             )
+
+            # Create notification for reply target (if any and not self)
+            if reply_to and reply_to.user != user:
+                create_reply_notification(
+                    recipient=reply_to.user,
+                    reply_message=message,
+                    sender=user,
+                )
+
             return message
         except ChatRoom.DoesNotExist:
             raise ValueError("Invalid chatroom")
+        except Message.DoesNotExist:
+            raise ValueError("Invalid reply_to message")
+
+    @database_sync_to_async
+    def save_reaction(self, message_id, emoji):
+        try:
+            chatroom = ChatRoom.objects.get(
+                chatroom_id=self.chatroom_id, project__project_id=self.project_id
+            )
+            message = Message.objects.get(message_id=message_id, chatroom=chatroom)
+            user = self.scope["user"]
+
+            # Check if user is a member of chatroom
+            is_member = chatroom.members.filter(pk=user.pk).exists()
+            if not is_member:
+                raise ValueError("User not in chatroom")
+
+            # Check if reaction already exists
+            existing = MessageReaction.objects.filter(
+                message=message, user=user, emoji=emoji
+            ).first()
+
+            if existing:
+                # Remove existing reaction
+                existing.delete()
+                return None
+            else:
+                # Create new reaction
+                reaction = MessageReaction.objects.create(
+                    message=message, user=user, emoji=emoji
+                )
+
+                # Create notification for message author (if not self)
+                if message.user != user:
+                    create_reaction_notification(
+                        recipient=message.user,
+                        message=message,
+                        sender=user,
+                        emoji=emoji,
+                    )
+
+                return reaction
+        except ChatRoom.DoesNotExist:
+            raise ValueError("Invalid chatroom")
+        except Message.DoesNotExist:
+            raise ValueError("Invalid message")
+
+    @database_sync_to_async
+    def delete_reaction(self, message_id, emoji):
+        try:
+            chatroom = ChatRoom.objects.get(
+                chatroom_id=self.chatroom_id, project__project_id=self.project_id
+            )
+            message = Message.objects.get(message_id=message_id, chatroom=chatroom)
+            user = self.scope["user"]
+
+            MessageReaction.objects.filter(
+                message=message, user=user, emoji=emoji
+            ).delete()
+        except ChatRoom.DoesNotExist:
+            raise ValueError("Invalid chatroom")
+        except Message.DoesNotExist:
+            raise ValueError("Invalid message")
