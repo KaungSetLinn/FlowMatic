@@ -42,7 +42,7 @@ function Login() {
             navigate("/");
         } 
         catch (error) {
-            alert(error.response?.data ? JSON.stringify(error.response.data) : error);
+            alert(error.response?.data?.message || "メールアドレス、またはパスワードは正しくありません");
         } 
         finally {
             setLoading(false);

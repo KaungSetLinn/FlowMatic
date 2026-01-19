@@ -38,6 +38,8 @@ function Layout() {
     return <div className="p-6 text-gray-600">Loading projects...</div>;
 
   const handleLogout = () => {
+    if (!window.confirm("本当にログアウトしますか？")) return;
+    
     localStorage.clear();
     setIsAuthorized(false);
     window.location.href = "/login";

@@ -119,10 +119,16 @@ class EmailLoginSerializer(serializers.Serializer):
         password = data.get("password")
 
         user = authenticate(username=email, password=password)
+
         if user is None:
-            raise serializers.ValidationError("Invalid email or password.")
+            raise serializers.ValidationError({
+                "message": "メールアドレス、またはパスワードは正しくありません"
+            })
+
         if not user.is_active:
-            raise serializers.ValidationError("User account is disabled.")
+            raise serializers.ValidationError({
+                "message": "User account is disabled."
+            })
 
         data["user"] = user
         return data
