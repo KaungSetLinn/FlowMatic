@@ -4,6 +4,8 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from notifications.utils import create_reply_notification, create_reaction_notification
 
 from projects.models import Project
@@ -204,6 +206,16 @@ class MessageReactionView(APIView):
         if existing_reaction:
             # Remove existing reaction
             existing_reaction.delete()
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{chatroom.chatroom_id}",
+                {
+                    "type": "reaction_removed",
+                    "message_id": str(message_id),
+                    "user_id": request.user.pk,
+                    "emoji": emoji,
+                },
+            )
             return Response({"detail": "Reaction removed."}, status=status.HTTP_200_OK)
 
         # Create new reaction
@@ -225,46 +237,23 @@ class MessageReactionView(APIView):
             )
 
         response_serializer = MessageReactionSerializer(reaction)
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{chatroom.chatroom_id}",
+            {
+                "type": "reaction_added",
+                "message_id": str(message_id),
+                "reaction": {
+                    "reaction_id": str(reaction.reaction_id),
+                    "user_id": reaction.user.pk,
+                    "username": reaction.user.username,
+                    "emoji": reaction.emoji,
+                },
+            },
+        )
+
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-        serializer = MessageReactionCreateSerializer(
-            data=request.data,
-            context={"message": message, "chatroom": chatroom, "request": request},
-        )
-        serializer.is_valid(raise_exception=True)
-
-        reaction = serializer.save()
-
-        if reaction:
-            # Create notification for message author (if not self)
-            if message.user != request.user:
-                create_reaction_notification(
-                    recipient=message.user,
-                    message=message,
-                    sender=request.user,
-                    emoji=reaction.emoji,
-                )
-
-            response_serializer = MessageReactionSerializer(reaction)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            # Reaction was removed (toggled)
-            return Response({"detail": "Reaction removed."}, status=status.HTTP_200_OK)
-
-        serializer = MessageReactionCreateSerializer(
-            data=request.data,
-            context={"message": message, "chatroom": chatroom, "request": request},
-        )
-        serializer.is_valid(raise_exception=True)
-
-        reaction = serializer.save()
-
-        if reaction:
-            response_serializer = MessageReactionSerializer(reaction)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            # Reaction was removed (toggled)
-            return Response({"detail": "Reaction removed."}, status=status.HTTP_200_OK)
 
     def delete(
         self, request, project_id: str, chatroom_id: str, message_id: str, emoji: str
@@ -278,6 +267,16 @@ class MessageReactionView(APIView):
                 message=message, user=request.user, emoji=emoji
             )
             reaction.delete()
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{chatroom.chatroom_id}",
+                {
+                    "type": "reaction_removed",
+                    "message_id": str(message_id),
+                    "user_id": request.user.pk,
+                    "emoji": emoji,
+                },
+            )
             return Response(status=status.HTTP_204_NO_CONTENT)
         except MessageReaction.DoesNotExist:
             return Response(

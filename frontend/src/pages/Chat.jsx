@@ -711,38 +711,15 @@ const Chat = () => {
                                 ([emoji, users]) => (
                                   <span
                                     key={emoji}
-                                    onClick={async () => {
+                                    onClick={() => {
                                       if (users.includes(user.id)) {
-                                        try {
-                                          await removeReaction(
-                                            currentProjectId,
-                                            selectedChat,
-                                            msg.id,
-                                            emoji
-                                          );
-
-                                          setAllMessages((prev) => ({
-                                            ...prev,
-                                            [selectedChat]: prev[
-                                              selectedChat
-                                            ].map((m) =>
-                                              m.id === msg.id
-                                                ? {
-                                                    ...m,
-                                                    reactions: {
-                                                      ...m.reactions,
-                                                      [emoji]: m.reactions[
-                                                        emoji
-                                                      ].filter((id) => id !== user.id),
-                                                    },
-                                                  }
-                                                : m
-                                            ),
-                                          }));
-                                        } catch (error) {
-                                          console.error(
-                                            "Failed to remove reaction:",
-                                            error
+                                        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                                          socketRef.current.send(
+                                            JSON.stringify({
+                                              type: "remove_reaction",
+                                              message_id: msg.id,
+                                              emoji: emoji,
+                                            })
                                           );
                                         }
                                       }
@@ -802,54 +779,15 @@ const Chat = () => {
             <EmojiPicker
               width={350}
               height={400}
-              onEmojiClick={async (emoji) => {
-                try {
-                  const result = await addReaction(
-                    currentProjectId,
-                    selectedChat,
-                    reactionPickerMessageId,
-                    emoji.emoji
+              onEmojiClick={(emoji) => {
+                if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                  socketRef.current.send(
+                    JSON.stringify({
+                      type: "add_reaction",
+                      message_id: reactionPickerMessageId,
+                      emoji: emoji.emoji,
+                    })
                   );
-
-                  if (result) {
-                    setAllMessages((prev) => ({
-                      ...prev,
-                      [selectedChat]: prev[selectedChat].map((m) =>
-                        m.id === reactionPickerMessageId
-                          ? {
-                              ...m,
-                              reactions: {
-                                ...m.reactions,
-                                [emoji.emoji]: [
-                                  ...(m.reactions[emoji.emoji] || []),
-                                  user.id,
-                                ],
-                              },
-                            }
-                          : m
-                      ),
-                    }));
-                  } else {
-                    // Reaction was removed (toggled)
-                    setAllMessages((prev) => ({
-                      ...prev,
-                      [selectedChat]: prev[selectedChat].map((m) =>
-                        m.id === reactionPickerMessageId
-                          ? {
-                              ...m,
-                              reactions: {
-                                ...m.reactions,
-                                [emoji.emoji]: m.reactions[
-                                  emoji.emoji
-                                ].filter((id) => id !== user.id),
-                              },
-                            }
-                          : m
-                      ),
-                    }));
-                  }
-                } catch (error) {
-                  console.error("Failed to add reaction:", error);
                 }
 
                 setShowReactionPicker(false);

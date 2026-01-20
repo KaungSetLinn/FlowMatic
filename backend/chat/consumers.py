@@ -49,6 +49,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         messages = await self.get_messages(chatroom)
 
         for message in messages:
+            reactions = {}
+            for reaction in message.reactions.all():
+                emoji = reaction.emoji
+                if emoji not in reactions:
+                    reactions[emoji] = []
+                reactions[emoji].append(reaction.user.pk)
+
             await self.send(
                 text_data=json.dumps(
                     {
@@ -64,6 +71,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             else None,
                             "content": message.content,
                             "timestamp": message.timestamp.isoformat(),
+                            "reactions": reactions,
                         },
                     }
                 )
@@ -209,7 +217,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_messages(self, chatroom):
-        return list(chatroom.messages.all().select_related("user", "chatroom"))
+        return list(
+            chatroom.messages.all()
+            .select_related("user", "chatroom")
+            .prefetch_related("reactions")
+        )
 
     @database_sync_to_async
     def save_message(self, content, reply_to_id=None):
