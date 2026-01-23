@@ -1,0 +1,4 @@
+from chat.routing import websocket_urlpatterns as chat_urlpatterns
+from notifications.routing import websocket_urlpatterns as notification_urlpatterns
+
+websocket_urlpatterns = chat_urlpatterns + notification_urlpatterns

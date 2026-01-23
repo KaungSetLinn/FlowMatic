@@ -1,7 +1,7 @@
 // Chat.jsx
 import { useState, useRef, useEffect } from "react";
 import EmojiPicker from "emoji-picker-react";
-import { CURRENT_PROJECT_ID } from "../constants";
+import { ACCESS_TOKEN, CURRENT_PROJECT_ID } from "../constants";
 import { getChatrooms, getMessages } from "../services/ChatService";
 import api from "../api";
 import { useProject } from "../context/ProjectContext";
@@ -27,11 +27,14 @@ import {
   faSmileBeam,
   faMessage,
 } from "@fortawesome/free-solid-svg-icons";
+import ProjectRequired from "../components/ProjectRequired";
 
 const Chat = () => {
   const { user } = useAuth();
   const { currentProject } = useProject();
-  const currentProjectId = currentProject.project_id;
+  const currentProjectId = currentProject?.project_id;
+
+  const socketRef = useRef(null);
 
   const [chats, setChats] = useState([]);
   const [allMessages, setAllMessages] = useState({});
@@ -60,6 +63,12 @@ const Chat = () => {
       document.body.style.overflow = "auto";
     };
   }, []);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [currentMessages]);
 
   // チャットルーム一覧を読み込む
   useEffect(() => {
@@ -98,19 +107,16 @@ const Chat = () => {
 
   // 選択されたチャットルームのメッセージを読み込む + ポーリング
   useEffect(() => {
-    const loadMessages = async () => {
+    const loadInitialMessages = async () => {
       if (!currentProjectId || !selectedChat) return;
 
       try {
-        setIsLoading(true);
-        const response = await getMessages(currentProjectId, selectedChat);
+        const res = await getMessages(currentProjectId, selectedChat, 1, 50);
 
-        console.log("messages: ", response);
-
-        const formattedMessages = response.messages.map((msg) => ({
+        const formatted = res.messages.map((msg) => ({
           id: msg.message_id,
           userId: msg.user_id,
-          userName: msg.name || `User ${msg.user_id}`,
+          userName: msg.username || msg.name,
           profilePicture: msg.profile_picture,
           text: msg.content,
           time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
@@ -118,90 +124,113 @@ const Chat = () => {
             minute: "2-digit",
           }),
           date: new Date(msg.timestamp).toLocaleDateString("ja-JP"),
-          self: msg.user_id === user.id ? true : false,
-          replyTo: null,
-          reaction: null,
+          self: msg.user_id === user.id,
           reactions: {},
         }));
 
         setAllMessages((prev) => ({
           ...prev,
-          [selectedChat]: formattedMessages,
+          [selectedChat]: formatted,
         }));
-
-        setCurrentPage(1);
-        setHasMore(response.messages.length === 50);
-      } catch (error) {
-        console.error("メッセージの読み込みに失敗しました:", error);
-      } finally {
-        setIsLoading(false);
+      } catch (err) {
+        console.error("Failed to load messages", err);
       }
     };
 
-    loadMessages();
-
-    const pollInterval = setInterval(loadMessages, 5000);
-
-    return () => clearInterval(pollInterval);
+    loadInitialMessages();
   }, [currentProjectId, selectedChat]);
 
-  // メッセージ送信
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !currentProjectId || !selectedChat) return;
+  useEffect(() => {
+    if (!currentProjectId || !selectedChat) return;
 
-    try {
-      const user_id = user.id;
+    const token = localStorage.getItem(ACCESS_TOKEN);
+    const wsUrl = `ws://localhost:8000/ws/chat/${currentProjectId}/${selectedChat}/?token=${token}`;
 
-      const messageData = {
-        user_id: user_id,
-        content: messageInput,
-      };
+    const socket = new WebSocket(wsUrl);
+    socketRef.current = socket;
 
-      const response = await api.post(
-        `/api/projects/${currentProjectId}/chatrooms/${selectedChat}/messages/`,
-        messageData
+    socket.onopen = () => {
+      console.log("✅ WebSocket connected");
+
+      socket.send(
+        JSON.stringify({
+          type: "join_room",
+        })
       );
+    };
 
-      const newMessage = response.data;
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type !== "message") return;
+
+      const msg = data.message;
+
+      // safety: ignore messages for other rooms
+      if (msg.chatroom_id !== selectedChat) return;
 
       const formattedMessage = {
-        id: newMessage.message_id,
-        user: "自分",
-        text: newMessage.content,
-        time: new Date(newMessage.timestamp).toLocaleTimeString("ja-JP", {
+        id: msg.message_id,
+        userId: msg.user_id,
+        userName: msg.username || msg.name,
+        profilePicture: msg.profile_picture,
+        text: msg.content,
+        time: new Date(msg.timestamp).toLocaleTimeString("ja-JP", {
           hour: "2-digit",
           minute: "2-digit",
         }),
-        date: new Date(newMessage.timestamp).toLocaleDateString("ja-JP"),
-        self: true,
-        replyTo: replyTo || null,
-        reaction: null,
+        date: new Date(msg.timestamp).toLocaleDateString("ja-JP"),
+        self: msg.user_id === user.id,
         reactions: {},
       };
 
-      setAllMessages((prev) => ({
-        ...prev,
-        [selectedChat]: [...(prev[selectedChat] || []), formattedMessage],
-      }));
+      setAllMessages((prev) => {
+        const existing = prev[selectedChat] || [];
 
-      setMessageInput("");
-      setReplyTo(null);
+        // prevent duplicates
+        if (existing.some((m) => m.id === formattedMessage.id)) {
+          return prev;
+        }
 
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+        return {
+          ...prev,
+          [selectedChat]: [...existing, formattedMessage],
+        };
+      });
+    };
 
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.chatroom_id === selectedChat
-            ? { ...chat, lastMessage: messageData.content, timestamp: "今" }
-            : chat
-        )
-      );
-    } catch (error) {
-      console.error("メッセージの送信に失敗しました:", error);
-      alert("メッセージの送信に失敗しました。もう一度お試しください。");
+    socket.onerror = (err) => {
+      console.error("❌ WebSocket error", err);
+    };
+
+    socket.onclose = () => {
+      console.log("🔌 WebSocket disconnected");
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [currentProjectId, selectedChat, user.id]);
+
+  // メッセージ送信
+  const handleSendMessage = () => {
+    if (
+      !messageInput.trim() ||
+      !socketRef.current ||
+      socketRef.current.readyState !== WebSocket.OPEN
+    ) {
+      return;
     }
+
+    socketRef.current.send(
+      JSON.stringify({
+        type: "message", // ✅ MUST be "message"
+        content: messageInput, // ✅ backend expects this
+      })
+    );
+
+    setMessageInput("");
+    setReplyTo(null);
   };
 
   // 編集開始 / 保存
@@ -325,28 +354,23 @@ const Chat = () => {
 
   if (!currentProjectId) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-gray-50 to-blue-50 p-8">
-        <div className="text-center space-y-4">
-          <div className="w-24 h-24 mx-auto bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
-            <FontAwesomeIcon
-              icon={faSmile}
-              className="text-4xl text-blue-500"
-            />
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800">
-            プロジェクトを選択してください
-          </h3>
-          <p className="text-gray-600 max-w-md">
-            チャット機能を利用するには、まずプロジェクトを選択してください。
-          </p>
-        </div>
-      </div>
+      <ProjectRequired
+        icon="💬"
+        title="プロジェクトが選択されていません"
+        description={
+          <>
+            チャット機能を利用するには、
+            <br />
+            まずプロジェクトを作成、または選択してください。
+          </>
+        }
+      />
     );
   }
 
   return (
     <div
-      className="flex w-full bg-white mb-4 rounded-xl shadow-lg overflow-hidden"
+      className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden"
       onClick={closeMenu}
       style={{ height: "calc(100vh - 100px)" }} // 親コンテナの高さを設定
     >
@@ -533,7 +557,7 @@ const Chat = () => {
                               <FontAwesomeIcon
                                 icon={faTrash}
                                 className="w-4 h-4 text-gray-600"
-                            />
+                              />
                             </IconButton>
                           )}
                         </div>

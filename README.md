@@ -35,8 +35,8 @@ copy .env.example .env
 # マイグレーションを実行
 python manage.py migrate
 
-# 開発サーバーを起動
-python manage.py runserver
+# 開発サーバーを起動（ASGIサーバー - WebSocket対応）
+daphne backend.asgi:application
 
 
 ## 4. フロントエンドセットアップ

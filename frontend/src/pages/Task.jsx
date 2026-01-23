@@ -20,11 +20,12 @@ import { CURRENT_PROJECT_ID } from "../constants";
 import { useAuth } from "../context/AuthContext";
 import { createComment } from "../services/CommentService";
 import { resolveImageUrl } from "../utils/resolveImageUrl";
+import ProjectRequired from "../components/ProjectRequired";
 
 const Task = () => {
   const { user } = useAuth();
-  const { currentProject, refreshProjects } = useProject();
-  const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
+  const { projects, currentProject, refreshProjects } = useProject();
+  const currentProjectId = currentProject?.project_id;
 
   // For testing
   const [tasks, setTasks] = useState([]);
@@ -103,6 +104,12 @@ const Task = () => {
 
   useEffect(() => {
     const loadTasks = async () => {
+      if (!currentProjectId) {
+        setTasks([]);
+        setLoading(false); // ✅ IMPORTANT
+        return;
+      }
+
       try {
         const response = await getTasks(currentProjectId);
 
@@ -228,6 +235,8 @@ const Task = () => {
   };
 
   const deleteTask = (taskId) => {
+    if (!window.confirm("このタスクを削除しますか？")) return;
+
     setTasks((tasks) => tasks.filter((t) => t.id !== taskId));
   };
 
@@ -259,6 +268,22 @@ const Task = () => {
 
   if (loading)
     return <div className="p-6 text-gray-600">タスクの読み込み中...</div>;
+
+  if (!projects || projects.length === 0 || !currentProject) {
+    return (
+      <ProjectRequired
+        icon="📝"
+        title="タスクを管理するプロジェクトがありません"
+        description={
+          <>
+            タスクを表示するには、まずプロジェクトを作成、
+            <br />
+            または選択してください。
+          </>
+        }
+      />
+    );
+  }
 
   return (
     <div className="mx-auto md:p-6 space-y-10">
@@ -471,7 +496,7 @@ const Task = () => {
                           : task.status === "in_progress"
                           ? "進行中"
                           : task.status === "in_review"
-                          ? "レビュー中"
+                          ? "レビュー待ち"
                           : task.status === "testing"
                           ? "テスト中"
                           : task.status === "pending"
@@ -634,21 +659,28 @@ const Task = () => {
                 </div>
 
                 <div className="flex gap-4 ml-4">
-                  <button
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-lg bg-yellow-400 hover:bg-yellow-500 rounded-lg hover:cursor-pointer"
-                    title="編集"
-                  >
-                    <FontAwesomeIcon icon={faPen} />
-                    編集
-                  </button>
-                  <button
-                    onClick={() => deleteTask(task.id)}
-                    className="flex items-center gap-2 px-4 py-2 font-bold text-lg text-white bg-red-500 hover:bg-red-600 rounded-lg hover:cursor-pointer"
-                    title="削除"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                    削除
-                  </button>
+                  {task.users.some((u) => u.user_id === user.id) && (
+                    <>
+                      <Link to={`/task/${task.id}/edit`}>
+                        <button
+                          className="flex items-center gap-2 px-4 py-2 font-bold text-lg bg-yellow-400 hover:bg-yellow-500 rounded-lg hover:cursor-pointer"
+                          title="編集"
+                        >
+                          <FontAwesomeIcon icon={faPen} />
+                          編集
+                        </button>
+                      </Link>
+
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        className="flex items-center gap-2 px-4 py-2 font-bold text-lg text-white bg-red-500 hover:bg-red-600 rounded-lg hover:cursor-pointer"
+                        title="削除"
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                        削除
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

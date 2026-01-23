@@ -35,6 +35,7 @@ function App() {
               <Route path="/project/new" element={<NewProjectForm />} />
               <Route path="/task" element={<Task />} />
               <Route path="/task/new" element={<NewTaskForm />} />
+              <Route path="/task/:taskId/edit" element={<NewTaskForm />} />
               <Route path="/invite" element={<MemberInvitationModal />} />
               <Route path="/account" element={<AccountSettings />} />
               <Route path="/calendar" element={<Calendar />} />

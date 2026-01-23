@@ -42,7 +42,7 @@ function Login() {
             navigate("/");
         } 
         catch (error) {
-            alert(error.response?.data ? JSON.stringify(error.response.data) : error);
+            alert(error.response?.data?.message || "メールアドレス、またはパスワードは正しくありません");
         } 
         finally {
             setLoading(false);
@@ -58,7 +58,7 @@ function Login() {
             <div class="min-h-screen flex items-center justify-center px-4">
                 <div class="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden">
                     <div class="bg-blue-600 py-6 text-white">
-                        <h1 class="text-4xl font-bold mb-3 text-center">Project Master</h1>
+                        <h1 class="text-4xl font-bold mb-3 text-center">FlowMatic</h1>
                         <p class="text-lg text-center font-semibold">プロジェクトを管理するにはログインしてください</p>
                     </div>
                     

@@ -120,7 +120,7 @@ function Register() {
             <div className="min-h-screen flex items-center justify-center px-4">
                 <div className="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden">
                     <div className="bg-blue-600 py-5 text-white">
-                        <h1 className="text-4xl font-bold mb-4 text-center">Project Master</h1>
+                        <h1 className="text-4xl font-bold mb-4 text-center">FlowMatic</h1>
                         <p className="text-lg text-center font-semibold">アカウントを作成してください</p>
                     </div>
                     

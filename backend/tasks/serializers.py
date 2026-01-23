@@ -214,12 +214,13 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         project = self.context["project"]
-        assigned_user_ids = attrs.get("assigned_user_ids", [])
 
-        # If no assigned_user_ids provided, skip validation
-        if not assigned_user_ids:
-            attrs["member_objects"] = []
+        # Only process assigned_user_ids if present in attrs
+        if "assigned_user_ids" not in attrs:
+            # Do not touch member_objects
             return attrs
+
+        assigned_user_ids = attrs.get("assigned_user_ids", [])
 
         # Ensure assigned_user_ids are unique
         seen = set()
@@ -232,9 +233,7 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
             seen.add(uid)
             unique_user_ids.append(uid)
 
-        users = (
-            list(User.objects.filter(pk__in=unique_user_ids)) if unique_user_ids else []
-        )
+        users = list(User.objects.filter(pk__in=unique_user_ids)) if unique_user_ids else []
         if len(users) != len(unique_user_ids):
             raise serializers.ValidationError(
                 {"assigned_user_ids": "Some assigned_user_ids are invalid."}
@@ -243,20 +242,24 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         # Ensure assigned users are all in the project
         if users:
             assigned_user_pks = set(
-                project.members.filter(pk__in=unique_user_ids).values_list(
-                    "pk", flat=True
-                )
+                project.members.filter(pk__in=unique_user_ids).values_list("pk", flat=True)
             )
             if assigned_user_pks != set(unique_user_ids):
                 raise serializers.ValidationError(
-                    {
-                        "assigned_user_ids": "All assigned users must be assigned to the project."
-                    }
+                    {"assigned_user_ids": "All assigned users must be assigned to the project."}
                 )
 
-        # Attach resolved objects to attrs so update() can use them
         attrs["member_objects"] = users
         return attrs
+
+    def update(self, instance, validated_data):
+        member_objects = validated_data.pop("member_objects", None)
+        if member_objects is not None:
+            instance.assigned_users.set(member_objects)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
 
 
 class TaskResponseSerializer(serializers.ModelSerializer):

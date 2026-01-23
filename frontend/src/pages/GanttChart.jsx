@@ -6,10 +6,14 @@ import { CURRENT_PROJECT_ID } from "../constants";
 import { getTasks, updateTask } from "../services/TaskService";
 import { useProject } from "../context/ProjectContext";
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCirclePlus, faPlusCircle } from "@fortawesome/free-solid-svg-icons";
+import ProjectRequired from "../components/ProjectRequired";
 
 export default function GanttChart() {
   const { user } = useAuth();
-  const { currentProject } = useProject();
+  const { projects, currentProject } = useProject();
   const currentProjectId = localStorage.getItem(CURRENT_PROJECT_ID);
   const [viewMode, setViewMode] = useState("Day");
   const [tasks, setTasks] = useState([]);
@@ -60,8 +64,9 @@ export default function GanttChart() {
   }, [tasks]);
 
   useEffect(() => {
+    if (!currentProject || !user) return;
     fetchTasks();
-  }, [currentProject?.project_id, user?.id]);
+  }, [currentProject, user]);
 
   useEffect(() => {
     if (tasks.length > 0 && ganttContainerRef.current) {
@@ -89,7 +94,7 @@ export default function GanttChart() {
 
       const taskId = bar.getAttribute("data-task-id");
       const task = tasks.find((t) => t.id === taskId);
-      
+
       if (!task) {
         console.log(`Task not found for ID: ${taskId}`);
         return;
@@ -133,17 +138,27 @@ export default function GanttChart() {
 
       const response = await getTasks(currentProjectId);
       console.log("API Response:", response);
-      
+
       // Handle different response formats
       let tasksData = response;
-      
+
       // If response is an object with a 'tasks' property
-      if (response && typeof response === 'object' && !Array.isArray(response) && response.tasks) {
+      if (
+        response &&
+        typeof response === "object" &&
+        !Array.isArray(response) &&
+        response.tasks
+      ) {
         tasksData = response.tasks;
         console.log("Extracted tasks from response.tasks");
       }
       // If response is an object that's actually a single task
-      else if (response && typeof response === 'object' && !Array.isArray(response) && response.task_id) {
+      else if (
+        response &&
+        typeof response === "object" &&
+        !Array.isArray(response) &&
+        response.task_id
+      ) {
         tasksData = [response]; // Wrap single task in array
         console.log("Wrapped single task in array");
       }
@@ -151,12 +166,11 @@ export default function GanttChart() {
       else if (Array.isArray(response)) {
         console.log("Response is already an array");
       }
-      
+
       console.log("Tasks data to transform:", tasksData);
-      
+
       const transformedTasks = transformTasksForGantt(tasksData);
       setTasks(transformedTasks);
-      
     } catch (err) {
       setError(err.message);
       console.error("Error fetching tasks:", err);
@@ -169,85 +183,92 @@ export default function GanttChart() {
   const transformTasksForGantt = (tasksData) => {
     // Ensure we always work with an array
     const taskArray = Array.isArray(tasksData) ? tasksData : [];
-    
+
     if (taskArray.length === 0) {
       console.log("No tasks to transform");
       return [];
     }
-    
+
     console.log("Transforming tasks:", {
       totalTasks: taskArray.length,
       user: user,
-      firstTask: taskArray[0]
+      firstTask: taskArray[0],
     });
 
-    return taskArray.map((task) => {
-      if (!task || !task.task_id) {
-        console.warn("Invalid task data:", task);
-        return null;
-      }
+    return taskArray
+      .map((task) => {
+        if (!task || !task.task_id) {
+          console.warn("Invalid task data:", task);
+          return null;
+        }
 
-      const progressMap = {
-        done: 100,
-        testing: 75,
-        in_review: 60,
-        in_progress: 40,
-        pending: 10,
-        todo: 0,
-      };
+        const progressMap = {
+          done: 100,
+          testing: 75,
+          in_review: 60,
+          in_progress: 40,
+          pending: 10,
+          todo: 0,
+        };
 
-      let startDate, endDate;
-      try {
-        endDate = new Date(task.deadline);
-        startDate = new Date(task.start_date);
-      } catch (error) {
-        console.error("Error parsing dates for task:", task.task_id, error);
-        // Use fallback dates
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 7);
-      }
+        let startDate, endDate;
+        try {
+          endDate = new Date(task.deadline);
+          startDate = new Date(task.start_date);
+        } catch (error) {
+          console.error("Error parsing dates for task:", task.task_id, error);
+          // Use fallback dates
+          endDate = new Date();
+          startDate = new Date();
+          startDate.setDate(startDate.getDate() - 7);
+        }
 
-      // Check if user exists and if this task is assigned to the current user
-      // Handle different possible structures for users
-      let users = [];
-      
-      if (task.users && Array.isArray(task.users)) {
-        users = task.users;
-      } else if (task.assigned_users && Array.isArray(task.assigned_users)) {
-        users = task.assigned_users;
-      } else if (task.assigned_user_ids && Array.isArray(task.assigned_user_ids)) {
-        // If it's just an array of IDs, convert to objects
-        users = task.assigned_user_ids.map(id => ({ user_id: id }));
-      }
-      
-      const assignedUserIds = users.map(u => u?.user_id).filter(id => id != null);
-      
-      const isAssignedToMe = user?.id 
-        ? assignedUserIds.includes(user.id)
-        : false;
+        // Check if user exists and if this task is assigned to the current user
+        // Handle different possible structures for users
+        let users = [];
 
-      console.log("Task transformation:", {
-        taskId: task.task_id,
-        taskName: task.name,
-        users: users,
-        assignedUserIds: assignedUserIds,
-        currentUserId: user?.id,
-        isAssignedToMe: isAssignedToMe
-      });
+        if (task.users && Array.isArray(task.users)) {
+          users = task.users;
+        } else if (task.assigned_users && Array.isArray(task.assigned_users)) {
+          users = task.assigned_users;
+        } else if (
+          task.assigned_user_ids &&
+          Array.isArray(task.assigned_user_ids)
+        ) {
+          // If it's just an array of IDs, convert to objects
+          users = task.assigned_user_ids.map((id) => ({ user_id: id }));
+        }
 
-      return {
-        id: task.task_id,
-        name: task.name,
-        start: startDate.toISOString().split("T")[0],
-        end: endDate.toISOString().split("T")[0],
-        progress: 0,
-        // progress: progressMap[task.status] || 0,
-        custom_class: isAssignedToMe ? "assigned-to-me" : "not-assigned",
-        originalTask: task,
-        draggable: isAssignedToMe,
-      };
-    }).filter(task => task != null); // Filter out any null tasks
+        const assignedUserIds = users
+          .map((u) => u?.user_id)
+          .filter((id) => id != null);
+
+        const isAssignedToMe = user?.id
+          ? assignedUserIds.includes(user.id)
+          : false;
+
+        console.log("Task transformation:", {
+          taskId: task.task_id,
+          taskName: task.name,
+          users: users,
+          assignedUserIds: assignedUserIds,
+          currentUserId: user?.id,
+          isAssignedToMe: isAssignedToMe,
+        });
+
+        return {
+          id: task.task_id,
+          name: task.name,
+          start: startDate.toISOString().split("T")[0],
+          end: endDate.toISOString().split("T")[0],
+          progress: 0,
+          // progress: progressMap[task.status] || 0,
+          custom_class: isAssignedToMe ? "assigned-to-me" : "not-assigned",
+          originalTask: task,
+          draggable: isAssignedToMe,
+        };
+      })
+      .filter((task) => task != null); // Filter out any null tasks
   };
 
   const formatDateForAPI = (dateString) => {
@@ -279,7 +300,7 @@ export default function GanttChart() {
         endDate,
         projectId: currentProjectId,
         user: user?.id,
-        draggable: task.draggable
+        draggable: task.draggable,
       });
 
       const originalTask =
@@ -368,7 +389,7 @@ export default function GanttChart() {
         status,
         projectId: currentProjectId,
         user: user?.id,
-        draggable: task.draggable
+        draggable: task.draggable,
       });
 
       const originalTask =
@@ -450,6 +471,24 @@ export default function GanttChart() {
     assignedUserIds: t.originalTask?.users?.map(u => u.user_id) || []
   })));
  */
+
+  // プロジェクトが存在しない、または選択されていない場合
+  if (!projects || projects.length === 0 || !currentProject) {
+    return (
+      <ProjectRequired
+        icon="📊"
+        title="プロジェクトが選択されていません"
+        description={
+          <>
+            ガントチャートを表示するには、
+            <br />
+            まずプロジェクトを作成、または選択してください。
+          </>
+        }
+      />
+    );
+  }
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-6">
@@ -515,7 +554,11 @@ export default function GanttChart() {
                   task,
                   `担当者: ${isMine ? "自分" : "他人"}`,
                   `User ID: ${user?.id}`,
-                  `Assigned Users: ${task.originalTask?.users?.map(u => `${u.name} (${u.user_id})`).join(', ') || 'None'}`
+                  `Assigned Users: ${
+                    task.originalTask?.users
+                      ?.map((u) => `${u.name} (${u.user_id})`)
+                      .join(", ") || "None"
+                  }`
                 );
                 if (!isMine) {
                   alert("このタスクは担当者ではないため変更できません");
@@ -530,9 +573,19 @@ export default function GanttChart() {
             </div>
           </>
         ) : (
-          <div className="bg-gray-100 text-gray-600 p-10 text-center rounded">
+          <div className="bg-gray-100 text-gray-600 p-8 text-center rounded flex flex-col gap-4">
             <h1 className="text-2xl font-semibold">データがありません</h1>
-            <h3 className="text-base mt-2">タスクを追加してください。</h3>
+            <h3 className="text-lg font-bold">タスクを追加してください。</h3>
+
+          <Link to="/task/new">
+            <button
+              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800
+              text-white font-bold text-lg rounded-xl transition cursor-pointer"
+            >
+              <FontAwesomeIcon icon={faPlusCircle} />
+              新規タスク
+            </button>
+            </Link>
           </div>
         )}
       </div>

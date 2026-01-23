@@ -1,4 +1,7 @@
 from .models import Notification
+from .serializers import NotificationSerializer
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 
 def create_notification(
@@ -17,13 +20,32 @@ def create_notification(
     Returns:
         Notification object
     """
-    return Notification.objects.create(
+    notification = Notification.objects.create(
         recipient=recipient,
         title=title,
         message=message,
         notification_type=notification_type,
         related_object_id=related_object_id,
     )
+
+    channel_layer = get_channel_layer()
+    user_id = str(recipient.id)
+    serializer = NotificationSerializer(notification)
+
+    unread_count = Notification.objects.filter(
+        recipient=recipient, is_read=False
+    ).count()
+
+    async_to_sync(channel_layer.group_send)(
+        f"notifications_{user_id}",
+        {
+            "type": "notification_created",
+            "notification": serializer.data,
+            "unread_count": unread_count,
+        },
+    )
+
+    return notification
 
 
 def create_task_notification(recipient, task, action="created"):

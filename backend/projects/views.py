@@ -13,7 +13,6 @@ from .serializers import (
     ProjectCreateSerializer,
     MemberSerializer,
 )
-from notifications.utils import create_project_notification
 
 User = get_user_model()
 
@@ -72,11 +71,6 @@ class ProjectListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         project = serializer.save()
 
-        # Create notifications for project members (except creator)
-        for member in project.members.all():
-            if member != request.user:
-                create_project_notification(member, project, "created")
-
         response_serializer = ProjectResponseSerializer(project)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -111,31 +105,12 @@ class ProjectDetailView(APIView):
         project = self._get_project(project_id)
         self._assert_assigned_or_staff(project)
 
-        # Get current members before update
-        old_member_ids = set(project.members.values_list("pk", flat=True))
-
         serializer = ProjectCreateSerializer(
             project, data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # Get new members after update
-        new_member_ids = set(project.members.values_list("pk", flat=True))
-        new_members = new_member_ids - old_member_ids
-
-        # Create notifications for new members
-        for member_id in new_members:
-            member = User.objects.get(pk=member_id)
-            if member != request.user:
-                create_project_notification(member, project, "member_added")
-
-        # Create general update notifications for existing members (except updater)
-        for member in project.members.all():
-            if member != request.user and member.pk not in new_members:
-                create_project_notification(member, project, "updated")
-
-        # Return response with MemberSerializer for members
         response_serializer = ProjectResponseSerializer(project)
         return Response(response_serializer.data)
 
@@ -143,31 +118,12 @@ class ProjectDetailView(APIView):
         project = self._get_project(project_id)
         self._assert_assigned_or_staff(project)
 
-        # Get current members before update
-        old_member_ids = set(project.members.values_list("pk", flat=True))
-
         serializer = ProjectCreateSerializer(
             project, data=request.data, partial=True, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # Get new members after update
-        new_member_ids = set(project.members.values_list("pk", flat=True))
-        new_members = new_member_ids - old_member_ids
-
-        # Create notifications for new members
-        for member_id in new_members:
-            member = User.objects.get(pk=member_id)
-            if member != request.user:
-                create_project_notification(member, project, "member_added")
-
-        # Create general update notifications for existing members (except updater)
-        for member in project.members.all():
-            if member != request.user and member.pk not in new_members:
-                create_project_notification(member, project, "updated")
-
-        # Return response with MemberSerializer for members
         response_serializer = ProjectResponseSerializer(project)
         return Response(response_serializer.data)
 

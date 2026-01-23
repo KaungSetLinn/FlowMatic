@@ -38,6 +38,8 @@ function Layout() {
     return <div className="p-6 text-gray-600">Loading projects...</div>;
 
   const handleLogout = () => {
+    if (!window.confirm("本当にログアウトしますか？")) return;
+    
     localStorage.clear();
     setIsAuthorized(false);
     window.location.href = "/login";
@@ -124,23 +126,22 @@ function Layout() {
             <i className="fa-solid fa-bell text-3xl mr-2"></i>
           </div>
         </header>
-
-        {/* Header visible on both desktop and mobile */}
-        <header className="bg-white shadow-sm flex items-center p-4 sticky top-14 md:top-0 z-30">
-          {/* On mobile, this sits below blue bar (top-14), on desktop it's top-0 */}
-          <span className="text-lg font-bold">現在のプロジェクト：</span>
-          <select
-            value={currentProject?.project_id || ""}
-            onChange={(e) => handleProjectChange(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white hover:cursor-pointer"
-          >
-            {projects.map((project) => (
-              <option key={project.project_id} value={project.project_id}>
-                {project.title}
-              </option>
-            ))}
-          </select>
-        </header>
+        {projects && projects.length > 0 && (
+          <header className="bg-white shadow-sm flex items-center p-4 sticky top-14 md:top-0 z-30">
+            <span className="text-lg font-bold mr-4">現在のプロジェクト：</span>
+            <select
+              value={currentProject?.project_id || ""}
+              onChange={(e) => handleProjectChange(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-lg bg-white hover:cursor-pointer"
+            >
+              {projects.map((project) => (
+                <option key={project.project_id} value={project.project_id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
+          </header>
+        )}
 
         {/* Page Content */}
         <main className="flex-1 p-6 bg-gray-50">

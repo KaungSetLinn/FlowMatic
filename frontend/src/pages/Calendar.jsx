@@ -21,6 +21,7 @@ import {
 } from "../services/EventService";
 import { formatDateJP, formatUTC } from "../utils/dateUtils";
 import utc from "dayjs/plugin/utc";
+import ProjectRequired from "../components/ProjectRequired";
 dayjs.extend(utc);
 
 // ========== Constants ==========
@@ -128,7 +129,7 @@ const mapApiColorToHex = (apiColor) => {
 // ========== Main Component ==========
 const Calendar = () => {
   const calendarRef = useRef(null);
-  const { currentProject } = useProject();
+  const { projects, currentProject } = useProject();
 
   // State
   const [events, setEvents] = useState([]);
@@ -193,7 +194,11 @@ const Calendar = () => {
 
   // ========== Handlers ==========
   const fetchTasks = async () => {
-    if (!currentProject?.project_id) return;
+    if (!currentProject?.project_id) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -209,7 +214,11 @@ const Calendar = () => {
   };
 
   const fetchEvents = async () => {
-    if (!currentProject?.project_id) return;
+    if (!currentProject?.project_id) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       const apiEvents = await getEvents(currentProject.project_id);
@@ -439,6 +448,23 @@ const Calendar = () => {
       </div>
     );
   }
+
+  if (!projects || projects.length === 0 || !currentProject) {
+  return (
+    <ProjectRequired
+      icon="📅"
+      title="カレンダーを表示するプロジェクトがありません"
+      description={
+        <>
+          カレンダーを表示するには、まずプロジェクトを作成、
+          <br />
+          または選択してください。
+        </>
+      }
+    />
+  );
+}
+
 
   const filteredAndSortedEvents = tasks
     .filter((e) => {
